@@ -1,0 +1,50 @@
+name: build
+
+on:
+  pull_request:
+    branches: ["master"]
+  push:
+    branches: ["master"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ghc: [latest]
+        cabal: [latest]
+        os: [ubuntu-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Detect latest language
+        run: |
+          ./detect_latest.sh >> $GITHUB_ENV
+          echo "${{ env.latest }}"
+      - name: Set up Haskell
+        uses: haskell/actions/setup@v2
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: ${{ matrix.cabal }}
+      - name: Set up HLint
+        uses: haskell/actions/hlint-setup@v2
+        with:
+          version: 3.1.6
+      - name: Run HLint
+        uses: haskell/actions/hlint-run@v2
+        with:
+          path: ${{ env.latest }}
+          fail-on: warning
+      - name: Run HLint report
+        uses: domdere/haskell-lint-action@v1.0.2
+      - name: Build
+        run: |
+          cd ${{ env.latest }}
+          cabal update
+          cabal build
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
