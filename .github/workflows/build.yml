@@ -47,6 +47,9 @@ jobs:
           cabal update
           cabal build
       - name: Test
-        run: cabal test
+        run: |
+          cd ${{ env.latest }}
+          cabal update
+          cabal test
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
