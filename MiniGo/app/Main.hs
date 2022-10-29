@@ -6,21 +6,21 @@ main :: IO ()
 main = do
   args <- getArgs
   let f = case args of
-        ["-i"] -> show . interpret
-        ["--interpret"] -> show . interpret
-        ["-p"] -> show . parse
-        ["--parse"] -> show . parse
+        ["-i"] -> interpretAndShow
+        ["--interpret"] -> interpretAndShow
+        ["-p"] -> parseAndShow
+        ["--parse"] -> parseAndShow
         ["-h"] -> const helpMsg
         ["--help"] -> const helpMsg
-        [] -> show . interpret
+        [] -> interpretAndShow
         _ -> const "Wrong usage, to call help use `--help` or `-h`.\n"
    in interact f
 
-interpret :: String -> String
-interpret fileText = "TODO : interpreter\n"
+interpretAndShow :: String -> String
+interpretAndShow fileText = "TODO : interpreter\n"
 
-parse :: String -> String
-parse fileText = "TODO : parser\n"
+parseAndShow :: String -> String
+parseAndShow fileText = "TODO : parser\n"
 
 helpMsg :: String
 helpMsg =
