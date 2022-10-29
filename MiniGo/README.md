@@ -11,8 +11,7 @@ This is a homework for functional programming course.
 
 |               To do               | In progress | Done  |
 | :-------------------------------: | :---------: | :---: |
-|                CLI                |             |       |
-| grammar definition in Pest syntax |             |       |
+| grammar definition in Pest syntax |             |  CLI  |
 |                AST                |             |       |
 |               lexer               |             |       |
 |              parser               |             |       |
