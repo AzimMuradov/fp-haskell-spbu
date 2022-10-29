@@ -1,0 +1,83 @@
+cabal-version: 3.0
+
+-- The name of the package.
+name: mini-go
+
+-- The package version.
+version: 0.1.0.0
+
+-- A short (one-line) description of the package.
+synopsis: Mini Go parser and interpreter
+
+-- A longer description of the package.
+description:
+    Mini Go parser and interpreter
+
+-- URL for the project homepage or repository.
+homepage: https://github.com/AzimMuradov/fp2022-haskell/tree/master/MiniGO
+
+-- A URL where users can report bugs.
+bug-reports: https://github.com/AzimMuradov/fp2022-haskell/issues
+
+-- The license under which the package is released.
+license: Apache-2.0
+
+-- The file containing the license text.
+license-file: LICENSE
+
+-- The package author.
+author: Azim Muradov
+
+-- An email address to which users can send suggestions, bug reports, and patches.
+maintainer: azim.muradov.dev@gmail.com
+
+-- A copyright notice.
+copyright: Copyright © 2022 Azim Muradov
+
+-- A copyright notice.
+category: Language
+
+-- Extra files to be distributed with the package, such as examples or a README.
+extra-source-files: README.md
+
+
+library
+    -- Modules exported by the library.
+    exposed-modules:
+
+    -- Modules included in this library but not exported.
+    other-modules:
+
+    -- Base language which the package is written in.
+    default-language: Haskell2010
+
+    -- LANGUAGE extensions used by modules in this package.
+    other-extensions:
+
+    -- Other library packages from which modules are imported.
+    build-depends:
+        base >=4.16.3.0
+
+    -- Directories containing source files.
+    hs-source-dirs: lib
+
+executable minigo
+    -- .hs or .lhs file containing the Main module.
+    main-is: Main.hs
+
+    -- Modules included in this executable, other than Main.
+    other-modules:
+
+    -- Base language which the package is written in.
+    default-language: Haskell2010
+
+    -- LANGUAGE extensions used by modules in this package.
+    other-extensions:
+
+    -- Other library packages from which modules are imported.
+    build-depends:
+        base >=4.16.3.0,
+        mini-go
+
+    -- Directories containing source files.
+    hs-source-dirs: app
