@@ -9,12 +9,11 @@ This is a homework for functional programming course.
 
 ### Features:
 
-|               To do               | In progress | Done  |
-| :-------------------------------: | :---------: | :---: |
-| grammar definition in Pest syntax |             |  CLI  |
-|                AST                |             |       |
-|               lexer               |             |       |
-|              parser               |             |       |
-|          tests for lexer          |             |       |
-|         tests for parser          |             |       |
-|           type checking           |             |       |
+|      To do       |            In progress            | Done  |
+| :--------------: | :-------------------------------: | :---: |
+|       AST        | grammar definition in Pest syntax |  CLI  |
+|      lexer       |                                   |       |
+|      parser      |                                   |       |
+| tests for lexer  |                                   |       |
+| tests for parser |                                   |       |
+|  type checking   |                                   |       |
