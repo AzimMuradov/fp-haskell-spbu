@@ -11,9 +11,7 @@ This is a homework for functional programming course.
 
 |      To do       |            In progress            | Done  |
 | :--------------: | :-------------------------------: | :---: |
-|       AST        | grammar definition in Pest syntax |  CLI  |
-|      lexer       |                                   |       |
-|      parser      |                                   |       |
-| tests for lexer  |                                   |       |
-| tests for parser |                                   |       |
-|  type checking   |                                   |       |
+| tests for lexer  | grammar definition in Pest syntax |  CLI  |
+| tests for parser |                AST                |       |
+|  type checking   |               lexer               |       |
+|                  |              parser               |       |
