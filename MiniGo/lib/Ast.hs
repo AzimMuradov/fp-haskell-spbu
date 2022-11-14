@@ -114,12 +114,13 @@ data ArrayType = ArrayType {elementType :: Type, length :: Integer}
 
 data Literal
   = StringLiteral Text
-  | IntLiteral Integer
+  | IntLiteral Int
+  | BoolLiteral Bool
   | ArrayLiteral {t :: ArrayType, value :: [Element]}
   | FunctionLiteral {signature :: FuncSignature, body :: [Statement]}
   deriving (Show)
 
-data Element = ElExpr Expression | ElEls [Element]
+data Element = ElementExpr Expression | ElementElements [Element]
   deriving (Show)
 
 -- Identifier

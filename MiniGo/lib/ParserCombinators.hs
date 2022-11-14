@@ -10,10 +10,9 @@ import Data.Text (Text, concat, intercalate, pack, singleton, unpack)
 import Data.Void (Void)
 import GHC.Num (integerToInt)
 import Numeric (readBin, readDec, readHex, readInt, readOct)
-import Text.Megaparsec (MonadParsec (eof, notFollowedBy, takeP, try), Parsec, anySingle, between, choice, count, eitherP, many, oneOf, optional, satisfy, sepBy, some, (<?>), (<|>))
+import Text.Megaparsec (MonadParsec (eof, notFollowedBy, takeP, try), Parsec, anySingle, between, choice, count, eitherP, many, oneOf, optional, satisfy, sepBy, sepBy1, some, (<?>), (<|>))
 import Text.Megaparsec.Char (alphaNumChar, binDigitChar, char, char', digitChar, hexDigitChar, letterChar, newline, octDigitChar, space1, string)
-import Text.Megaparsec.Char.Lexer (decimal)
-import qualified Text.Megaparsec.Char.Lexer as Lexer
+import qualified Text.Megaparsec.Char.Lexer as L
 import Text.Read.Lex (readIntP)
 
 type Parser output = Parsec Void Text output
@@ -190,40 +189,48 @@ elementP       = { expressionP | LiteralValue } -}
 
 -- Basic literals
 
+intLitP :: Parser Integer
+intLitP =
+  choice
+    [ try binaryLitP <?> "binary number literal",
+      try octalLitP <?> "octal number literal",
+      try hexLitP <?> "hex number literal",
+      try decimalLitP <?> "decimal number literal"
+    ]
+
+decimalLitP :: Parser Integer
+decimalLitP =
+  lexeme $
+    (0 <$ char '0') <|> do
+      first <- oneOf ['1' .. '9'] <?> "first not-zero decimal digit (1..9)"
+      other <- many $ char '_' *> digitChar
+      return $ readInteger readDec $ first : other
+
+binaryLitP :: Parser Integer
+binaryLitP = abstractIntLitP (char' 'b') binDigitChar readBin
+
+octalLitP :: Parser Integer
+octalLitP = abstractIntLitP (optional $ char' 'o') octDigitChar readOct
+
+hexLitP :: Parser Integer
+hexLitP = abstractIntLitP (char' 'x') hexDigitChar readHex
+
+abstractIntLitP :: Parser a -> Parser Char -> ReadS Integer -> Parser Integer
+abstractIntLitP charIdP digitP reader = lexeme $ do
+  void $ char '0' *> charIdP *> optional (char '_')
+  intStr <- sepBy1 digitP $ optional $ char '_'
+  return $ readInteger reader intStr
+
+
+boolLitP :: Parser Bool
+boolLitP = lexeme $ (True <$ string "true") <|> (False <$ string "false")
+
+
 stringLitP :: Parser Text
 stringLitP = lexeme $ Data.Text.concat <$> between (char '"') (char '"') (some stringCharP)
 
 stringCharP :: Parser Text
 stringCharP = notFollowedBy (choice [newline, char '\\', char '"']) *> (singleton <$> anySingle) <|> escapedCharP
-
--- stringCharP :: Parser Text
--- stringCharP =
---   choice
---     [ notFollowedBy (choice [newline, char '\\', char '"']) *> (singleton <$> anySingle),
---       littleUValueP,
---       bigUValueP,
---       escapedCharP,
---       byteValueP
---     ]
-
--- byteValueP :: Parser Text
--- byteValueP = octalByteValueP <|> hexByteValueP
-
--- octalByteValueP :: Parser Text
--- octalByteValueP = pack <$> (char '\\' *> count 3 octDigitChar)
-
--- hexByteValueP :: Parser Text
--- hexByteValueP = pack <$> (string "\\x" *> count 2 hexDigitChar)
-
--- littleUValueP :: Parser Text
--- littleUValueP = pack <$> (string "\\u" *> count 4 hexDigitChar)
-
--- bigUValueP :: Parser Text
--- bigUValueP = do
---   s <- string "\\U"
---   cs <- count 8 hexDigitChar
---   let int = readInteger readHex cs
---   if int > 1000000000000 then fail "Ha-ha" else return $ pack $ show $ chr $ integerToInt int
 
 escapedCharP :: Parser Text
 escapedCharP =
@@ -240,36 +247,11 @@ escapedCharP =
         "\"" <$ char '\"'
       ]
 
-intLitP :: Parser Integer
-intLitP = binaryLitP <|> octalLitP <|> hexLitP <|> decimalLitP
-
-decimalLitP :: Parser Integer
-decimalLitP =
-  lexeme $
-    (0 <$ char '0') <|> do
-      first <- oneOf ['1' .. '9'] <?> "first digit"
-      other <- many $ char '_' *> digitChar
-      return $ readInteger readDec $ first : other
-
-binaryLitP :: Parser Integer
-binaryLitP = abstractIntLitP (char' 'b') binDigitChar readBin
-
-octalLitP :: Parser Integer
-octalLitP = abstractIntLitP (optional $ char' 'o') octDigitChar readOct
-
-hexLitP :: Parser Integer
-hexLitP = abstractIntLitP (char' 'x') hexDigitChar readHex
-
-abstractIntLitP :: Parser a -> Parser Char -> ReadS Integer -> Parser Integer
-abstractIntLitP charIdP digitP reader = lexeme $ do
-  void $ char '0' *> charIdP *> optional (char '_')
-  intStr <- sepBy digitP $ optional $ char '_'
-  return $ readInteger reader intStr
 
 -- Identifier
 
 identifierListP :: Parser [Ast.Identifier]
-identifierListP = sepBy identifierP $ char ','
+identifierListP = sepBy identifierP $ symbol ","
 
 identifierP :: Parser Ast.Identifier
 identifierP = lexeme $ do
@@ -283,13 +265,13 @@ letterP = letterChar <|> char '_'
 -- Lexer parts
 
 sc :: Parser ()
-sc = Lexer.space space1 (Lexer.skipLineComment "//") (Lexer.skipBlockComment "/*" "*/")
+sc = L.space space1 (L.skipLineComment "//") (L.skipBlockComment "/*" "*/")
 
 lexeme :: Parser a -> Parser a
-lexeme = Lexer.lexeme sc
+lexeme = L.lexeme sc
 
 symbol :: Text -> Parser Text
-symbol = Lexer.symbol sc
+symbol = L.symbol sc
 
 -- Utils
 

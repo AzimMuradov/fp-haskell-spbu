@@ -90,7 +90,7 @@ ArrayType = { "[" ~ Expression ~ "]" ~ Type }
 
 // Literal
 
-Literal = { StringLit | IntLit | ArrayLiteral | FunctionLit }
+Literal = {  IntLit | BoolLit | StringLit | ArrayLiteral | FunctionLit }
 
 
 // Complex literals
@@ -109,15 +109,17 @@ Element          = { Expression | LiteralValue }
 
 // Basic literals
 
+IntLit      = @{ BinaryLit | OctalLit | HexLit | DecimalLit }
+DecimalLit  = { "0" | '1'..'9' ~ ( "_"? ~ DecimalDigit )* }
+BinaryLit   = { "0" ~ ( "b" | "B" ) ~ ( "_"? ~ BinaryDigit )+ }
+OctalLit    = { "0" ~ ( "o" | "O" )? ~ ( "_"? ~ OctalDigit )+ }
+HexLit      = { "0" ~ ( "x" | "X" ) ~ ( "_"? ~ HexDigit )+ }
+
+BoolLit     = @{ "true" | "false" }
+
 StringLit   = @{ "\"" ~ StringChar* ~ "\"" }
 StringChar  = { !(Newline | "\\" | "\"") ~ UnicodeChar | EscapedChar }
 EscapedChar = { "\\" ~ ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\\" | "\"" ) }
-
-IntLit      = { BinaryLit | OctalLit | HexLit | DecimalLit }
-DecimalLit  = @{ "0" | '1'..'9' ~ ( "_"? ~ DecimalDigit )* }
-BinaryLit   = @{ "0" ~ ( "b" | "B" ) ~ ( "_"? ~ BinaryDigit )+ }
-OctalLit    = @{ "0" ~ ( "o" | "O" )? ~ ( "_"? ~ OctalDigit )+ }
-HexLit      = @{ "0" ~ ( "x" | "X" ) ~ ( "_"? ~ HexDigit )+ }
 
 
 // Identifier
