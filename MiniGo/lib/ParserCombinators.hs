@@ -1,10 +1,13 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module ParserCombinators where
 
 import qualified Ast
+import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
 import Data.Char (chr, isNumber)
 import Data.Functor (void)
+import Data.List (partition)
 import Data.Maybe (fromJust, listToMaybe)
 import Data.Text (Text, concat, intercalate, pack, singleton, unpack)
 import Data.Void (Void)
@@ -20,108 +23,124 @@ type Parser output = Parsec Void Text output
 -- Program
 
 fileP :: Parser Ast.Program
-fileP = programP <* eof
+fileP = sc *> programP <* eof
 
 programP :: Parser Ast.Program
-programP = Ast.Program <$> (sc *> many topLevelDeclP)
+programP = do
+  decls <- many topLevelDeclP
+  let vars = [x | Left x <- decls]
+  let funs = [x | Right x <- decls]
+  return Ast.Program {Ast.topLevelVarDecls = vars, Ast.topLevelFunctionDefs = funs}
 
-topLevelDeclP :: Parser Ast.TopLevelDecl
-topLevelDeclP =
-  choice
-    [ Ast.TopLevelVarDecl <$> (varDeclP <* char ';'),
-      Ast.TopLevelFunctionDecl <$> funcDeclP
-    ]
-
-varDeclP :: Parser [Ast.VarSpec]
-varDeclP = undefined
-
-funcDeclP :: Parser Ast.FunctionDecl
-funcDeclP = undefined
+topLevelDeclP :: Parser (Either Ast.VarDecl Ast.FunctionDef)
+topLevelDeclP = eitherP (varDeclP <* char ';') funcDeclP
 
 -- Expression
 
-{-
-ExpressionList = { expressionP ~ ( "," ~ expressionP )* }
+expressionListP :: Parser [Ast.Expression]
+expressionListP = sepBy expressionP $ symbol ","
 
-expressionP     = { UnaryExpr ~ (binaryOpP ~ UnaryExpr)* }
+expressionP :: Parser Ast.Expression
+expressionP = makeExprParser term opsTable
 
-UnaryExpr      = { unaryOpP* ~ PrimaryExpr }
-PrimaryExpr    = { Operand ~ ( Index | Arguments )* }
+term :: Parser Ast.Expression
+term =
+  choice
+    [ between (symbol "(") (symbol ")") expressionP,
+      Ast.ExprLiteral <$> literalP,
+      funApplicationP,
+      arrayIndexAccessP,
+      Ast.ExprIdentifier <$> identifierP
+    ]
 
-Operand        = { Literal | OperandName | "(" ~ expressionP ~ ")" }
-OperandName    = { identifier }
+-- TODO : funApplicationP
 
-indexP :: Parser
-indexP          = between (char '[') (char ']') expressionP
-Arguments      = { "(" ~ ( ( ExpressionList | Type ~ ( "," ~ ExpressionList )? ) ~ "..."? ~ ","? )? ~ ")" }
--}
+funApplicationP :: Parser Ast.Expression
+funApplicationP = undefined
+-- { "(" ~ ( ( ExpressionList | Type ~ ( "," ~ ExpressionList )? ) ~ "..."? ~ ","? )? ~ ")" }
+
+-- TODO : arrayIndexAccessP
+
+arrayIndexAccessP :: Parser Ast.Expression
+arrayIndexAccessP = undefined
+
+opsTable :: [[Operator (Parsec Void Text) Ast.Expression]]
+opsTable =
+  [ [ unaryOp "+" Ast.UnaryPlusOp,
+      unaryOp "-" Ast.UnaryMinusOp,
+      unaryOp "!" Ast.NotOp,
+      unaryOp "^" Ast.BitwiseComplementOp
+    ],
+    [ mulOp "*" Ast.MultOp,
+      mulOp "/" Ast.DivOp,
+      mulOp "%" Ast.ModOp,
+      mulOp "<<" Ast.BitShiftLeftOp,
+      mulOp ">>" Ast.BitShiftRightOp,
+      mulOp "&^" Ast.BitClearOp,
+      mulOp "&" Ast.BitAndOp
+    ],
+    [ addOp "+" Ast.PlusOp,
+      addOp "-" Ast.MinusOp,
+      addOp "|" Ast.BitOrOp,
+      addOp "^" Ast.BitXorOp
+    ],
+    [ relOp "==" Ast.EqOp,
+      relOp "!=" Ast.NeOp,
+      relOp "<=" Ast.LeOp,
+      relOp "<" Ast.LtOp,
+      relOp ">=" Ast.MeOp,
+      relOp ">" Ast.MtOp
+    ],
+    [andOrOp "&&" Ast.AndOp],
+    [andOrOp "||" Ast.OrOp]
+  ]
+
+-- Operator Types
+
+binary name fun = InfixL (fun <$ symbol name)
+
+prefix name fun = Prefix (fun <$ symbol name)
 
 -- Operators
 
-assignOpP :: Parser Ast.AssignOp
-assignOpP = do
-  op <- optional $ eitherP addOpP mulOpP
-  void $ char '='
-  return $ maybe Ast.AssignOp Ast.ComplexAssignOp op
+andOrOp :: Text -> Ast.BinaryOp -> Operator (Parsec Void Text) Ast.Expression
+andOrOp name op = binary name (Ast.ExprBinaryOp op)
 
-binaryOpP :: Parser Ast.BinaryOp
-binaryOpP =
+relOp :: Text -> Ast.RelOp -> Operator (Parsec Void Text) Ast.Expression
+relOp name op = binary name (Ast.ExprBinaryOp (Ast.RelOp op))
+
+addOp :: Text -> Ast.AddOp -> Operator (Parsec Void Text) Ast.Expression
+addOp name op = binary name (Ast.ExprBinaryOp (Ast.AddOp op))
+
+mulOp :: Text -> Ast.MulOp -> Operator (Parsec Void Text) Ast.Expression
+mulOp name op = binary name (Ast.ExprBinaryOp (Ast.MulOp op))
+
+unaryOp :: Text -> Ast.UnaryOp -> Operator (Parsec Void Text) Ast.Expression
+unaryOp name op = prefix name (Ast.ExprUnaryOp op)
+
+-- assignOpP :: Parser Ast.AssignOp
+-- assignOpP = do
+--   op <- optional $ eitherP addOpP mulOpP
+--   void $ char '='
+--   return $ maybe Ast.AssignOp Ast.ComplexAssignOp op
+
+-- Type
+
+typeP :: Parser Ast.Type
+typeP =
   choice
-    [ Ast.OrOp <$ string "||",
-      Ast.AndOp <$ string "&&",
-      Ast.AddOp <$> addOpP,
-      Ast.MulOp <$> mulOpP,
-      Ast.RelOp <$> relOpP
+    [ Ast.TInt <$ string "int",
+      Ast.TBool <$ string "bool",
+      Ast.TString <$ string "string",
+      between (char '(') (char ')') typeP
+      -- TODO : arrayTypeP, functionTypeP,
+      -- Ast.TFunction <$ string "string"
     ]
 
-relOpP :: Parser Ast.RelOp
-relOpP =
-  choice
-    [ Ast.EqOp <$ string "==",
-      Ast.NeOp <$ string "!=",
-      Ast.LeOp <$ string "<=",
-      Ast.LtOp <$ char '<',
-      Ast.MeOp <$ string ">=",
-      Ast.MtOp <$ char '>'
-    ]
-
-addOpP :: Parser Ast.AddOp
-addOpP =
-  choice
-    [ Ast.PlusOp <$ char '+',
-      Ast.MinusOp <$ char '-',
-      Ast.BitOrOp <$ char '|',
-      Ast.BitXorOp <$ char '^'
-    ]
-
-mulOpP :: Parser Ast.MulOp
-mulOpP =
-  choice
-    [ Ast.MultOp <$ char '*',
-      Ast.DivOp <$ char '/',
-      Ast.ModOp <$ char '%',
-      Ast.BitShiftLeftOp <$ string "<<",
-      Ast.BitShiftRightOp <$ string ">>",
-      Ast.BitClearOp <$ string "&^",
-      Ast.BitAndOp <$ char '&'
-    ]
-
-unaryOpP :: Parser Ast.UnaryOp
-unaryOpP =
-  choice
-    [ Ast.UnaryPlusOp <$ char '+',
-      Ast.UnaryMinusOp <$ char '-',
-      Ast.NotOp <$ char '!',
-      Ast.BitwiseComplementOp <$ char '^'
-    ]
+funcDeclP :: Parser Ast.FunctionDef
+funcDeclP = undefined
 
 {-
-// Type
-
-Type      = { TypeLit | TypeName | "(" ~ Type ~ ")" }
-TypeName  = { identifier }
-TypeLit   = { ArrayType | FunctionType }
-
 // Function declaration (definition)
 
 FunctionDecl = { "func" ~ FunctionName ~ Signature ~ FunctionBody }
@@ -149,7 +168,12 @@ Condition = { expressionP }
 
 VarDecl     = { "var" ~ ( VarSpec | "(" ~ ( VarSpec ~ ";" )* ~ ")" ) }
 VarSpec     = { IdentifierList ~ ( Type ~ ( "=" ~ ExpressionList )? | "=" ~ ExpressionList ) }
+-}
 
+varDeclP :: Parser Ast.VarDecl
+varDeclP = undefined
+
+{-
 IfElseStmt = { "if" ~ ( SimpleStmt ~ ";" )? ~ expressionP ~ Block ~ ("else" ~ ( IfElseStmt | Block ))? }
 
 SimpleStmt = { Assignment | IncDecStmt | ShortVarDecl | ExpressionStmt }
@@ -164,32 +188,54 @@ blockP = { "{" ~ ( Statement? ~ ";")* ~ "}" }
 
 -- Array
 
--- ArrayType   = { "[" ~ expressionP ~ "]" ~ Type }
+arrayTypeP :: Parser Ast.ArrayType
+arrayTypeP = do
+  lenExpr <- between (symbol "[") (symbol "]") expressionP
+  len <- do
+    case simplifyConstExpr lenExpr of
+      Just (Ast.LitInt len) -> return len
+      _ -> fail "this is not a const int expression"
+  t <- typeP
+  return Ast.ArrayType {Ast.elementType = t, Ast.length = len}
 
 -- Literal
 
 literalP :: Parser Ast.Literal
 literalP =
   choice
-    [ Ast.StringLiteral <$> stringLitP,
-      Ast.IntLiteral <$> intLitP
-      -- , arrayLitP, functionLitP
+    [ Ast.LitInt <$> intLitP,
+      Ast.LitBool <$> boolLitP,
+      Ast.LitString <$> stringLitP
+      -- TODO : arrayLitP, functionLitP
     ]
 
 -- Complex literals
 
-{- functionLitP   = { "func" ~ Signature ~ FunctionBody }
+-- TODO : Implement Function Literals
 
-arrayLitP  = { ArrayType ~ arrayLitValueP }
-arrayLitValueP  = { "{" ~ ( ElementList ~ ","? )? ~ "}" }
-elementListP   = { KeyedElement ~ ( "," ~ KeyedElement )* }
-keyedElementP  = { ( Key ~ ":" )? ~ Element }
-keyP           = { expressionP }
-elementP       = { expressionP | LiteralValue } -}
+-- functionLitP   = { "func" ~ Signature ~ FunctionBody }
+
+-- TODO : Implement Array Literals
+
+arrayLitP :: Parser Ast.Literal
+arrayLitP = do
+  t <- arrayTypeP
+  value <- arrayLitValueP
+  return Ast.LitArray {Ast.t = t, Ast.value = value}
+
+arrayLitValueP :: Parser [Ast.Element]
+arrayLitValueP = undefined
+
+-- ArrayLiteral      = { ArrayType ~ ArrayLiteralValue }
+-- ArrayLiteralValue = { "{" ~ ( KeyedElementList ~ ","? )? ~ "}" }
+-- KeyedElementList  = { KeyedElement ~ ( "," ~ KeyedElement )* }
+-- KeyedElement      = { ( Key ~ ":" )? ~ Element }
+-- Key               = { Expression }
+-- Element           = { Expression | ArrayLiteralValue }
 
 -- Basic literals
 
-intLitP :: Parser Integer
+intLitP :: Parser Int
 intLitP =
   choice
     [ try binaryLitP <?> "binary number literal",
@@ -198,33 +244,31 @@ intLitP =
       try decimalLitP <?> "decimal number literal"
     ]
 
-decimalLitP :: Parser Integer
+decimalLitP :: Parser Int
 decimalLitP =
   lexeme $
     (0 <$ char '0') <|> do
       first <- oneOf ['1' .. '9'] <?> "first not-zero decimal digit (1..9)"
-      other <- many $ char '_' *> digitChar
+      other <- many $ optional (char '_') *> digitChar
       return $ readInteger readDec $ first : other
 
-binaryLitP :: Parser Integer
+binaryLitP :: Parser Int
 binaryLitP = abstractIntLitP (char' 'b') binDigitChar readBin
 
-octalLitP :: Parser Integer
+octalLitP :: Parser Int
 octalLitP = abstractIntLitP (optional $ char' 'o') octDigitChar readOct
 
-hexLitP :: Parser Integer
+hexLitP :: Parser Int
 hexLitP = abstractIntLitP (char' 'x') hexDigitChar readHex
 
-abstractIntLitP :: Parser a -> Parser Char -> ReadS Integer -> Parser Integer
+abstractIntLitP :: Parser a -> Parser Char -> ReadS Integer -> Parser Int
 abstractIntLitP charIdP digitP reader = lexeme $ do
   void $ char '0' *> charIdP *> optional (char '_')
   intStr <- sepBy1 digitP $ optional $ char '_'
   return $ readInteger reader intStr
 
-
 boolLitP :: Parser Bool
 boolLitP = lexeme $ (True <$ string "true") <|> (False <$ string "false")
-
 
 stringLitP :: Parser Text
 stringLitP = lexeme $ Data.Text.concat <$> between (char '"') (char '"') (some stringCharP)
@@ -246,7 +290,6 @@ escapedCharP =
         "\\" <$ char '\\',
         "\"" <$ char '\"'
       ]
-
 
 -- Identifier
 
@@ -275,5 +318,24 @@ symbol = L.symbol sc
 
 -- Utils
 
-readInteger :: ReadS Integer -> String -> Integer
-readInteger reader s = fst $ head $ reader s
+-- TODO : Use const expressions simplification
+
+readInteger :: ReadS Integer -> String -> Int
+readInteger reader s = fromIntegral $ fst $ head $ reader s
+
+-- TODO : Add const expressions simplification (w/o `const` keyword)
+
+-- should help for creation simpler AST
+-- should help finding 'too big int literals' 'compile' (parse) time
+simplifyConstExpr :: Ast.Expression -> Maybe Ast.Value
+simplifyConstExpr (Ast.ExprLiteral lit) = Just lit
+simplifyConstExpr (Ast.ExprIdentifier _) = Nothing
+simplifyConstExpr (Ast.ExprUnaryOp _ _) = undefined
+simplifyConstExpr (Ast.ExprBinaryOp _ _ _) = undefined
+simplifyConstExpr (Ast.ExprFuncApplication _ _) = undefined
+simplifyConstExpr (Ast.ExprArrayIndexAccess _ _) = undefined
+
+-- simplifyConstExpr Ast.ExprArrayIndexAccess {arr, index} = do
+--   Just Ast.LitArray simp_arr <- simplifyConstExpr arr
+--   Just Ast.LitInt simp_index <- simplifyConstExpr index
+--   return Ast.Value {  }

@@ -20,7 +20,7 @@ Operand        = { Literal | OperandName | "(" ~ Expression ~ ")" }
 OperandName    = { Identifier }
 
 Index          = { "[" ~ Expression ~ "]" }
-Arguments      = { "(" ~ ( ( ExpressionList | Type ~ ( "," ~ ExpressionList )? ) ~ ","? )? ~ ")" }
+Arguments      = { "(" ~ ( ExpressionList ~ ","? )? ~ ")" }
 
 
 // Operators
@@ -32,28 +32,28 @@ RelOp     = { "==" | "!=" |"<=" | "<" | ">=" | ">" }
 AddOp     = { "+" | "-" | "|" | "^" }
 MulOp     = { "*" | "/" | "%" | "<<" | ">>" | "&^" | "&" }
 
-UnaryOp   = { "+" | "-" | "!" | "^" | "*" | "&" }
+UnaryOp   = { "+" | "-" | "!" | "^" }
 
 
 // Type
 
 Type           = { TypeLit | TypeName | "(" ~ Type ~ ")" }
-TypeName       = { Identifier }
+TypeName       = { "int" | "bool" | "string" }
 TypeLit        = { ArrayType | FunctionType }
 
 
 // Function declaration (definition)
 
-FunctionDecl   = { "func" ~ FunctionName ~ Signature ~ FunctionBody }
-FunctionName   = { Identifier }
-FunctionBody   = { Block }
+FunctionDecl  = { "func" ~ FunctionName ~ Signature ~ FunctionBody }
+FunctionName  = { Identifier }
+FunctionBody  = { Block }
 
-FunctionType   = { "func" ~ Signature }
-Signature      = { Parameters ~ Result? }
-Result         = { Parameters | Type }
-Parameters     = { "(" ~ ( ParameterList ~ ","? )? ~ ")" }
-ParameterList  = { ParameterDecl ~ ( "," ~ ParameterDecl )* }
-ParameterDecl  = { IdentifierList? ~ Type }
+FunctionType  = { "func" ~ Signature }
+Signature     = { Parameters ~ Result? }
+Result        = { Parameters | Type }
+Parameters    = { "(" ~ ( ParameterList ~ ","? )? ~ ")" }
+ParameterList = { ParameterDecl ~ ( "," ~ ParameterDecl )* }
+ParameterDecl = { IdentifierList? ~ Type }
 
 
 // Statements
@@ -95,16 +95,15 @@ Literal = {  IntLit | BoolLit | StringLit | ArrayLiteral | FunctionLit }
 
 // Complex literals
 
-FunctionLit      = { "func" ~ Signature ~ FunctionBody }
+FunctionLit       = { "func" ~ Signature ~ FunctionBody }
 
-ArrayLiteral     = { ArrayLiteralType ~ LiteralValue }
-ArrayLiteralType = { ArrayType }
-LiteralValue     = { "{" ~ ( ElementList ~ ","? )? ~ "}" }
-ElementList      = { KeyedElement ~ ( "," ~ KeyedElement )* }
-KeyedElement     = { ( Key ~ ":" )? ~ Element }
-Key              = { Expression }
-FieldName        = { Identifier }
-Element          = { Expression | LiteralValue }
+ArrayLiteral      = { ArrayLiteralType ~ ArrayLiteralValue }
+ArrayLiteralType  = { ArrayType }
+ArrayLiteralValue = { "{" ~ ( KeyedElementList ~ ","? )? ~ "}" }
+KeyedElementList  = { KeyedElement ~ ( "," ~ KeyedElement )* }
+KeyedElement      = { ( Key ~ ":" )? ~ Element }
+Key               = { Expression }
+Element           = { Expression | ArrayLiteralValue }
 
 
 // Basic literals

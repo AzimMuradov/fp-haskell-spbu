@@ -4,121 +4,197 @@ module Ast where
 
 import Data.Text (Text)
 
-newtype Program = Program [TopLevelDecl]
-  deriving (Show)
+-- TODO : Add VOID support !!!
 
-data TopLevelDecl = TopLevelVarDecl [VarSpec] | TopLevelFunctionDecl FunctionDecl
+-- Program
+
+data Program = Program {topLevelVarDecls :: [VarDecl], topLevelFunctionDefs :: [FunctionDef]}
   deriving (Show)
 
 -- Expression
 
-data Expression = Expression {x :: UnaryExpr, xs :: [(BinaryOp, UnaryExpr)]}
-  deriving (Show)
-
-data UnaryExpr = UnaryExpr {operators :: [UnaryOp], expr :: PrimaryExpr}
-  deriving (Show)
-
-data PrimaryExpr = PrimaryExpr {op :: Operand, postEls :: [Expression]}
-  deriving (Show)
-
-data Operand = OperandLiteral Literal | OperandName Identifier | OperandExpression Expression
+data Expression
+  = ExprLiteral Literal
+  | ExprIdentifier Identifier
+  | ExprUnaryOp UnaryOp Expression
+  | ExprBinaryOp BinaryOp Expression Expression
+  | ExprFuncApplication {fn :: Expression, args :: [Expression]}
+  | ExprArrayIndexAccess {arr :: Expression, index :: Int}
   deriving (Show)
 
 -- Operators
 
-data AssignOp = AssignOp | ComplexAssignOp (Either AddOp MulOp)
+data BinaryOp
+  = -- | a || b
+    OrOp
+  | -- | a && b
+    AndOp
+  | -- | TODO
+    RelOp RelOp
+  | -- | TODO
+    AddOp AddOp
+  | -- | TODO
+    MulOp MulOp
   deriving (Show)
 
-data BinaryOp = OrOp | AndOp | RelOp RelOp | AddOp AddOp | MulOp MulOp
+-- | Relation operators, works only on boolean types.
+data RelOp
+  = -- | a == b
+    EqOp
+  | -- | a != b
+    NeOp
+  | -- | a < b
+    LtOp
+  | -- | a <= b
+    LeOp
+  | -- | a > b
+    MtOp
+  | -- | a >= b
+    MeOp
   deriving (Show)
 
-data RelOp = EqOp | NeOp | LtOp | LeOp | MtOp | MeOp
+data AddOp
+  = -- | a + b
+    PlusOp
+  | -- | a - b
+    MinusOp
+  | -- | a | b
+    BitOrOp
+  | -- | a ^ b
+    BitXorOp
   deriving (Show)
 
-data AddOp = PlusOp | MinusOp | BitOrOp | BitXorOp
+data MulOp
+  = -- | a * b
+    MultOp
+  | -- | a / b
+    DivOp
+  | -- | a % b
+    ModOp
+  | -- | a << b
+    BitShiftLeftOp
+  | -- | a >> b
+    BitShiftRightOp
+  | -- | a &^ b
+    BitClearOp
+  | -- | a & b
+    BitAndOp
   deriving (Show)
 
-data MulOp = MultOp | DivOp | ModOp | BitShiftLeftOp | BitShiftRightOp | BitAndOp | BitClearOp
-  deriving (Show)
-
-data UnaryOp = UnaryPlusOp | UnaryMinusOp | NotOp | BitwiseComplementOp
+data UnaryOp
+  = -- | +a
+    UnaryPlusOp
+  | -- | -a
+    UnaryMinusOp
+  | -- | !a
+    NotOp
+  | -- | ^a
+    BitwiseComplementOp
   deriving (Show)
 
 -- Type
 
 data Type
-  = IntT
-  | BoolT
-  | StringT
-  | ArrayT ArrayType
-  | FunctionT NamelessFuncSignature
+  = -- | Integer type: Go's equvilent of 64-bit`int` type.
+    TInt
+  | -- | Boolean type: Go's equvilent of `bool` type.
+    TBool
+  | -- | String type: Go's equvilent of `string` type.
+    TString
+  | -- TODO
+    TArray ArrayType
+  | -- TODO
+    TFunction {parameters :: [Type], result :: [Type]}
   deriving (Show)
 
--- Function declaration (definition)
+-- Function definition
 
-data FunctionDecl = FunctionDecl {name :: Identifier, signature :: FuncSignature, body :: [Statement]}
+data FunctionDef = FunctionDef {name :: Identifier, signature :: FuncSignature, body :: [Stmt]}
   deriving (Show)
 
-data NamelessFuncSignature = NamelessFuncSignature {parameters :: NamelessFuncParameters, result :: Maybe Result}
-  deriving (Show)
-
-data FuncSignature = FuncSignature {parameters :: FuncParameters, result :: Maybe Result}
-  deriving (Show)
-
-data Result = NamelessParameters NamelessFuncParameters | Type Type
-  deriving (Show)
-
-data NamelessFuncParameters = OneNPar Type | MultipleNPar Type
-  deriving (Show)
-
-data FuncParameters = OnePar Identifier Type | MultiplePar Identifier Type
+data FuncSignature = FuncSignature {parameters :: [(Identifier, Type)], result :: [Type]}
   deriving (Show)
 
 -- Statements
 
-data Statement
-  = ReturnStmt (Maybe [Expression])
-  | BreakStmt
-  | ContinueStmt
-  | ForStmt
-  | VarDecl [VarSpec]
-  | IfElseStmt
-  | Block [Statement]
-  | SimpleStmt SimpleStmt
+data Stmt
+  = -- | TODO
+    StmtReturn (Maybe [Expression])
+  | -- | TODO
+    StmtBreak
+  | -- | TODO
+    StmtContinue
+  | -- | TODO
+    StmtFor For
+  | -- | TODO
+    StmtVarDecl VarDecl
+  | -- | TODO
+    StmtIfElse IfElse
+  | -- | { ... }
+    StmtBlock [Stmt]
+  | -- | TODO
+    StmtSimple SimpleStmt
   deriving (Show)
 
--- data ForStmt   = ForStmt{ ( ForClause | Condition )? ~ block::[Statement] }
--- data ForClause = ForClause { preStament::Maybe SimpleStmt, condition:: Maybe Condition, postStament::Maybe SimpleStm }
+data For
+  = -- | TODO
+    For
+      { preStament :: Maybe SimpleStmt,
+        forCondition :: Maybe Expression,
+        postStament :: Maybe SimpleStmt,
+        block :: [Stmt]
+      }
+  | -- | TODO
+    While {whileCondition :: Expression, block :: [Stmt]}
+  | -- | TODO
+    Loop {block :: [Stmt]}
+  deriving (Show)
 
--- Condition = { Expression }
+newtype VarDecl = VarDecl [VarSpec]
+  deriving (Show)
 
 data VarSpec = VarSpec {identifiers :: [Identifier], t :: Maybe Type, expressions :: [Expression]}
   deriving (Show)
 
--- IfElseStmt = { "if" ~ ( SimpleStmt ~ ";" )? ~ Expression ~ block::[Statement] ~ ("else" ~ ( IfElseStmt | block::[Statement] ))? }
+data IfElse = IfElse
+  { simpleStmt :: Maybe SimpleStmt,
+    condition :: Expression,
+    block :: [Stmt],
+    elseStmt :: Either IfElse [Stmt]
+  }
+  deriving (Show)
 
 data SimpleStmt
-  = AssignmentStmt {lhs :: [Expression], op :: AssignOp, rhs :: [Expression]}
-  | IncStmt Expression
-  | DecStmt Expression
-  | ShortVarDeclStmt {identifiers :: [Identifier], exprs :: [Expression]}
-  | ExpressionStmt Expression
+  = StmtAssignment {lhs :: [AssignmentLhs], rhs :: [Expression]}
+  | StmtInc Expression
+  | StmtDec Expression
+  | StmtShortVarDecl {identifiers :: [Identifier], expressions :: [Expression]}
+  | StmtExpression Expression
+  deriving (Show)
+
+data AssignmentLhs
+  = AssignmentLhsVar Identifier
+  | AssignmentLhsArrayElement Identifier [Int]
+  | AssignmentLhsBlank
   deriving (Show)
 
 -- Array
 
-data ArrayType = ArrayType {elementType :: Type, length :: Integer}
+data ArrayType = ArrayType {elementType :: Type, length :: Int}
   deriving (Show)
 
 -- Literal
 
 data Literal
-  = StringLiteral Text
-  | IntLiteral Int
-  | BoolLiteral Bool
-  | ArrayLiteral {t :: ArrayType, value :: [Element]}
-  | FunctionLiteral {signature :: FuncSignature, body :: [Statement]}
+  = LitInt Int
+  | LitBool Bool
+  | LitString Text
+  | LitArray {t :: ArrayType, value :: [Element]}
+  | LitFunction {signature :: FuncSignature, body :: [Stmt]}
   deriving (Show)
+
+-- | Represents runtime value of the calculated expression
+type Value = Literal
 
 data Element = ElementExpr Expression | ElementElements [Element]
   deriving (Show)
