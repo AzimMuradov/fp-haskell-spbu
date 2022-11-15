@@ -4,6 +4,7 @@
 module ParserCombinators where
 
 import qualified Ast
+import ContExprSimplification
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
 import Data.Char (chr, isNumber)
 import Data.Functor (void)
@@ -13,12 +14,12 @@ import Data.Text (Text, concat, intercalate, pack, singleton, unpack)
 import Data.Void (Void)
 import GHC.Num (integerToInt)
 import Numeric (readBin, readDec, readHex, readInt, readOct)
-import Text.Megaparsec (MonadParsec (eof, notFollowedBy, takeP, try), Parsec, anySingle, between, choice, count, eitherP, many, oneOf, optional, satisfy, sepBy, sepBy1, some, (<?>), (<|>))
+import Text.Megaparsec (MonadParsec (eof, notFollowedBy, takeP, try), Parsec, anySingle, between, choice, count, eitherP, many, oneOf, optional, satisfy, sepBy, sepBy1, sepEndBy, some, (<?>), (<|>))
 import Text.Megaparsec.Char (alphaNumChar, binDigitChar, char, char', digitChar, hexDigitChar, letterChar, newline, octDigitChar, space1, string)
 import qualified Text.Megaparsec.Char.Lexer as L
 import Text.Read.Lex (readIntP)
 
-type Parser output = Parsec Void Text output
+type Parser = Parsec Void Text
 
 -- Program
 
@@ -29,8 +30,8 @@ programP :: Parser Ast.Program
 programP = do
   decls <- many topLevelDeclP
   let vars = [x | Left x <- decls]
-  let funs = [x | Right x <- decls]
-  return Ast.Program {Ast.topLevelVarDecls = vars, Ast.topLevelFunctionDefs = funs}
+  let funcs = [x | Right x <- decls]
+  return Ast.Program {Ast.topLevelVarDecls = vars, Ast.topLevelFunctionDefs = funcs}
 
 topLevelDeclP :: Parser (Either Ast.VarDecl Ast.FunctionDef)
 topLevelDeclP = eitherP (varDeclP <* char ';') funcDeclP
@@ -41,32 +42,20 @@ expressionListP :: Parser [Ast.Expression]
 expressionListP = sepBy expressionP $ symbol ","
 
 expressionP :: Parser Ast.Expression
-expressionP = makeExprParser term opsTable
+expressionP = makeExprParser expressionTerm opsTable
 
-term :: Parser Ast.Expression
-term =
+expressionTerm :: Parser Ast.Expression
+expressionTerm =
   choice
     [ between (symbol "(") (symbol ")") expressionP,
       Ast.ExprLiteral <$> literalP,
-      funApplicationP,
-      arrayIndexAccessP,
       Ast.ExprIdentifier <$> identifierP
     ]
 
--- TODO : funApplicationP
-
-funApplicationP :: Parser Ast.Expression
-funApplicationP = undefined
--- { "(" ~ ( ( ExpressionList | Type ~ ( "," ~ ExpressionList )? ) ~ "..."? ~ ","? )? ~ ")" }
-
--- TODO : arrayIndexAccessP
-
-arrayIndexAccessP :: Parser Ast.Expression
-arrayIndexAccessP = undefined
-
-opsTable :: [[Operator (Parsec Void Text) Ast.Expression]]
+opsTable :: [[Operator Parser Ast.Expression]]
 opsTable =
-  [ [ unaryOp "+" Ast.UnaryPlusOp,
+  [ [funcCallOp, arrayAccessByIndexOp],
+    [ unaryOp "+" Ast.UnaryPlusOp,
       unaryOp "-" Ast.UnaryMinusOp,
       unaryOp "!" Ast.NotOp,
       unaryOp "^" Ast.BitwiseComplementOp
@@ -101,22 +90,38 @@ binary name fun = InfixL (fun <$ symbol name)
 
 prefix name fun = Prefix (fun <$ symbol name)
 
+postfix parser = Postfix parser
+
 -- Operators
 
-andOrOp :: Text -> Ast.BinaryOp -> Operator (Parsec Void Text) Ast.Expression
+andOrOp :: Text -> Ast.BinaryOp -> Operator Parser Ast.Expression
 andOrOp name op = binary name (Ast.ExprBinaryOp op)
 
-relOp :: Text -> Ast.RelOp -> Operator (Parsec Void Text) Ast.Expression
+relOp :: Text -> Ast.RelOp -> Operator Parser Ast.Expression
 relOp name op = binary name (Ast.ExprBinaryOp (Ast.RelOp op))
 
-addOp :: Text -> Ast.AddOp -> Operator (Parsec Void Text) Ast.Expression
+addOp :: Text -> Ast.AddOp -> Operator Parser Ast.Expression
 addOp name op = binary name (Ast.ExprBinaryOp (Ast.AddOp op))
 
-mulOp :: Text -> Ast.MulOp -> Operator (Parsec Void Text) Ast.Expression
+mulOp :: Text -> Ast.MulOp -> Operator Parser Ast.Expression
 mulOp name op = binary name (Ast.ExprBinaryOp (Ast.MulOp op))
 
-unaryOp :: Text -> Ast.UnaryOp -> Operator (Parsec Void Text) Ast.Expression
+unaryOp :: Text -> Ast.UnaryOp -> Operator Parser Ast.Expression
 unaryOp name op = prefix name (Ast.ExprUnaryOp op)
+
+funcCallOp :: Operator Parser Ast.Expression
+funcCallOp = postfix $ do
+  args <- between (symbol "(") (symbol ")") $ sepEndBy expressionP $ symbol ","
+  return $ \func -> Ast.ExprFuncCall func args
+
+arrayAccessByIndexOp :: Operator Parser Ast.Expression
+arrayAccessByIndexOp = postfix $ do
+  indexExpr <- between (symbol "[") (symbol "]") expressionP
+  index <- do
+    case simplifyConstExpr indexExpr of
+      Just (Ast.LitInt len) -> return len
+      _ -> fail "this is not a const int expression"
+  return $ \arr -> Ast.ExprArrayAccessByIndex arr index
 
 -- assignOpP :: Parser Ast.AssignOp
 -- assignOpP = do
@@ -322,20 +327,3 @@ symbol = L.symbol sc
 
 readInteger :: ReadS Integer -> String -> Int
 readInteger reader s = fromIntegral $ fst $ head $ reader s
-
--- TODO : Add const expressions simplification (w/o `const` keyword)
-
--- should help for creation simpler AST
--- should help finding 'too big int literals' 'compile' (parse) time
-simplifyConstExpr :: Ast.Expression -> Maybe Ast.Value
-simplifyConstExpr (Ast.ExprLiteral lit) = Just lit
-simplifyConstExpr (Ast.ExprIdentifier _) = Nothing
-simplifyConstExpr (Ast.ExprUnaryOp _ _) = undefined
-simplifyConstExpr (Ast.ExprBinaryOp _ _ _) = undefined
-simplifyConstExpr (Ast.ExprFuncApplication _ _) = undefined
-simplifyConstExpr (Ast.ExprArrayIndexAccess _ _) = undefined
-
--- simplifyConstExpr Ast.ExprArrayIndexAccess {arr, index} = do
---   Just Ast.LitArray simp_arr <- simplifyConstExpr arr
---   Just Ast.LitInt simp_index <- simplifyConstExpr index
---   return Ast.Value {  }

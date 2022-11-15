@@ -18,8 +18,8 @@ data Expression
   | ExprIdentifier Identifier
   | ExprUnaryOp UnaryOp Expression
   | ExprBinaryOp BinaryOp Expression Expression
-  | ExprFuncApplication {fn :: Expression, args :: [Expression]}
-  | ExprArrayIndexAccess {arr :: Expression, index :: Int}
+  | ExprFuncCall Expression [Expression]
+  | ExprArrayAccessByIndex Expression Int
   deriving (Show)
 
 -- Operators
@@ -29,30 +29,31 @@ data BinaryOp
     OrOp
   | -- | a && b
     AndOp
-  | -- | TODO
+  | -- | Relation operator
     RelOp RelOp
-  | -- | TODO
+  | -- | Additive operator
     AddOp AddOp
-  | -- | TODO
+  | -- | Multiplicative operator
     MulOp MulOp
   deriving (Show)
 
--- | Relation operators, works only on boolean types.
+-- | Relation operators
 data RelOp
   = -- | a == b
     EqOp
   | -- | a != b
     NeOp
-  | -- | a < b
-    LtOp
   | -- | a <= b
     LeOp
-  | -- | a > b
-    MtOp
+  | -- | a < b
+    LtOp
   | -- | a >= b
     MeOp
+  | -- | a > b
+    MtOp
   deriving (Show)
 
+-- | Additive operators
 data AddOp
   = -- | a + b
     PlusOp
@@ -64,6 +65,7 @@ data AddOp
     BitXorOp
   deriving (Show)
 
+-- | Multiplicative operators
 data MulOp
   = -- | a * b
     MultOp
@@ -81,6 +83,7 @@ data MulOp
     BitAndOp
   deriving (Show)
 
+-- | Unary operators
 data UnaryOp
   = -- | +a
     UnaryPlusOp
@@ -95,11 +98,11 @@ data UnaryOp
 -- Type
 
 data Type
-  = -- | Integer type: Go's equvilent of 64-bit`int` type.
+  = -- | Integer type: Go's equivalent of 64-bit `int` type.
     TInt
-  | -- | Boolean type: Go's equvilent of `bool` type.
+  | -- | Boolean type: Go's equivalent of `bool` type.
     TBool
-  | -- | String type: Go's equvilent of `string` type.
+  | -- | String type: Go's equivalent of `string` type.
     TString
   | -- TODO
     TArray ArrayType
@@ -139,9 +142,9 @@ data Stmt
 data For
   = -- | TODO
     For
-      { preStament :: Maybe SimpleStmt,
+      { preStatement :: Maybe SimpleStmt,
         forCondition :: Maybe Expression,
-        postStament :: Maybe SimpleStmt,
+        postStatement :: Maybe SimpleStmt,
         block :: [Stmt]
       }
   | -- | TODO
