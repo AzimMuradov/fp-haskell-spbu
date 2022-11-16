@@ -34,7 +34,7 @@ programP = do
   return Ast.Program {Ast.topLevelVarDecls = vars, Ast.topLevelFunctionDefs = funcs}
 
 topLevelDeclP :: Parser (Either Ast.VarDecl Ast.FunctionDef)
-topLevelDeclP = eitherP (stmtVarDeclP <* char ';') functionDefP
+topLevelDeclP = eitherP (stmtVarDeclP <* symbol ";") functionDefP
 
 -- Expression
 
