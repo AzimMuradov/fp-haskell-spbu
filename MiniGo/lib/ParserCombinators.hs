@@ -131,12 +131,12 @@ arrayAccessByIndexOp = postfix $ do
 typeP :: Parser Ast.Type
 typeP =
   choice
-    [ Ast.TInt <$ string "int",
-      Ast.TBool <$ string "bool",
-      Ast.TString <$ string "string",
+    [ Ast.TInt <$ symbol "int",
+      Ast.TBool <$ symbol "bool",
+      Ast.TString <$ symbol "string",
       -- TODO : arrayTypeP
       functionTypeP,
-      between (char '(') (char ')') typeP
+      between (symbol "(") (symbol ")") typeP
     ]
 
 functionTypeP :: Parser Ast.Type
@@ -174,7 +174,7 @@ statementP =
     [ stmtReturnP,
       stmtBreakP,
       stmtContinueP,
-      stmtForP,
+      -- stmtForP,
       Ast.StmtVarDecl <$> stmtVarDeclP,
       Ast.StmtIfElse <$> stmtIfElseP,
       Ast.StmtBlock <$> stmtBlockP,
@@ -182,7 +182,7 @@ statementP =
     ]
 
 stmtReturnP :: Parser Ast.Statement
-stmtReturnP = symbol "break" $> Ast.StmtReturn <*> expressionListP
+stmtReturnP = symbol "return" $> Ast.StmtReturn <*> expressionListP
 
 stmtBreakP :: Parser Ast.Statement
 stmtBreakP = Ast.StmtBreak <$ symbol "break"
