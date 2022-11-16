@@ -24,6 +24,7 @@ data Expression
 
 -- Operators
 
+-- | Binary operators
 data BinaryOp
   = -- | a || b
     OrOp
@@ -112,17 +113,17 @@ data Type
 
 -- Function definition
 
-data FunctionDef = FunctionDef {name :: Identifier, signature :: FuncSignature, body :: [Stmt]}
+data FunctionDef = FunctionDef {name :: Identifier, signature :: FunctionSignature, body :: [Statement]}
   deriving (Show)
 
-data FuncSignature = FuncSignature {parameters :: [(Identifier, Type)], result :: [Type]}
+data FunctionSignature = FunctionSignature {parameters :: [(Identifier, Type)], result :: [Type]}
   deriving (Show)
 
 -- Statements
 
-data Stmt
+data Statement
   = -- | TODO
-    StmtReturn (Maybe [Expression])
+    StmtReturn [Expression]
   | -- | TODO
     StmtBreak
   | -- | TODO
@@ -134,7 +135,7 @@ data Stmt
   | -- | TODO
     StmtIfElse IfElse
   | -- | { ... }
-    StmtBlock [Stmt]
+    StmtBlock [Statement]
   | -- | TODO
     StmtSimple SimpleStmt
   deriving (Show)
@@ -145,12 +146,12 @@ data For
       { preStatement :: Maybe SimpleStmt,
         forCondition :: Maybe Expression,
         postStatement :: Maybe SimpleStmt,
-        block :: [Stmt]
+        block :: [Statement]
       }
   | -- | TODO
-    While {whileCondition :: Expression, block :: [Stmt]}
+    While {whileCondition :: Expression, block :: [Statement]}
   | -- | TODO
-    Loop {block :: [Stmt]}
+    Loop {block :: [Statement]}
   deriving (Show)
 
 newtype VarDecl = VarDecl [VarSpec]
@@ -162,8 +163,8 @@ data VarSpec = VarSpec {identifiers :: [Identifier], t :: Maybe Type, expression
 data IfElse = IfElse
   { simpleStmt :: Maybe SimpleStmt,
     condition :: Expression,
-    block :: [Stmt],
-    elseStmt :: Either IfElse [Stmt]
+    block :: [Statement],
+    elseStmt :: Either IfElse [Statement]
   }
   deriving (Show)
 
@@ -193,7 +194,7 @@ data Literal
   | LitBool Bool
   | LitString Text
   | LitArray {t :: ArrayType, value :: [Element]}
-  | LitFunction {signature :: FuncSignature, body :: [Stmt]}
+  | LitFunction {signature :: FunctionSignature, body :: [Statement]}
   deriving (Show)
 
 -- | Represents runtime value of the calculated expression

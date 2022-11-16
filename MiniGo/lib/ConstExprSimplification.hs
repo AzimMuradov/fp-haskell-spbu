@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module ContExprSimplification where
+module ConstExprSimplification where
 
 import qualified Ast
 
@@ -12,7 +12,7 @@ simplifyConstExpr :: Ast.Expression -> Maybe Ast.Value
 simplifyConstExpr (Ast.ExprLiteral lit) = Just lit
 simplifyConstExpr (Ast.ExprIdentifier _) = Nothing
 simplifyConstExpr (Ast.ExprUnaryOp _ _) = undefined
-simplifyConstExpr (Ast.ExprBinaryOp _ _ _) = undefined
+simplifyConstExpr (Ast.ExprBinaryOp {}) = undefined
 simplifyConstExpr (Ast.ExprFuncCall _ _) = undefined
 simplifyConstExpr (Ast.ExprArrayAccessByIndex _ _) = undefined
 

@@ -4,12 +4,12 @@
 module ParserCombinators where
 
 import qualified Ast
-import ContExprSimplification
+import ConstExprSimplification (simplifyConstExpr)
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
 import Data.Char (chr, isNumber)
-import Data.Functor (void)
+import Data.Functor (void, ($>))
 import Data.List (partition)
-import Data.Maybe (fromJust, listToMaybe)
+import Data.Maybe (catMaybes, fromJust, listToMaybe, maybeToList)
 import Data.Text (Text, concat, intercalate, pack, singleton, unpack)
 import Data.Void (Void)
 import GHC.Num (integerToInt)
@@ -34,7 +34,7 @@ programP = do
   return Ast.Program {Ast.topLevelVarDecls = vars, Ast.topLevelFunctionDefs = funcs}
 
 topLevelDeclP :: Parser (Either Ast.VarDecl Ast.FunctionDef)
-topLevelDeclP = eitherP (varDeclP <* char ';') funcDeclP
+topLevelDeclP = eitherP (stmtVarDeclP <* char ';') functionDefP
 
 -- Expression
 
@@ -86,11 +86,14 @@ opsTable =
 
 -- Operator Types
 
+binary :: Text -> (Ast.Expression -> Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
 binary name fun = InfixL (fun <$ symbol name)
 
+prefix :: Text -> (Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
 prefix name fun = Prefix (fun <$ symbol name)
 
-postfix parser = Postfix parser
+postfix :: Parser (Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
+postfix = Postfix
 
 -- Operators
 
@@ -123,12 +126,6 @@ arrayAccessByIndexOp = postfix $ do
       _ -> fail "this is not a const int expression"
   return $ \arr -> Ast.ExprArrayAccessByIndex arr index
 
--- assignOpP :: Parser Ast.AssignOp
--- assignOpP = do
---   op <- optional $ eitherP addOpP mulOpP
---   void $ char '='
---   return $ maybe Ast.AssignOp Ast.ComplexAssignOp op
-
 -- Type
 
 typeP :: Parser Ast.Type
@@ -137,59 +134,120 @@ typeP =
     [ Ast.TInt <$ string "int",
       Ast.TBool <$ string "bool",
       Ast.TString <$ string "string",
+      -- TODO : arrayTypeP
+      functionTypeP,
       between (char '(') (char ')') typeP
-      -- TODO : arrayTypeP, functionTypeP,
-      -- Ast.TFunction <$ string "string"
     ]
 
-funcDeclP :: Parser Ast.FunctionDef
-funcDeclP = undefined
+functionTypeP :: Parser Ast.Type
+functionTypeP = do
+  void $ symbol "func"
+  paramsTypes <- typesP
+  result <- typesP <|> maybeToList <$> optional typeP
+  return $ Ast.TFunction {parameters = paramsTypes, result = result}
+  where
+    typesP = between (symbol "(") (symbol ")") (sepEndBy typeP $ symbol ",")
 
-{-
-// Function declaration (definition)
+-- Function definition
 
-FunctionDecl = { "func" ~ FunctionName ~ Signature ~ FunctionBody }
-FunctionName = { identifier }
-FunctionBody = { Block }
+functionDefP :: Parser Ast.FunctionDef
+functionDefP = do
+  void $ symbol "func"
+  name <- identifierP
+  signature <- functionSignatureP
+  body <- stmtBlockP
+  return $ Ast.FunctionDef {name = name, signature = signature, body = body}
 
-FunctionType   = { "func" ~ Signature }
-Signature      = { Parameters ~ Result? }
-Result         = { Parameters | Type }
-Parameters     = { "(" ~ ( ParameterList ~ ","? )? ~ ")" }
-ParameterList  = { ParameterDecl ~ ( "," ~ ParameterDecl )* }
-ParameterDecl  = { IdentifierList? ~ "..."? ~ Type }
+functionSignatureP :: Parser Ast.FunctionSignature
+functionSignatureP = do
+  params <- between (symbol "(") (symbol ")") (sepEndBy paramP $ symbol ",")
+  result <- between (symbol "(") (symbol ")") (sepEndBy typeP $ symbol ",") <|> maybeToList <$> optional typeP
+  return $ Ast.FunctionSignature {parameters = params, result = result}
+  where
+    paramP = do n <- identifierP; t <- typeP; return (n, t)
 
-// Statements
+-- Statements
 
-Statement = { ReturnStmt | BreakStmt | ContinueStmt | ForStmt | VarDecl | IfElseStmt | Block | SimpleStmt }
+statementP :: Parser Ast.Statement
+statementP =
+  choice
+    [ stmtReturnP,
+      stmtBreakP,
+      stmtContinueP,
+      stmtForP,
+      Ast.StmtVarDecl <$> stmtVarDeclP,
+      Ast.StmtIfElse <$> stmtIfElseP,
+      Ast.StmtBlock <$> stmtBlockP,
+      Ast.StmtSimple <$> simpleStmtP
+    ]
 
-ReturnStmt   = { "return" ~ ExpressionList? }
-BreakStmt    = { "break" }
-ContinueStmt = { "continue" }
+stmtReturnP :: Parser Ast.Statement
+stmtReturnP = symbol "break" $> Ast.StmtReturn <*> expressionListP
 
-ForStmt   = { "for" ~ ( ForClause | Condition )? ~ Block }
-ForClause = { SimpleStmt? ~ ";" ~ Condition? ~ ";" ~ SimpleStmt? }
-Condition = { expressionP }
+stmtBreakP :: Parser Ast.Statement
+stmtBreakP = Ast.StmtBreak <$ symbol "break"
 
-VarDecl     = { "var" ~ ( VarSpec | "(" ~ ( VarSpec ~ ";" )* ~ ")" ) }
-VarSpec     = { IdentifierList ~ ( Type ~ ( "=" ~ ExpressionList )? | "=" ~ ExpressionList ) }
--}
+stmtContinueP :: Parser Ast.Statement
+stmtContinueP = Ast.StmtContinue <$ symbol "continue"
 
-varDeclP :: Parser Ast.VarDecl
-varDeclP = undefined
+-- TODO : Add For
 
-{-
-IfElseStmt = { "if" ~ ( SimpleStmt ~ ";" )? ~ expressionP ~ Block ~ ("else" ~ ( IfElseStmt | Block ))? }
+stmtForP :: Parser Ast.Statement
+stmtForP = undefined
 
-SimpleStmt = { Assignment | IncDecStmt | ShortVarDecl | ExpressionStmt }
+-- ForStmt   = { "for" ~ ( ForClause | Condition )? ~ Block }
+-- ForClause = { SimpleStmt? ~ ";" ~ Condition? ~ ";" ~ SimpleStmt? }
+-- Condition = { expressionP }
 
-Assignment     = { ExpressionList ~ assign_op ~ ExpressionList }
-IncDecStmt     = { expressionP ~ ( "++" | "--" ) }
-ShortVarDecl   = { IdentifierList ~ ":=" ~ ExpressionList }
-ExpressionStmt = { expressionP }
+-- TODO : Add support for more complex assignments
 
-blockP = { "{" ~ ( Statement? ~ ";")* ~ "}" }
--}
+-- VarDecl     = { "var" ~ ( VarSpec | "(" ~ ( VarSpec ~ ";" )* ~ ")" ) }
+-- VarSpec     = { IdentifierList ~ ( Type ~ ( "=" ~ ExpressionList )? | "=" ~ ExpressionList ) }
+
+stmtVarDeclP :: Parser Ast.VarDecl
+stmtVarDeclP =
+  Ast.VarDecl <$> do
+    void $ symbol "var"
+    between (symbol "(") (symbol ")") (sepEndBy stmtVarSpecP $ symbol ";") <|> (: []) <$> stmtVarSpecP
+
+stmtVarSpecP :: Parser Ast.VarSpec
+stmtVarSpecP = Ast.VarSpec <$> identifierListP <*> optional typeP <*> expressionListP
+
+stmtIfElseP :: Parser Ast.IfElse
+stmtIfElseP = do
+  void $ symbol "if"
+  stmt <- optional $ simpleStmtP <* symbol ";"
+  condition <- expressionP
+  block <- stmtBlockP
+  -- TODO : Add Else ("else" ~ ( IfElseStmt | Block ))?
+  return $ Ast.IfElse {simpleStmt = stmt, condition = condition, block = block, elseStmt = Right []}
+
+stmtBlockP :: Parser [Ast.Statement]
+stmtBlockP = between (symbol "{") (symbol "}") $ catMaybes <$> many (optional statementP <* symbol ";")
+
+simpleStmtP :: Parser Ast.SimpleStmt
+simpleStmtP = choice [stmtAssignmentP, stmtIncP, stmtDecP, stmtShortVarDeclP, stmtExpressionP]
+
+-- TODO : Add support for more complex assignments
+
+stmtAssignmentP :: Parser Ast.SimpleStmt
+stmtAssignmentP =
+  Ast.StmtAssignment
+    <$> do ids <- identifierListP; return $ Ast.AssignmentLhsVar <$> ids
+    <* symbol "="
+    <*> expressionListP
+
+stmtIncP :: Parser Ast.SimpleStmt
+stmtIncP = Ast.StmtInc <$> expressionP <* symbol "++"
+
+stmtDecP :: Parser Ast.SimpleStmt
+stmtDecP = Ast.StmtDec <$> expressionP <* symbol "--"
+
+stmtShortVarDeclP :: Parser Ast.SimpleStmt
+stmtShortVarDeclP = Ast.StmtShortVarDecl <$> identifierListP <* symbol ":=" <*> expressionListP
+
+stmtExpressionP :: Parser Ast.SimpleStmt
+stmtExpressionP = Ast.StmtExpression <$> expressionP
 
 -- Array
 
@@ -302,13 +360,23 @@ identifierListP :: Parser [Ast.Identifier]
 identifierListP = sepBy identifierP $ symbol ","
 
 identifierP :: Parser Ast.Identifier
-identifierP = lexeme $ do
-  first <- letterP
-  other <- many $ letterP <|> digitChar
-  return $ Ast.Identifier $ pack $ first : other
+identifierP =
+  lexeme $
+    Ast.Identifier
+      <$> ( notFollowedBy (keywordP <|> predeclaredIdentifierP) *> do
+              first <- letterP
+              other <- many $ letterP <|> digitChar
+              return $ pack $ first : other
+          )
 
 letterP :: Parser Char
 letterP = letterChar <|> char '_'
+
+keywordP :: Parser Text
+keywordP = choice $ symbol <$> ["break", "func", "if", "else", "continue", "for", "return", "var"]
+
+predeclaredIdentifierP :: Parser Text
+predeclaredIdentifierP = choice $ symbol <$> ["bool", "int", "string", "true", "false", "nil", "len", "panic", "print", "println", "recover"]
 
 -- Lexer parts
 

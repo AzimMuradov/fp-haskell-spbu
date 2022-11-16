@@ -25,35 +25,36 @@ Arguments      = { "(" ~ ( ExpressionList ~ ","? )? ~ ")" }
 
 // Operators
 
-assignOp  = { ( AddOp | MulOp )? ~ "=" }
+BinaryOp = { "||" | "&&" | AddOp | MulOp | RelOp }
+RelOp    = { "==" | "!=" |"<=" | "<" | ">=" | ">" }
+AddOp    = { "+" | "-" | "|" | "^" }
+MulOp    = { "*" | "/" | "%" | "<<" | ">>" | "&^" | "&" }
 
-BinaryOp  = { "||" | "&&" | AddOp | MulOp | RelOp }
-RelOp     = { "==" | "!=" |"<=" | "<" | ">=" | ">" }
-AddOp     = { "+" | "-" | "|" | "^" }
-MulOp     = { "*" | "/" | "%" | "<<" | ">>" | "&^" | "&" }
+UnaryOp  = { "+" | "-" | "!" | "^" }
 
-UnaryOp   = { "+" | "-" | "!" | "^" }
+AssignOp = { ( AddOp | MulOp )? ~ "=" }
 
 
 // Type
 
-Type           = { TypeLit | TypeName | "(" ~ Type ~ ")" }
-TypeName       = { "int" | "bool" | "string" }
-TypeLit        = { ArrayType | FunctionType }
+Type     = { TypeLit | TypeName | "(" ~ Type ~ ")" }
+TypeName = { "int" | "bool" | "string" }
+TypeLit  = { ArrayType | FunctionType }
 
 
 // Function declaration (definition)
+// TODO
 
-FunctionDecl  = { "func" ~ FunctionName ~ Signature ~ FunctionBody }
-FunctionName  = { Identifier }
-FunctionBody  = { Block }
+FunctionDecl    = { "func" ~ FunctionName ~ Signature ~ FunctionBody }
+FunctionName    = { Identifier }
+FunctionBody    = { Block }
 
-FunctionType  = { "func" ~ Signature }
-Signature     = { Parameters ~ Result? }
-Result        = { Parameters | Type }
-Parameters    = { "(" ~ ( ParameterList ~ ","? )? ~ ")" }
-ParameterList = { ParameterDecl ~ ( "," ~ ParameterDecl )* }
-ParameterDecl = { IdentifierList? ~ Type }
+FunctionType    = { "func" ~ Signature }
+Signature       = { NamedParameters ~ Result? }
+Result          = { Parameters | Type }
+NamedParameters = { "(" ~ ( (ParameterDecl ~ ( "," ~ ParameterDecl )*) ~ ","? )? ~ ")" }
+NamedParameter  = { Identifier ~ Type }
+Parameters      = { "(" ~ ( (Type ~ ( "," ~ Type )*) ~ ","? )? ~ ")" }
 
 
 // Statements
@@ -73,14 +74,14 @@ VarSpec        = { IdentifierList ~ ( Type ~ ( "=" ~ ExpressionList )? | "=" ~ E
 
 IfElseStmt     = { "if" ~ ( SimpleStmt ~ ";" )? ~ Expression ~ Block ~ ("else" ~ ( IfElseStmt | Block ))? }
 
+Block          = { "{" ~ ( Statement? ~ ";")* ~ "}" }
+
 SimpleStmt     = { Assignment | IncDecStmt | ShortVarDecl | ExpressionStmt }
 
-Assignment     = { ExpressionList ~ assignOp ~ ExpressionList }
+Assignment     = { ExpressionList ~ AssignOp ~ ExpressionList }
 IncDecStmt     = { Expression ~ ( "++" | "--" ) }
 ShortVarDecl   = { IdentifierList ~ ":=" ~ ExpressionList }
 ExpressionStmt = { Expression }
-
-Block          = { "{" ~ ( Statement? ~ ";")* ~ "}" }
 
 
 // Array
@@ -123,11 +124,15 @@ EscapedChar = { "\\" ~ ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\\" | "\"" )
 
 // Identifier
 
-IdentifierList = { Identifier ~ ( "," ~ Identifier )* }
+IdentifierList        = { Identifier ~ ( "," ~ Identifier )* }
 
-Identifier     = @{ Letter ~ ( Letter | UnicodeDigit )* }
+Identifier            = @{ !(Keyword | PredeclaredIdentifier) ~ Letter ~ ( Letter | UnicodeDigit )* }
 
-Letter         = { UnicodeLetter | "_" }
+Letter                = { UnicodeLetter | "_" }
+
+Keyword               = { "break" | "func" | "if" | "else" | "continue" | "for" | "return" | "var" }
+
+PredeclaredIdentifier = { "bool" | "int" | "string" | "true" | "false" | "nil" | "len" | "panic" | "print" | "println" | "recover" }
 
 
 // Basic elements
