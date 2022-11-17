@@ -1,7 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module ParserCombinators where
+module Parser where
 
 import qualified Ast
 import ConstExprSimplification (simplifyConstExpr)
@@ -12,8 +12,13 @@ import Data.Maybe (catMaybes, maybeToList)
 import Data.Text (Text, concat)
 import Data.Void (Void)
 import Lexer hiding (Parser)
-import Text.Megaparsec (MonadParsec (..), Parsec, choice, eitherP, many, optional, sepBy, some, (<|>))
-import Text.Megaparsec.Char (char, string)
+import Text.Megaparsec (MonadParsec (..), Parsec, choice, eitherP, many, optional, parseMaybe, sepBy, some, (<|>))
+import Text.Megaparsec.Char (char)
+
+-- Parser entry point
+
+parse :: Parser a -> Text -> Maybe a
+parse = parseMaybe
 
 type Parser = Parsec Void Text
 
@@ -134,7 +139,7 @@ typeP =
     [ Ast.TInt <$ idInt,
       Ast.TBool <$ idBool,
       Ast.TString <$ idString,
-      -- TODO : arrayTypeP
+      -- TODO : arrayTypeP,
       functionTypeP,
       parens typeP
     ]
@@ -169,7 +174,7 @@ statementP =
     [ stmtReturnP,
       stmtBreakP,
       stmtContinueP,
-      -- stmtForP,
+      -- TODO : stmtForP,
       Ast.StmtVarDecl <$> stmtVarDeclP,
       Ast.StmtIfElse <$> stmtIfElseP,
       Ast.StmtBlock <$> stmtBlockP,
@@ -289,7 +294,7 @@ arrayLitValueP = undefined
 -- Element           = { Expression | ArrayLiteralValue }
 
 intLitP :: Parser Int
-intLitP = lexeme $ fromIntegral <$> int
+intLitP = fromIntegral <$> int
 
 boolLitP :: Parser Bool
 boolLitP = True <$ idTrue <|> False <$ idFalse

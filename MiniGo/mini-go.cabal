@@ -31,8 +31,8 @@ extra-source-files: README.md
 library
     exposed-modules:
         Ast,
-        ParserCombinators,
         Lexer,
+        Parser,
         ConstExprSimplification
 
     other-modules:
@@ -60,6 +60,7 @@ executable minigo
 
     build-depends:
         base >=4.16.3.0,
+        text >=2.0.1,
         mini-go
 
     hs-source-dirs: app

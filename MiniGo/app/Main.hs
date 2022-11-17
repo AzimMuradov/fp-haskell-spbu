@@ -1,5 +1,7 @@
 module Main where
 
+import Data.Text (pack)
+import Parser (fileP, parse)
 import System.Environment (getArgs)
 
 main :: IO ()
@@ -20,7 +22,7 @@ interpretAndShow :: String -> String
 interpretAndShow fileText = "TODO : interpreter\n"
 
 parseAndShow :: String -> String
-parseAndShow fileText = "TODO : parser\n"
+parseAndShow fileText = show (parse fileP $ pack fileText) ++ "\n"
 
 helpMsg :: String
 helpMsg =
