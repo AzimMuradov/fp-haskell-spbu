@@ -46,10 +46,10 @@ expressionP = makeExprParser expressionTerm opsTable
 
 expressionTerm :: Parser Ast.Expression
 expressionTerm =
-  choice
+  choice'
     [ between (symbol "(") (symbol ")") expressionP,
       Ast.ExprLiteral <$> literalP,
-      Ast.ExprIdentifier <$> identifierP
+      Ast.ExprIdentifier <$> choice' [identifierP, stdlibFuncP]
     ]
 
 opsTable :: [[Operator Parser Ast.Expression]]
@@ -70,7 +70,7 @@ opsTable =
     ],
     [ addOp "+" Ast.PlusOp,
       addOp "-" Ast.MinusOp,
-      addOp "|" Ast.BitOrOp,
+      addSpOp "|" Ast.BitOrOp,
       addOp "^" Ast.BitXorOp
     ],
     [ relOp "==" Ast.EqOp,
@@ -86,11 +86,12 @@ opsTable =
 
 -- Operator Types
 
-binary :: Text -> (Ast.Expression -> Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
-binary name fun = InfixL (fun <$ symbol name)
+binary :: Text -> [Text] -> (Ast.Expression -> Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
+binary name [] fun = InfixL $ fun <$ symbol name
+binary name nfbNames fun = InfixL $ fun <$ (notFollowedBy (choice' $ symbol <$> nfbNames) *> symbol name)
 
 prefix :: Text -> (Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
-prefix name fun = Prefix (fun <$ symbol name)
+prefix name fun = Prefix $ fun <$ symbol name
 
 postfix :: Parser (Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
 postfix = Postfix
@@ -98,16 +99,19 @@ postfix = Postfix
 -- Operators
 
 andOrOp :: Text -> Ast.BinaryOp -> Operator Parser Ast.Expression
-andOrOp name op = binary name (Ast.ExprBinaryOp op)
+andOrOp name op = binary name [] (Ast.ExprBinaryOp op)
 
 relOp :: Text -> Ast.RelOp -> Operator Parser Ast.Expression
-relOp name op = binary name (Ast.ExprBinaryOp (Ast.RelOp op))
+relOp name op = binary name [] (Ast.ExprBinaryOp (Ast.RelOp op))
 
 addOp :: Text -> Ast.AddOp -> Operator Parser Ast.Expression
-addOp name op = binary name (Ast.ExprBinaryOp (Ast.AddOp op))
+addOp name op = binary name [] (Ast.ExprBinaryOp (Ast.AddOp op))
+
+addSpOp :: Text -> Ast.AddOp -> Operator Parser Ast.Expression
+addSpOp name op = binary name ["||"] (Ast.ExprBinaryOp (Ast.AddOp op))
 
 mulOp :: Text -> Ast.MulOp -> Operator Parser Ast.Expression
-mulOp name op = binary name (Ast.ExprBinaryOp (Ast.MulOp op))
+mulOp name op = binary name [] (Ast.ExprBinaryOp (Ast.MulOp op))
 
 unaryOp :: Text -> Ast.UnaryOp -> Operator Parser Ast.Expression
 unaryOp name op = prefix name (Ast.ExprUnaryOp op)
@@ -130,7 +134,7 @@ arrayAccessByIndexOp = postfix $ do
 
 typeP :: Parser Ast.Type
 typeP =
-  choice
+  choice'
     [ Ast.TInt <$ symbol "int",
       Ast.TBool <$ symbol "bool",
       Ast.TString <$ symbol "string",
@@ -143,7 +147,7 @@ functionTypeP :: Parser Ast.Type
 functionTypeP = do
   void $ symbol "func"
   paramsTypes <- typesP
-  result <- typesP <|> maybeToList <$> optional typeP
+  result <- choice' [typesP, maybeToList <$> optional' typeP]
   return $ Ast.TFunction {parameters = paramsTypes, result = result}
   where
     typesP = between (symbol "(") (symbol ")") (sepEndBy typeP $ symbol ",")
@@ -161,16 +165,16 @@ functionDefP = do
 functionSignatureP :: Parser Ast.FunctionSignature
 functionSignatureP = do
   params <- between (symbol "(") (symbol ")") (sepEndBy paramP $ symbol ",")
-  result <- between (symbol "(") (symbol ")") (sepEndBy typeP $ symbol ",") <|> maybeToList <$> optional typeP
+  result <- choice' [between (symbol "(") (symbol ")") (sepEndBy typeP $ symbol ","), maybeToList <$> optional' typeP]
   return $ Ast.FunctionSignature {parameters = params, result = result}
   where
-    paramP = do n <- identifierP; t <- typeP; return (n, t)
+    paramP = (,) <$> identifierP <*> typeP
 
 -- Statements
 
 statementP :: Parser Ast.Statement
 statementP =
-  choice
+  choice'
     [ stmtReturnP,
       stmtBreakP,
       stmtContinueP,
@@ -208,25 +212,25 @@ stmtVarDeclP :: Parser Ast.VarDecl
 stmtVarDeclP =
   Ast.VarDecl <$> do
     void $ symbol "var"
-    between (symbol "(") (symbol ")") (sepEndBy stmtVarSpecP $ symbol ";") <|> (: []) <$> stmtVarSpecP
+    choice' [between (symbol "(") (symbol ")") (sepEndBy stmtVarSpecP $ symbol ";"), (: []) <$> stmtVarSpecP]
 
 stmtVarSpecP :: Parser Ast.VarSpec
-stmtVarSpecP = Ast.VarSpec <$> identifierListP <*> optional typeP <*> expressionListP
+stmtVarSpecP = Ast.VarSpec <$> identifierListP <*> optional' typeP <* symbol "=" <*> expressionListP
 
 stmtIfElseP :: Parser Ast.IfElse
 stmtIfElseP = do
   void $ symbol "if"
-  stmt <- optional $ simpleStmtP <* symbol ";"
+  stmt <- optional' $ simpleStmtP <* symbol ";"
   condition <- expressionP
   block <- stmtBlockP
   -- TODO : Add Else ("else" ~ ( IfElseStmt | Block ))?
   return $ Ast.IfElse {simpleStmt = stmt, condition = condition, block = block, elseStmt = Right []}
 
 stmtBlockP :: Parser [Ast.Statement]
-stmtBlockP = between (symbol "{") (symbol "}") $ catMaybes <$> many (optional statementP <* symbol ";")
+stmtBlockP = between (symbol "{") (symbol "}") $ catMaybes <$> many (optional' statementP <* symbol ";")
 
 simpleStmtP :: Parser Ast.SimpleStmt
-simpleStmtP = choice [stmtAssignmentP, stmtIncP, stmtDecP, stmtShortVarDeclP, stmtExpressionP]
+simpleStmtP = choice' [stmtAssignmentP, stmtIncP, stmtDecP, stmtShortVarDeclP, stmtExpressionP]
 
 -- TODO : Add support for more complex assignments
 
@@ -265,7 +269,7 @@ arrayTypeP = do
 
 literalP :: Parser Ast.Literal
 literalP =
-  choice
+  choice'
     [ Ast.LitInt <$> intLitP,
       Ast.LitBool <$> boolLitP,
       Ast.LitString <$> stringLitP
@@ -300,11 +304,11 @@ arrayLitValueP = undefined
 
 intLitP :: Parser Int
 intLitP =
-  choice
-    [ try binaryLitP <?> "binary number literal",
-      try octalLitP <?> "octal number literal",
-      try hexLitP <?> "hex number literal",
-      try decimalLitP <?> "decimal number literal"
+  choice'
+    [ binaryLitP <?> "binary number literal",
+      octalLitP <?> "octal number literal",
+      hexLitP <?> "hex number literal",
+      decimalLitP <?> "decimal number literal"
     ]
 
 decimalLitP :: Parser Int
@@ -362,8 +366,9 @@ identifierListP = sepBy identifierP $ symbol ","
 identifierP :: Parser Ast.Identifier
 identifierP =
   lexeme $
-    Ast.Identifier
-      <$> ( notFollowedBy (keywordP <|> predeclaredIdentifierP) *> do
+    notFollowedBy predeclaredIdentifierP
+      $> Ast.Identifier
+      <*> ( notFollowedBy keywordP *> do
               first <- letterP
               other <- many $ letterP <|> digitChar
               return $ pack $ first : other
@@ -375,8 +380,11 @@ letterP = letterChar <|> char '_'
 keywordP :: Parser Text
 keywordP = choice $ symbol <$> ["break", "func", "if", "else", "continue", "for", "return", "var"]
 
-predeclaredIdentifierP :: Parser Text
-predeclaredIdentifierP = choice $ symbol <$> ["bool", "int", "string", "true", "false", "nil", "len", "panic", "print", "println", "recover"]
+predeclaredIdentifierP :: Parser Ast.Identifier
+predeclaredIdentifierP = choice [Ast.Identifier <$> choice (symbol <$> ["bool", "int", "string", "true", "false", "nil"]), stdlibFuncP]
+
+stdlibFuncP :: Parser Ast.Identifier
+stdlibFuncP = Ast.Identifier <$> choice (symbol <$> ["len", "panic", "println", "print"])
 
 -- Lexer parts
 
@@ -395,3 +403,9 @@ symbol = L.symbol sc
 
 readInteger :: ReadS Integer -> String -> Int
 readInteger reader s = fromIntegral $ fst $ head $ reader s
+
+choice' :: (Foldable f, MonadParsec e s m, Functor f) => f (m a) -> m a
+choice' ps = choice $ try <$> ps
+
+optional' :: (MonadParsec e s m) => m a -> m (Maybe a)
+optional' = optional . try
