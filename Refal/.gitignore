@@ -1,0 +1,5 @@
+# Haskell & Cabal
+
+dist/
+dist-newstyle/
+RefalSamples
