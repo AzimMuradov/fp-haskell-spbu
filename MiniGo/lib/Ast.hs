@@ -8,18 +8,33 @@ import Data.Text (Text)
 
 -- Program
 
-data Program = Program {topLevelVarDecls :: [VarDecl], topLevelFunctionDefs :: [FunctionDef]}
+-- | The head of the AST.
+data Program = Program
+  { -- | Top level variable declarations.
+    topLevelVarDecls :: [VarDecl],
+    -- | Top level function definitions.
+    topLevelFunctionDefs :: [FunctionDef]
+  }
   deriving (Show)
 
 -- Expression
 
+-- | Expression.
 data Expression
-  = ExprLiteral Literal
-  | ExprIdentifier Identifier
-  | ExprUnaryOp UnaryOp Expression
-  | ExprBinaryOp BinaryOp Expression Expression
-  | ExprFuncCall Expression [Expression]
-  | ExprArrayAccessByIndex Expression Int
+  = -- | Literal expression (e.g., `"Hello!"`, `17`, `true`).
+    ExprLiteral Literal
+  | -- | Identifier expression (e.g., `x`, `println`).
+    ExprIdentifier Identifier
+  | -- | Unary operation expression (e.g., `!x`, `-4`).
+    ExprUnaryOp UnaryOp Expression
+  | -- | Binary operation expression (e.g., `x + 7`).
+    ExprBinaryOp BinaryOp Expression Expression
+  | -- | Function call expression.
+    -- E.g., `foo(17, x, bar())`, `(func (x int) int { return x * x; })(3)`.
+    ExprFuncCall Expression [Expression]
+  | -- | Array access by index expression.
+    -- E.g., `a[3]`, `([2] int {3, 5})[1 + foo()]`, assuming that `foo()` returns `int`.
+    ExprArrayAccessByIndex Expression Int
   deriving (Show)
 
 -- Operators
