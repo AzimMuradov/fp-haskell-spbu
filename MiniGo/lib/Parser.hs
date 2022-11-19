@@ -4,7 +4,7 @@
 module Parser where
 
 import qualified Ast
-import ConstExprSimplification (simplifyConstExpr)
+import AstOptimizer (simplifyConstExpr)
 import Control.Applicative.Combinators (between)
 import Control.Monad (void)
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)

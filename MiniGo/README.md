@@ -9,9 +9,11 @@ This is a homework for functional programming course.
 
 ### Features:
 
-|      To do       |            In progress            | Done  |
-| :--------------: | :-------------------------------: | :---: |
-| tests for lexer  | grammar definition in Pest syntax |  CLI  |
-| tests for parser |                AST                |       |
-|  type checking   |               lexer               |       |
-|                  |              parser               |       |
+|                         To do                          |            In progress            | Done  |
+| :----------------------------------------------------: | :-------------------------------: | :---: |
+| const expressions simplification (w/o `const` keyword) | grammar definition in Pest syntax |  CLI  |
+|                 global vars resolution                 |                AST                | lexer |
+|                    tests for lexer                     |              parser               |       |
+|                    tests for parser                    |            POC mini go            |       |
+|                                                        |          program checker          |       |
+|                                                        |            interpreter            |       |
