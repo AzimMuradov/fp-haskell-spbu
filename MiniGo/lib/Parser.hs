@@ -32,7 +32,7 @@ programP = do
   decls <- many topLevelDeclP
   let vars = [x | Left x <- decls]
   let funcs = [x | Right x <- decls]
-  return Ast.Program {Ast.topLevelVarDecls = vars, Ast.topLevelFunctionDefs = funcs}
+  return Ast.Program {topLevelVarDecls = vars, topLevelFunctionDefs = funcs}
 
 topLevelDeclP :: Parser (Either Ast.VarDecl Ast.FunctionDef)
 topLevelDeclP = eitherP (stmtVarDeclP <* semicolon) functionDefP
@@ -149,7 +149,7 @@ functionTypeP = do
   void kwFunc
   params <- typesP
   result <- choice' [typesP, maybeToList <$> optional' typeP]
-  return $ Ast.TFunction params result
+  return $ Ast.TFunction $ Ast.FunctionType params result
   where
     typesP = listed typeP comma
 
@@ -258,7 +258,7 @@ arrayTypeP = do
   t <- typeP
   return Ast.ArrayType {Ast.elementType = t, Ast.length = len}
 
--- Literal
+-- Literals
 
 literalP :: Parser Ast.Literal
 literalP =
@@ -269,13 +269,7 @@ literalP =
       -- TODO : arrayLitP, functionLitP
     ]
 
--- Literals
-
--- TODO : Implement Function Literals
-
 -- functionLitP   = { "func" ~ Signature ~ FunctionBody }
-
--- TODO : Implement Array Literals
 
 arrayLitP :: Parser Ast.Literal
 arrayLitP = do
@@ -293,6 +287,8 @@ arrayLitValueP = undefined
 -- Key               = { Expression }
 -- Element           = { Expression | ArrayLiteralValue }
 
+-- TODO : Use const expressions simplification
+
 intLitP :: Parser Int
 intLitP = fromIntegral <$> int
 
@@ -307,15 +303,7 @@ stringLitP = lexeme $ Data.Text.concat <$> between (char '"') (char '"') (some s
 identifierListP :: Parser [Ast.Identifier]
 identifierListP = sepBy identifierP comma
 
-identifierP :: Parser Ast.Identifier
-identifierP = lexeme $ Ast.Identifier <$> identifierTextP
-
-stdlibFuncP :: Parser Ast.Identifier
-stdlibFuncP = Ast.Identifier <$> stdlibFuncTextP
-
 -- Utils
-
--- TODO : Use const expressions simplification
 
 choice' :: (Foldable f, MonadParsec e s m, Functor f) => f (m a) -> m a
 choice' ps = choice $ try <$> ps

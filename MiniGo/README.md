@@ -1,4 +1,4 @@
-## An implementaion of Go mini-language
+## An implementation of Go mini-language
 
 This is a homework for functional programming course.
 

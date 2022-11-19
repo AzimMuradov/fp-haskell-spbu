@@ -2,6 +2,7 @@
 
 module Lexer where
 
+import qualified Ast (Identifier)
 import Control.Applicative.Combinators (between, sepEndBy)
 import Control.Monad (void)
 import Data.Text (Text, pack, singleton)
@@ -92,19 +93,20 @@ escapedChar =
 
 -- Identifier
 
-identifierTextP :: Parser Text
-identifierTextP =
-  notFollowedBy (predeclaredIdentifierTextP <|> keywordTextP) *> do
-    first <- letterP
-    other <- many $ letterP <|> digitChar
-    return $ pack $ first : other
+identifierP :: Parser Ast.Identifier
+identifierP =
+  lexeme $
+    notFollowedBy (predeclaredIdentifierP <|> keywordP) *> do
+      first <- letterP
+      other <- many $ letterP <|> digitChar
+      return $ pack $ first : other
   where
     letterP = letterChar <|> char '_'
 
 -- Reserved
 
-keywordTextP :: Parser Text
-keywordTextP = choice [kwVar, kwFunc, kwReturn, kwIf, kwElse, kwFor, kwBreak, kwContinue]
+keywordP :: Parser Ast.Identifier
+keywordP = choice [kwVar, kwFunc, kwReturn, kwIf, kwElse, kwFor, kwBreak, kwContinue]
 
 kwVar = symbol "var"
 
@@ -122,8 +124,8 @@ kwBreak = symbol "break"
 
 kwContinue = symbol "continue"
 
-predeclaredIdentifierTextP :: Parser Text
-predeclaredIdentifierTextP = choice [idBool, idInt, idString, idTrue, idFalse, idNil, stdlibFuncTextP]
+predeclaredIdentifierP :: Parser Ast.Identifier
+predeclaredIdentifierP = choice [idBool, idInt, idString, idTrue, idFalse, idNil, stdlibFuncP]
 
 idBool = symbol "bool"
 
@@ -137,8 +139,8 @@ idFalse = symbol "false"
 
 idNil = symbol "nil"
 
-stdlibFuncTextP :: Parser Text
-stdlibFuncTextP = choice $ symbol <$> [funcNameLen, funcNamePanic, funcNamePrintLn, funcNamePrint]
+stdlibFuncP :: Parser Ast.Identifier
+stdlibFuncP = choice $ symbol <$> [funcNameLen, funcNamePanic, funcNamePrintLn, funcNamePrint]
 
 funcNameLen = "len"
 

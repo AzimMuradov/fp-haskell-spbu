@@ -5,6 +5,7 @@ module Ast where
 import Data.Text (Text)
 
 -- TODO : Add VOID support !!!
+-- TODO : Add NIL support !!!
 
 -- Program
 
@@ -17,7 +18,7 @@ data Program = Program
   }
   deriving (Show)
 
--- Expression
+-- Expressions
 
 -- | Expression.
 data Expression
@@ -39,21 +40,21 @@ data Expression
 
 -- Operators
 
--- | Binary operators
+-- | Binary operators.
 data BinaryOp
   = -- | a || b
     OrOp
   | -- | a && b
     AndOp
-  | -- | Relation operator
+  | -- | Relation operator.
     RelOp RelOp
-  | -- | Additive operator
+  | -- | Additive operator.
     AddOp AddOp
-  | -- | Multiplicative operator
+  | -- | Multiplicative operator.
     MulOp MulOp
   deriving (Show)
 
--- | Relation operators
+-- | Relation operators.
 data RelOp
   = -- | a == b
     EqOp
@@ -69,7 +70,7 @@ data RelOp
     MtOp
   deriving (Show)
 
--- | Additive operators
+-- | Additive operators.
 data AddOp
   = -- | a + b
     PlusOp
@@ -81,7 +82,7 @@ data AddOp
     BitXorOp
   deriving (Show)
 
--- | Multiplicative operators
+-- | Multiplicative operators.
 data MulOp
   = -- | a * b
     MultOp
@@ -99,7 +100,7 @@ data MulOp
     BitAndOp
   deriving (Show)
 
--- | Unary operators
+-- | Unary operators.
 data UnaryOp
   = -- | +a
     UnaryPlusOp
@@ -111,31 +112,51 @@ data UnaryOp
     BitwiseComplementOp
   deriving (Show)
 
--- Type
+-- Types
 
 data Type
-  = -- | Integer type: Go's equivalent of 64-bit `int` type.
+  = -- | 64-bit (???) integer type.
     TInt
-  | -- | Boolean type: Go's equivalent of `bool` type.
+  | -- | Boolean type.
     TBool
-  | -- | String type: Go's equivalent of `string` type.
+  | -- | String type.
     TString
   | -- TODO
     TArray ArrayType
   | -- TODO
-    TFunction {parameters :: [Type], result :: [Type]}
-  deriving (Show)
+    TFunction FunctionType
+  deriving (Show, Eq)
+
+data ArrayType = ArrayType
+  { elementType :: Type,
+    length :: Int
+  }
+  deriving (Show, Eq)
+
+data FunctionType = FunctionType
+  { parameters :: [Type],
+    result :: [Type]
+  }
+  deriving (Show, Eq)
 
 -- Function definition
 
-data FunctionDef = FunctionDef {name :: Identifier, signature :: FunctionSignature, body :: [Statement]}
+data FunctionDef = FunctionDef
+  { name :: Identifier,
+    signature :: FunctionSignature,
+    body :: [Statement]
+  }
   deriving (Show)
 
-data FunctionSignature = FunctionSignature {parameters :: [(Identifier, Type)], result :: [Type]}
+data FunctionSignature = FunctionSignature
+  { parameters :: [(Identifier, Type)],
+    result :: [Type]
+  }
   deriving (Show)
 
 -- Statements
 
+-- | TODO
 data Statement
   = -- | TODO
     StmtReturn [Expression]
@@ -164,15 +185,24 @@ data For
         block :: [Statement]
       }
   | -- | TODO
-    While {whileCondition :: Expression, block :: [Statement]}
+    While
+      { whileCondition :: Expression,
+        block :: [Statement]
+      }
   | -- | TODO
-    Loop {block :: [Statement]}
+    Loop
+      { block :: [Statement]
+      }
   deriving (Show)
 
 newtype VarDecl = VarDecl [VarSpec]
   deriving (Show)
 
-data VarSpec = VarSpec {identifiers :: [Identifier], t :: Maybe Type, expressions :: [Expression]}
+data VarSpec = VarSpec
+  { identifiers :: [Identifier],
+    t :: Maybe Type,
+    expressions :: [Expression]
+  }
   deriving (Show)
 
 data IfElse = IfElse
@@ -184,10 +214,16 @@ data IfElse = IfElse
   deriving (Show)
 
 data SimpleStmt
-  = StmtAssignment {lhs :: [AssignmentLhs], rhs :: [Expression]}
+  = StmtAssignment
+      { lhs :: [AssignmentLhs],
+        rhs :: [Expression]
+      }
   | StmtInc Expression
   | StmtDec Expression
-  | StmtShortVarDecl {identifiers :: [Identifier], expressions :: [Expression]}
+  | StmtShortVarDecl
+      { identifiers :: [Identifier],
+        expressions :: [Expression]
+      }
   | StmtExpression Expression
   deriving (Show)
 
@@ -197,19 +233,20 @@ data AssignmentLhs
   | AssignmentLhsBlank
   deriving (Show)
 
--- Array
-
-data ArrayType = ArrayType {elementType :: Type, length :: Int}
-  deriving (Show)
-
--- Literal
+-- Literals
 
 data Literal
   = LitInt Int
   | LitBool Bool
   | LitString Text
-  | LitArray {t :: ArrayType, value :: [Element]}
-  | LitFunction {signature :: FunctionSignature, body :: [Statement]}
+  | LitArray
+      { t :: ArrayType,
+        value :: [Element]
+      }
+  | LitFunction
+      { signature :: FunctionSignature,
+        body :: [Statement]
+      }
   deriving (Show)
 
 -- | Represents runtime value of the calculated expression
@@ -220,5 +257,4 @@ data Element = ElementExpr Expression | ElementElements [Element]
 
 -- Identifier
 
-newtype Identifier = Identifier Text
-  deriving (Show)
+type Identifier = Text
