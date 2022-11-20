@@ -23,7 +23,7 @@ synopsis:
 -- description:
 
 -- URL for the project homepage or repository.
-homepage:
+homepage:           https://github.com/SuldinVyacheslav/fp2022-haskell-refal
 
 -- A URL where users can report bugs.
 -- bug-reports:
@@ -44,13 +44,27 @@ maintainer:         suldin_slava.03@mail.ru
 -- Extra files to be distributed with the package, such as examples or a README.
 extra-source-files: CHANGELOG.md
 
+common shared-properties
+    default-language: Haskell2010
+    build-depends: base >=4.16.3.0
+    ghc-options:
+        -Wall
+        -Wcompat
+        -Widentities
+        -Wincomplete-record-updates
+        -Wincomplete-uni-patterns
+        -Wmissing-home-modules
+        -Wpartial-fields
+        -Wredundant-constraints
+
 library
+    import: shared-properties
     -- Modules exported by the library.
     exposed-modules:  
         Parser
         Lexer
-        AST
         Interpreter
+        AST
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -73,6 +87,7 @@ library
     default-language: Haskell2010
 
 executable Refal
+    import: shared-properties
     -- .hs or .lhs file containing the Main module.
     main-is:          Main.hs
 
@@ -94,6 +109,7 @@ executable Refal
     default-language: Haskell2010
 
 test-suite Refal-test
+    import: shared-properties
     -- Base language which the package is written in.
     default-language: Haskell2010
 

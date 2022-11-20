@@ -6,15 +6,15 @@ data FName
 
 instance Show FName where
   show (Usr a)    = show a
-  show (Op (Add)) = " + "
-  show (Op (Sub)) = " - "
-  show (Op (Mul)) = " * "
+  show (Op Add) = " + "
+  show (Op Sub) = " - "
+  show (Op Mul) = " * "
 
 instance Eq FName where
   Usr a == Usr b       = a == b
-  Op (Add) == Op (Add) = True
-  Op (Sub) == Op (Sub) = True
-  Op (Mul) == Op (Mul) = True
+  Op Add == Op Add = True
+  Op Sub == Op Sub = True
+  Op Mul == Op Mul = True
   _ == _               = False
 
 -- 's' or 't' or 'e' before "."  
