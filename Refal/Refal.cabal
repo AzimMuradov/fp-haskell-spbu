@@ -50,6 +50,7 @@ library
         Parser
         Lexer
         AST
+        Interpreter
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -66,6 +67,7 @@ library
     hs-source-dirs:   
         lib
         lib/Parser
+        lib/Interpreter
 
     -- Base language which the package is written in.
     default-language: Haskell2010

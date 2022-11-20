@@ -21,8 +21,6 @@ lexer = Tok.makeTokenParser style
         , Tok.reservedNames = names
         }
 
-identifier = Tok.identifier lexer {- asd213_D names -}
-
 integer = Tok.natural lexer -- int
 
 parens = Tok.parens lexer -- ( _ )  
@@ -36,12 +34,6 @@ comma = Tok.comma lexer -- _ , _    where
 semi = Tok.semi lexer -- _ ; _    otherwise
 
 dot = Tok.dot lexer -- _ . _    index follows s.1 e.2 t.3
-
-whitespace = Tok.whiteSpace lexer -- space
-
-reserved = Tok.reserved lexer
-
-reservedOp = Tok.reservedOp lexer
 
 sym = Tok.symbol lexer
 
