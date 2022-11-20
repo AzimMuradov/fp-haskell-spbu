@@ -4,7 +4,6 @@ module Ast where
 
 import Data.Text (Text)
 
--- TODO : Add VOID support !!!
 -- TODO : Add NIL support !!!
 
 -- Program
