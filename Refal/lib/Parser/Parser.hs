@@ -8,7 +8,7 @@ import qualified Text.Parsec.Token  as Tok
 import           AST
 import           Lexer
 
--------------------------------Expressions--DONE----------------------------------
+-------------------------------Expressions------------------------------------
 empty = sym ""
 
 entry :: Parser a -> Parser a
@@ -33,17 +33,14 @@ identifier' =
 -- Right 's'
 --
 char' :: Parser Symbol
-char' =
-  lexeme $ do
-    Ch <$>
-      between (char '\'') (char '\'') (notFollowedBy (char '\\') *> anyChar)
+char' = lexeme $ Ch <$> between (char '\'') (char '\'') (notFollowedBy (char '\\') *> anyChar)
 
 -- >>> parse (entry compound) "" "  \"asd ads\""
 -- Right "asd ads"
 --
 compound :: Parser Symbol
 compound =
-  lexeme $ do
+  lexeme $ 
     Comp <$>
       between
         (char '"')
@@ -54,7 +51,7 @@ compound =
 -- Right 1231
 --
 macrodigit :: Parser Symbol
-macrodigit = lexeme $ do MDig <$> integer
+macrodigit = lexeme $ MDig <$> integer
 
 -- >>> parse (entry symbol) "" " 213 "
 -- >>> parse (entry symbol) "" " asd_ASD- "
@@ -66,14 +63,13 @@ macrodigit = lexeme $ do MDig <$> integer
 -- Right "i am symbol "
 --
 symbol :: Parser Symbol
-symbol = do
-  choice $ try <$> [macrodigit, compound, char', ID <$> identifier']
+symbol = choice $ try <$> [macrodigit, compound, char', ID <$> identifier']
 
 -- >>> parse (entry var) "" "  s.a_1-2   "
 -- Right s."a_1-2"
 --
 var :: Parser Var
-var = lexeme $ do choice $ try <$> [var' 's' SVar, var' 't' TVar, var' 'e' EVar]
+var = lexeme $ choice $ try <$> [var' 's' SVar, var' 't' TVar, var' 'e' EVar]
   where
     var' ch constr = char ch *> char '.' *> (constr <$> identifier')
 
@@ -85,8 +81,7 @@ var = lexeme $ do choice $ try <$> [var' 's' SVar, var' 't' TVar, var' 'e' EVar]
 -- Right ( s."a12" )
 --
 term :: Parser Term
-term = do
-  try (Var <$> var) <|> try (Sym <$> symbol) <|> Par <$> parens expr
+term = try (Var <$> var) <|> try (Sym <$> symbol) <|> Par <$> parens expr
 
 -- >>> parse (entry expr) "" "\'a\'"
 -- >>> parse (entry expr) "" "s.a12"
@@ -98,7 +93,7 @@ term = do
 expr :: Parser Expr
 expr = try (Cons <$> term <*> expr) <|> Empt <$ empty
 
-----------------------------------Program--DONE----------------------------------
+----------------------------------Program------------------------------------
 -- >>> parse (entry condition) "" " , 'a' 'b' : e.f, 'e': s.c "
 -- Right , 'a' 'b'  : e."f" , 'e'  : s."c"
 --

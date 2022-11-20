@@ -17,14 +17,14 @@ fEntryP (pr:prs) =
 -- find function definition
 fFunD :: FName -> Program -> [Sentence]
 fFunD n [] = error ("Cant find fun: " ++ show n)
-fFunD n ((Entry fn sen):xpr) = if n == fn then sen else fFunD n xpr
-fFunD n ((NEntry fn sen):xpr) = if n == fn then sen else fFunD n xpr
+fFunD n (Entry fn sen:xpr) = if n == fn then sen else fFunD n xpr
+fFunD n (NEntry fn sen:xpr) = if n == fn then sen else fFunD n xpr
 
 -- trying to match whole function 
 match :: FExpr -> [Sentence] -> RSide
-match FEmpt ((Cond pat c rs):xs) = rs
+match FEmpt (Cond pat c rs:xs) = rs
 match f [] = error (show f ++ "recognition impossible")
-match ex ((Cond pat c rs):xs) =
+match ex (Cond pat c rs:xs) =
   case mOne ex pat of
     Nothing ->  match ex xs
     Just xs -> replace rs xs
@@ -54,7 +54,7 @@ match ex ((Cond pat c rs):xs) =
     findV g [] = error $ "Can not find pattern for " ++ show g
     findV v (x:xs) =
       case fst x of
-        Var u -> (if u == v then snd x else findV v xs)
+        Var u -> if u == v then snd x else findV v xs
         _ -> findV v xs
 
 -- Check for absence of function expressions
@@ -95,12 +95,12 @@ else
         FEmpt -> FEmpt
         FTCons t fex -> FTCons t (replFirstApp fex)
         FACons (FApp n args) fex ->
-            (if isExp args then
+            if isExp args then
                 (case n of
                    Usr n' -> match args (fFunD n pr) `mrg` fex
                    Op a -> appBin a args `mrg` fex)
             else
-                FACons (FApp n (replFirstApp args)) fex)
+                FACons (FApp n (replFirstApp args)) fex
 -- Applying binary operation (Add, Mul, Sub)
 appBin :: BinOp -> FExpr -> FExpr
 appBin a (FTCons (Sym (MDig t)) (FTCons (Sym (MDig s)) FEmpt)) =
