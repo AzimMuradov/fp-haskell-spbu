@@ -34,8 +34,8 @@ jobs:
         uses: haskell/actions/hlint-setup@v2
         with:
           version: 3.1.6
-      - name: Run HLint report
-        uses: domdere/haskell-lint-action@v1.0.2
+      # - name: Run HLint report
+      #   uses: domdere/haskell-lint-action@v1.0.2
       - name: Run HLint
         uses: haskell/actions/hlint-run@v2
         with:
