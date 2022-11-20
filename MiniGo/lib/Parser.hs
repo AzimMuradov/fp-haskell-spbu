@@ -8,11 +8,11 @@ import AstOptimizer (simplifyConstExpr)
 import Control.Applicative.Combinators (between)
 import Control.Monad (void)
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
-import Data.Maybe (catMaybes, maybeToList)
+import Data.Maybe (catMaybes)
 import Data.Text (Text, concat)
 import Data.Void (Void)
 import Lexer hiding (Parser)
-import Text.Megaparsec (MonadParsec (..), Parsec, choice, eitherP, many, optional, parseMaybe, sepBy, some, (<|>))
+import Text.Megaparsec (MonadParsec (..), Parsec, choice, eitherP, many, optional, parseMaybe, (<|>))
 import Text.Megaparsec.Char (char)
 
 -- Parser entry point
@@ -39,9 +39,6 @@ topLevelDeclP = eitherP (stmtVarDeclP <* semicolon) functionDefP
 
 -- Expression
 
-expressionListP :: Parser [Ast.Expression]
-expressionListP = sepBy expressionP comma
-
 expressionP :: Parser Ast.Expression
 expressionP = makeExprParser expressionTerm opsTable
 
@@ -53,6 +50,8 @@ expressionTerm =
       Ast.ExprIdentifier <$> choice' [identifierP, stdlibFuncP]
     ]
 
+-- TODO : Support all operators
+
 opsTable :: [[Operator Parser Ast.Expression]]
 opsTable =
   [ [funcCallOp, arrayAccessByIndexOp],
@@ -61,18 +60,18 @@ opsTable =
       unaryOp "!" Ast.NotOp,
       unaryOp "^" Ast.BitwiseComplementOp
     ],
-    [ mulOp "*" Ast.MultOp,
-      mulOp "/" Ast.DivOp,
-      mulOp "%" Ast.ModOp,
-      mulOp "<<" Ast.BitShiftLeftOp,
-      mulOp ">>" Ast.BitShiftRightOp,
-      mulOp "&^" Ast.BitClearOp,
-      mulOp "&" Ast.BitAndOp
+    [ mulOp "*" Ast.MultOp -- ,
+    -- mulOp "/" Ast.DivOp,
+    -- mulOp "%" Ast.ModOp,
+    -- mulOp "<<" Ast.BitShiftLeftOp,
+    -- mulOp ">>" Ast.BitShiftRightOp,
+    -- mulOp "&^" Ast.BitClearOp,
+    -- mulOp "&" Ast.BitAndOp
     ],
     [ addOp "+" Ast.PlusOp,
-      addOp "-" Ast.MinusOp,
-      addSpOp "|" Ast.BitOrOp,
-      addOp "^" Ast.BitXorOp
+      addOp "-" Ast.MinusOp -- ,
+      -- addOp "|" Ast.BitOrOp,
+      -- addOp "^" Ast.BitXorOp
     ],
     [ relOp "==" Ast.EqOp,
       relOp "!=" Ast.NeOp,
@@ -87,9 +86,8 @@ opsTable =
 
 -- Operator Types
 
-binary :: Text -> [Text] -> (Ast.Expression -> Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
-binary name [] fun = InfixL $ fun <$ symbol name
-binary name nfbNames fun = InfixL $ fun <$ (notFollowedBy (choice' $ symbol <$> nfbNames) *> symbol name)
+binary :: Text -> (Ast.Expression -> Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
+binary name fun = InfixL $ fun <$ symbol name
 
 prefix :: Text -> (Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
 prefix name fun = Prefix $ fun <$ symbol name
@@ -100,27 +98,25 @@ postfix = Postfix
 -- Operators
 
 andOrOp :: Text -> Ast.BinaryOp -> Operator Parser Ast.Expression
-andOrOp name op = binary name [] (Ast.ExprBinaryOp op)
+andOrOp name op = binary name (Ast.ExprBinaryOp op)
 
 relOp :: Text -> Ast.RelOp -> Operator Parser Ast.Expression
-relOp name op = binary name [] (Ast.ExprBinaryOp (Ast.RelOp op))
+relOp name op = binary name (Ast.ExprBinaryOp (Ast.RelOp op))
 
 addOp :: Text -> Ast.AddOp -> Operator Parser Ast.Expression
-addOp name op = binary name [] (Ast.ExprBinaryOp (Ast.AddOp op))
+addOp name op = binary name (Ast.ExprBinaryOp (Ast.AddOp op))
 
 addSpOp :: Text -> Ast.AddOp -> Operator Parser Ast.Expression
-addSpOp name op = binary name ["||"] (Ast.ExprBinaryOp (Ast.AddOp op))
+addSpOp name op = binary name (Ast.ExprBinaryOp (Ast.AddOp op))
 
 mulOp :: Text -> Ast.MulOp -> Operator Parser Ast.Expression
-mulOp name op = binary name [] (Ast.ExprBinaryOp (Ast.MulOp op))
+mulOp name op = binary name (Ast.ExprBinaryOp (Ast.MulOp op))
 
 unaryOp :: Text -> Ast.UnaryOp -> Operator Parser Ast.Expression
 unaryOp name op = prefix name (Ast.ExprUnaryOp op)
 
 funcCallOp :: Operator Parser Ast.Expression
-funcCallOp = postfix $ do
-  args <- listed expressionP comma
-  return $ flip Ast.ExprFuncCall args
+funcCallOp = postfix $ flip Ast.ExprFuncCall <$> listed expressionP comma
 
 arrayAccessByIndexOp :: Operator Parser Ast.Expression
 arrayAccessByIndexOp = postfix $ do
@@ -147,11 +143,9 @@ typeP =
 functionTypeP :: Parser Ast.Type
 functionTypeP = do
   void kwFunc
-  params <- typesP
-  result <- choice' [typesP, maybeToList <$> optional' typeP]
+  params <- listed typeP comma
+  result <- optional' typeP
   return $ Ast.TFunction $ Ast.FunctionType params result
-  where
-    typesP = listed typeP comma
 
 -- Function definition
 
@@ -160,11 +154,9 @@ functionDefP = Ast.FunctionDef <$ kwFunc <*> identifierP <*> functionSignatureP 
 
 functionSignatureP :: Parser Ast.FunctionSignature
 functionSignatureP = do
-  params <- listed paramP comma
-  result <- choice' [listed typeP comma, maybeToList <$> optional' typeP]
+  params <- listed ((,) <$> identifierP <*> typeP) comma
+  result <- optional' typeP
   return $ Ast.FunctionSignature params result
-  where
-    paramP = (,) <$> identifierP <*> typeP
 
 -- Statements
 
@@ -182,7 +174,7 @@ statementP =
     ]
 
 stmtReturnP :: Parser Ast.Statement
-stmtReturnP = Ast.StmtReturn <$ kwReturn <*> expressionListP
+stmtReturnP = Ast.StmtReturn <$ kwReturn <*> optional' expressionP
 
 stmtBreakP :: Parser Ast.Statement
 stmtBreakP = Ast.StmtBreak <$ kwBreak
@@ -199,16 +191,14 @@ stmtForP = undefined
 -- ForClause = { SimpleStmt? ~ ";" ~ Condition? ~ ";" ~ SimpleStmt? }
 -- Condition = { expressionP }
 
--- TODO : Add support for more complex assignments
-
--- VarDecl     = { "var" ~ ( VarSpec | "(" ~ ( VarSpec ~ ";" )* ~ ")" ) }
--- VarSpec     = { IdentifierList ~ ( Type ~ ( "=" ~ ExpressionList )? | "=" ~ ExpressionList ) }
-
 stmtVarDeclP :: Parser Ast.VarDecl
 stmtVarDeclP = Ast.VarDecl <$ kwVar <*> choice' [listed stmtVarSpecP semicolon, (: []) <$> stmtVarSpecP]
 
+-- TODO : Add support for more complex assignments
+-- VarSpec = { Identifier ~ ( Type ~ ( "=" ~ Expression )? | "=" ~ Expression ) }
+
 stmtVarSpecP :: Parser Ast.VarSpec
-stmtVarSpecP = Ast.VarSpec <$> identifierListP <*> optional' typeP <* symbol "=" <*> expressionListP
+stmtVarSpecP = Ast.VarSpec <$> identifierP <*> optional' typeP <* symbol "=" <*> expressionP
 
 stmtIfElseP :: Parser Ast.IfElse
 stmtIfElseP = do
@@ -228,11 +218,7 @@ simpleStmtP = choice' [stmtAssignmentP, stmtIncP, stmtDecP, stmtShortVarDeclP, s
 -- TODO : Add support for more complex assignments
 
 stmtAssignmentP :: Parser Ast.SimpleStmt
-stmtAssignmentP =
-  Ast.StmtAssignment
-    <$> do ids <- identifierListP; return $ Ast.AssignmentLhsVar <$> ids
-    <* symbol "="
-    <*> expressionListP
+stmtAssignmentP = (Ast.StmtAssignment . Ast.AssignmentLhsVar <$> identifierP) <* symbol "=" <*> expressionP
 
 stmtIncP :: Parser Ast.SimpleStmt
 stmtIncP = Ast.StmtInc <$> expressionP <* symbol "++"
@@ -241,7 +227,7 @@ stmtDecP :: Parser Ast.SimpleStmt
 stmtDecP = Ast.StmtDec <$> expressionP <* symbol "--"
 
 stmtShortVarDeclP :: Parser Ast.SimpleStmt
-stmtShortVarDeclP = Ast.StmtShortVarDecl <$> identifierListP <* symbol ":=" <*> expressionListP
+stmtShortVarDeclP = Ast.StmtShortVarDecl <$> identifierP <* symbol ":=" <*> expressionP
 
 stmtExpressionP :: Parser Ast.SimpleStmt
 stmtExpressionP = Ast.StmtExpression <$> expressionP
@@ -296,12 +282,7 @@ boolLitP :: Parser Bool
 boolLitP = True <$ idTrue <|> False <$ idFalse
 
 stringLitP :: Parser Text
-stringLitP = lexeme $ Data.Text.concat <$> between (char '"') (char '"') (some stringChar)
-
--- Identifier
-
-identifierListP :: Parser [Ast.Identifier]
-identifierListP = sepBy identifierP comma
+stringLitP = lexeme $ Data.Text.concat <$> between (char '"') (char '"') (many stringChar)
 
 -- Utils
 

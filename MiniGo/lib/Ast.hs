@@ -135,7 +135,7 @@ data ArrayType = ArrayType
 
 data FunctionType = FunctionType
   { parameters :: [Type],
-    result :: [Type]
+    result :: Maybe Type
   }
   deriving (Show, Eq)
 
@@ -150,7 +150,7 @@ data FunctionDef = FunctionDef
 
 data FunctionSignature = FunctionSignature
   { parameters :: [(Identifier, Type)],
-    result :: [Type]
+    result :: Maybe Type
   }
   deriving (Show)
 
@@ -159,7 +159,7 @@ data FunctionSignature = FunctionSignature
 -- | TODO
 data Statement
   = -- | TODO
-    StmtReturn [Expression]
+    StmtReturn (Maybe Expression)
   | -- | TODO
     StmtBreak
   | -- | TODO
@@ -199,9 +199,9 @@ newtype VarDecl = VarDecl [VarSpec]
   deriving (Show)
 
 data VarSpec = VarSpec
-  { identifiers :: [Identifier],
+  { identifier :: Identifier,
     t :: Maybe Type,
-    expressions :: [Expression]
+    value :: Expression
   }
   deriving (Show)
 
@@ -214,16 +214,10 @@ data IfElse = IfElse
   deriving (Show)
 
 data SimpleStmt
-  = StmtAssignment
-      { lhs :: [AssignmentLhs],
-        rhs :: [Expression]
-      }
+  = StmtAssignment AssignmentLhs Expression
   | StmtInc Expression
   | StmtDec Expression
-  | StmtShortVarDecl
-      { identifiers :: [Identifier],
-        expressions :: [Expression]
-      }
+  | StmtShortVarDecl Identifier Expression
   | StmtExpression Expression
   deriving (Show)
 
