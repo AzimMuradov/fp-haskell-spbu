@@ -41,10 +41,10 @@ jobs:
         with:
           path: ${{ env.latest }}
           fail-on: warning
-      - name: Check for Ormolu formatting
-        uses: mrkkrp/ormolu-action@v7
-        with:
-          pattern: "${{ env.latest }}/**/*.hs"
+      # - name: Check for Ormolu formatting
+      #   uses: mrkkrp/ormolu-action@v7
+      #   with:
+      #     pattern: "${{ env.latest }}/**/*.hs"
       - name: Build
         run: |
           cd ${{ env.latest }}
