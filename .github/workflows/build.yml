@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ghc: [latest]
+        ghc: ['9.2.4']
         cabal: [latest]
         os: [ubuntu-latest]
     steps:
@@ -51,5 +51,10 @@ jobs:
           cd ${{ env.latest }}
           cabal update
           cabal test
+      - name: Integration Test
+        run: |
+          cd ${{ env.latest }}
+          cabal update
+          ./test-integration/test.sh
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
