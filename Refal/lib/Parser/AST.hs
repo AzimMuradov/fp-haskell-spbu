@@ -117,7 +117,7 @@ data FExpr
   | FACons FApp FExpr
 
 instance Show FExpr where
-  show (FEmpt)      = ""
+  show FEmpt        = ""
   show (FTCons t e) = show t ++ show e
   show (FACons t e) = show t ++ show e
 

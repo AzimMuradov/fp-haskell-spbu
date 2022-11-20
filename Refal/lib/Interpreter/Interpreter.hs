@@ -112,4 +112,4 @@ appBin a (FTCons (Sym (MDig t)) (FTCons (Sym (MDig s)) FEmpt)) =
              Sub -> (-) t s
              Mul -> (*) t s)))
     FEmpt
-appBin a f = error "Too many aruments to"
+appBin a f = error "Too many aruments"

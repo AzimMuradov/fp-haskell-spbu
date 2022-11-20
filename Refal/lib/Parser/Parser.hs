@@ -86,7 +86,7 @@ var = lexeme $ do choice $ try <$> [var' 's' SVar, var' 't' TVar, var' 'e' EVar]
 --
 term :: Parser Term
 term = do
-  try (Var <$> var) <|> try (Sym <$> symbol) <|> Par <$> (parens expr)
+  try (Var <$> var) <|> try (Sym <$> symbol) <|> Par <$> parens expr
 
 -- >>> parse (entry expr) "" "\'a\'"
 -- >>> parse (entry expr) "" "s.a12"
@@ -113,7 +113,7 @@ condition =
 -- Right < -  s."N" 1 >
 --
 fApp :: Parser FApp
-fApp = angles $ (FApp <$> identifier' <*> fExpr)
+fApp = angles (FApp <$> identifier' <*> fExpr)
 
 -- >>> parse (entry fExpr) "" " ('a' ('b' 'f')) 2 <Go 213 'a'>   "
 -- Right ( 'a' ( 'b' 'f' ) ) 2 <"Go" 213 'a' >
@@ -149,8 +149,8 @@ block =
 fDefine :: Parser FDefinition
 fDefine =
   do try (lexeme $ string "$ENTRY")
-     Entry <$> identifier' <*> (braces $ block)
-     <|> NEntry <$> identifier' <*> (braces $ block)
+     Entry <$> identifier' <*> braces block
+     <|> NEntry <$> identifier' <*> braces block
 
 -- >>> parse (entry program) ""  "$ENTRY Go { = <Prout <Fact 4>>; } Fact { 0 = 1; s.N = <Mul <Fact <Sub s.N 1>> s.N>;}"
 -- Right [Entry "Go" [= <"Prout" <"Fact" 4 >>],NEntry "Fact" [0 = 1 ,s."N" = < *  <"Fact" < -  s."N" 1 >>s."N" >]]
