@@ -4,5 +4,5 @@ Fact {
 }
 
 $ENTRY Go {
-  = <Fact 5>;
+  = <Fact 6>;
 }

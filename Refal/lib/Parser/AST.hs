@@ -31,6 +31,7 @@ data Expr
 instance Eq Expr where
   Empt == Empt           = True
   Cons t ex == Cons s ey = t == s && ex == ey
+  _ == _ = False
 
 instance Show Expr where
   show Empt       = ""
@@ -46,7 +47,7 @@ instance Eq Term where
   (Sym a) == (Sym b)          = a == b
   (Var a) == (Var b)          = a == b
   (Par ex) == (Par ey)        = ex == ey
-  (Sym b) == (Var (SVar a))   = True
+  (Sym _) == (Var (SVar _))   = True
   _ == _                      = True
 
 instance Show Term where
@@ -64,6 +65,7 @@ instance Eq Var where
   SVar a == SVar b = a == b
   TVar a == TVar b = a == b
   EVar a == EVar b = a == b
+  _ == _ = False
 
 instance Show Var where
   show (SVar a) = "s." ++ show a

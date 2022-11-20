@@ -7,9 +7,9 @@ NC='\033[0m'
 
 for test in $tests
 do
-    cabal v2-run Refal --verbose=0 $test >> test/actual
+    cabal v2-run Refal --verbose=0 $test >>  test-integration/actual
 done
-cd test
+cd test-integration
 dif=$(diff expected actual)
 if [ $? -eq 0 ] ; then
         echo -e "${GREEN}[Test $test] done${NC}"
