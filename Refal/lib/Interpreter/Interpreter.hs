@@ -81,7 +81,7 @@ mrg FEmpt ys         = ys
 mrg (FACons a xs) ys = FACons a (xs `mrg` ys)
 mrg (FTCons t xs) ys = FTCons t (xs `mrg` ys)
 
--- Iteration of Abstract Refal Mashine
+-- iteration of Abstract Refal Mashine
 rIter :: FExpr -> Program -> FExpr
 rIter fex pr =
   case fex of
