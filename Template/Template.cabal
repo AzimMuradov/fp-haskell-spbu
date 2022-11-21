@@ -5,7 +5,7 @@ synopsis:           Template project for Haskell
 
 -- A longer description of the package.
 -- description:
-homepage:           https://github.com/JohnDoe/fp2022-haskell
+homepage:           https://github.com/JohnDoe/fp2022-haskell/tree/master/Template
 
 -- A URL where users can report bugs.
 -- bug-reports:
@@ -13,13 +13,24 @@ license:            GPL-2.0-or-later
 license-file:       LICENSE
 author:             John Doe
 maintainer:         john.doe@gmail.com
-
--- A copyright notice.
--- copyright:
 category:           Language
-extra-source-files: CHANGELOG.md
+
+common shared-properties
+    default-language: Haskell2010
+    build-depends: base >=4.16.3.0
+    ghc-options:
+        -Wall
+        -Wcompat
+        -Widentities
+        -Wincomplete-record-updates
+        -Wincomplete-uni-patterns
+        -Wmissing-home-modules
+        -Wpartial-fields
+        -Wredundant-constraints
 
 library
+    import: shared-properties
+
     exposed-modules:  MyLib
 
     -- Modules included in this library but not exported.
@@ -27,11 +38,13 @@ library
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base >=4.16.3.0
+    build-depends:
     hs-source-dirs:   lib
     default-language: Haskell2010
 
 executable Template
+    import: shared-properties
+
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
@@ -47,8 +60,10 @@ executable Template
     default-language: Haskell2010
 
 test-suite Template-test
+    import: shared-properties
+
     default-language: Haskell2010
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          MyLibTest.hs
-    build-depends:    base >=4.16.3.0
+    build-depends:

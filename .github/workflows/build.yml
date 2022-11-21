@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: ["master"]
   push:
-    branches: ["master"]
+    branches: ["master", "mini-go"]
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ghc: [latest]
+        ghc: ["9.2.4"]
         cabal: [latest]
         os: [ubuntu-latest]
     steps:
@@ -34,13 +34,17 @@ jobs:
         uses: haskell/actions/hlint-setup@v2
         with:
           version: 3.1.6
+      # - name: Run HLint report
+      #   uses: domdere/haskell-lint-action@v1.0.2
       - name: Run HLint
         uses: haskell/actions/hlint-run@v2
         with:
           path: ${{ env.latest }}
           fail-on: warning
-      - name: Run HLint report
-        uses: domdere/haskell-lint-action@v1.0.2
+      # - name: Check for Ormolu formatting
+      #   uses: mrkkrp/ormolu-action@v7
+      #   with:
+      #     pattern: "${{ env.latest }}/**/*.hs"
       - name: Build
         run: |
           cd ${{ env.latest }}
@@ -51,5 +55,10 @@ jobs:
           cd ${{ env.latest }}
           cabal update
           cabal test
+      - name: Integration Test
+        run: |
+          cd ${{ env.latest }}
+          cabal update
+          ./test-integration/test.sh
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
