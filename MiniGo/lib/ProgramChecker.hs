@@ -1,15 +1,26 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module ProgramChecker where
+module ProgramChecker (check) where
 
 import qualified Ast
+import Control.Monad (void)
+import Data.Either.Combinators (mapRight)
 import Data.List (find)
 import Data.Map (Map, (!?))
 import qualified Data.Map as Map
 import Data.Maybe (isJust, isNothing)
 import qualified Data.Set as Set
+import Data.Text (unpack)
+import Errors (todo, unreachable')
+import StdLib (stdLibFuncs)
 import Prelude hiding (id)
-import Data.Either.Combinators (mapRight)
+
+-- | Checker entry point
+check :: Ast.Program -> Result ()
+check = checkProgram
+
+-- TODO : Check for identifier collisions with predeclared
 
 checkProgram :: Ast.Program -> Result ()
 checkProgram (Ast.Program _ funcs) = do
@@ -18,37 +29,34 @@ checkProgram (Ast.Program _ funcs) = do
     then Left NoMain
     else checkFuncs fs
   where
-    funcSelector f = let Ast.FunctionDef id _ _ = f in id
-    uniqueFuncs = checkIfHasDuplicates funcs funcSelector
+    funcSelector f = let Ast.FunctionDef id _ = f in id
+    uniqueFuncs = checkIfHasDuplicates (stdLibFuncs ++ funcs) funcSelector
 
 checkFuncs :: [Ast.FunctionDef] -> Result ()
-checkFuncs funcs = foldl f (Right emptySuccess) funcs
+checkFuncs funcs = foldl f (Right $ Success emptyEnv ()) funcs
   where
-    f :: Result () -> Ast.FunctionDef -> Result ()
-    f res (Ast.FunctionDef _ (Ast.FunctionSignature params ret) stmts) = do
-      res
+    f res (Ast.FunctionDef _ (Ast.FunctionLiteral (Ast.FunctionSignature params ret) stmts)) = do
+      void res
       checkStmts emptyEnv (Scope (Map.fromList params)) ret stmts
-    emptySuccess = Success emptyEnv ()
-    emptyEnv = Env [funcNamesScope]
-    funcNamesScope =
-      Scope $
-        Map.fromList
-          ( ( \(Ast.FunctionDef id (Ast.FunctionSignature params ret) _) ->
-                (id, Ast.TFunction (Ast.FunctionType (snd <$> params) ret))
-            )
-              <$> funcs
-          )
+    f res _ = void res *> Right (Success emptyEnv ())
+
+    emptyEnv = Env [Scope $ Map.fromList $ convertToIdTypePair <$> funcs]
+
+    convertToIdTypePair (Ast.FunctionDef id (Ast.FunctionLiteral (Ast.FunctionSignature params ret) _)) =
+      (id, Ast.TFunction $ Ast.FunctionType (snd <$> params) ret)
+    convertToIdTypePair (Ast.FunctionDef id (Ast.StdLibFunction t _)) = (id, Ast.TFunction t)
+    convertToIdTypePair _ = unreachable'
 
 checkStmt :: Env -> Maybe Ast.Type -> Ast.Statement -> Result ()
-checkStmt env@(Env scopes) ret stmt = case stmt of
+checkStmt env ret stmt = case stmt of
   Ast.StmtReturn expr -> case expr of
     Just expr' -> do
       Success _ t <- checkExpr env expr'
       if t == ret then Right $ Success env () else Left MismatchedTypes
     Nothing -> if isNothing ret then Right $ Success env () else Left MismatchedTypes
-  Ast.StmtBreak -> undefined -- TODO
-  Ast.StmtContinue -> undefined -- TODO
-  Ast.StmtFor for -> undefined -- TODO
+  Ast.StmtBreak -> todo $ unpack "`break` statement checker" -- TODO
+  Ast.StmtContinue -> todo $ unpack "`continue` statement checker" -- TODO
+  Ast.StmtFor _ -> todo $ unpack "`for` statement checker" -- TODO
   Ast.StmtVarDecl (Ast.VarDecl varSpecs) -> case varSpecs of
     [Ast.VarSpec id (Just t) expr] -> do
       Success _ t' <- checkExpr env expr
@@ -61,20 +69,20 @@ checkStmt env@(Env scopes) ret stmt = case stmt of
         Just t' -> addNewIdentifierOrFail env id t'
         Nothing -> Left MismatchedTypes
     _ -> undefined -- TODO
-  Ast.StmtIfElse ifElse@(Ast.IfElse _ condition block _) -> do
+  Ast.StmtIfElse (Ast.IfElse _ condition block _) -> do
     -- TODO : Else, SimpleStmt
     Success _ condT <- checkExpr env condition
     if condT == Just Ast.TBool
       then checkStmts env (Scope Map.empty) ret block
       else Left MismatchedTypes
-  Ast.StmtBlock stmts -> undefined -- TODO
+  Ast.StmtBlock _stmts -> undefined -- TODO
   Ast.StmtSimple simpleStmt -> case simpleStmt of
     Ast.StmtAssignment _ _ -> undefined -- TODO
-    Ast.StmtInc _ -> undefined -- TODO
-    Ast.StmtDec _ -> undefined -- TODO
-    Ast.StmtShortVarDecl _ _ -> undefined -- TODO
+    Ast.StmtInc _ -> todo $ unpack "`increment` statement checker" -- TODO
+    Ast.StmtDec _ -> todo $ unpack "`decrement` statement checker" -- TODO
+    Ast.StmtShortVarDecl _ _ -> todo $ unpack "`short var declaration` statement checker" -- TODO
     Ast.StmtExpression expr -> do
-      checkExpr env expr
+      void $ checkExpr env expr
       return $ Success env ()
 
 checkExpr :: Env -> Ast.Expression -> Result (Maybe Ast.Type)
@@ -85,9 +93,8 @@ checkExpr env@(Env scopes) expr = case expr of
       Ast.LitInt _ -> ok Ast.TInt
       Ast.LitBool _ -> ok Ast.TBool
       Ast.LitString _ -> ok Ast.TString
-      Ast.LitArray _ _ -> undefined -- TODO
-      Ast.LitFunction _ _ -> undefined -- TODO
-      Ast.LitNil -> undefined -- TODO
+      Ast.LitArray (Ast.ArrayLiteral t _) -> ok $ Ast.TArray t
+      Ast.LitFunction _ -> undefined -- TODO
   Ast.ExprIdentifier id -> case getIdentifierType scopes id of
     Just t -> Right $ Success env $ Just t
     Nothing -> Left IdentifierNotFound
@@ -124,11 +131,11 @@ checkExpr env@(Env scopes) expr = case expr of
   Ast.ExprArrayAccessByIndex _ _ -> undefined -- TODO
 
 checkExprsTypes :: [Ast.Expression] -> [Ast.Type] -> Success a -> Result a
-checkExprsTypes exprs expectedTs success@(Success env s) =
-  foldr checkExprType (Right $ Success env ()) (exprs `zip` expectedTs) *> Right success
+checkExprsTypes exprs expectedTs success@(Success env _) =
+  foldl checkExprType (Right $ Success env ()) (exprs `zip` expectedTs) *> Right success
   where
-    checkExprType (expr, expectedT) res = do
-      res
+    checkExprType res (expr, expectedT) = do
+      void res
       Success _ actualT <- checkExpr env expr
       if actualT == Just expectedT
         then Right $ Success env ()
@@ -136,14 +143,16 @@ checkExprsTypes exprs expectedTs success@(Success env s) =
 
 checkStmts :: Env -> Scope -> Maybe Ast.Type -> [Ast.Statement] -> Result ()
 checkStmts env initScope ret stmts =
-  mapRight popScope' $ foldl f (Right $ Success (pushScope env initScope) ()) stmts
+  mapRight popScope $ foldl f (Right $ Success (pushScope env initScope) ()) stmts
   where
     f res stmt = do
       Success env' _ <- res
       checkStmt env' ret stmt
+
     pushScope (Env scopes) initScope = Env $ initScope : scopes
-    popScope' s@(Success env _) = s {env = popScope env}
-    popScope (Env (_ : scopes)) = Env scopes
+
+    popScope s@(Success (Env (_ : scopes)) _) = s {env = Env scopes}
+    popScope _ = unreachable'
 
 checkIfHasDuplicates :: Ord b => [a] -> (a -> b) -> Result [a]
 checkIfHasDuplicates list selector =
@@ -155,20 +164,17 @@ hasDuplicates :: (Ord a) => [a] -> Bool
 hasDuplicates list = length list /= length (Set.fromList list)
 
 getIdentifierType :: [Scope] -> Ast.Identifier -> Maybe Ast.Type
-getIdentifierType scopesStack id = foldl acc Nothing scopesStack
+getIdentifierType scopes id = foldl acc Nothing scopes
   where
     acc t (Scope ids) = case t of
       Nothing -> ids !? id
-      Just t' -> Just t'
+      _ -> t
 
 addNewIdentifierOrFail :: Env -> Ast.Identifier -> Ast.Type -> Result ()
-addNewIdentifierOrFail (Env (Scope ids : scopes)) id t =
-  case ids !? id of
-    Just _ -> Left IdentifierRedeclaration
-    Nothing -> Right $ Success (Env $ Scope (Map.insert id t ids) : scopes) ()
-
-checkForNameCollision :: [Scope] -> Ast.Identifier -> Maybe Ast.Type
-checkForNameCollision scopes id = (ids . head) scopes !? id
+addNewIdentifierOrFail (Env (Scope ids : scopes)) id t = case ids !? id of
+  Just _ -> Left IdentifierRedeclaration
+  Nothing -> Right $ Success (Env $ Scope (Map.insert id t ids) : scopes) ()
+addNewIdentifierOrFail _ _ _ = unreachable'
 
 -- Program checker result
 

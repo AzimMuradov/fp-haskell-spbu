@@ -1,7 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser where
+module Parser (parse) where
 
 import qualified Ast
 import AstOptimizer (simplifyConstExpr)
@@ -10,23 +10,20 @@ import Control.Monad (void)
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
 import Data.Either (lefts, rights)
 import Data.Maybe (catMaybes, fromMaybe)
-import Data.Text (Text, concat)
+import Data.Text (Text, concat, unpack)
 import Data.Void (Void)
+import Errors (todo)
 import Lexer hiding (Parser)
 import Text.Megaparsec (MonadParsec (..), Parsec, choice, eitherP, many, optional, parseMaybe, (<|>))
 import Text.Megaparsec.Char (char)
 
--- Parser entry point
-
-parse :: Parser a -> Text -> Maybe a
-parse = parseMaybe
+-- | Parser entry point
+parse :: Text -> Maybe Ast.Program
+parse = parseMaybe $ sc *> programP <* eof
 
 type Parser = Parsec Void Text
 
 -- Program
-
-fileP :: Parser Ast.Program
-fileP = sc *> programP <* eof
 
 programP :: Parser Ast.Program
 programP = do
@@ -48,7 +45,7 @@ expressionTerm =
   choice'
     [ parens expressionP,
       Ast.ExprLiteral <$> literalP,
-      Ast.ExprIdentifier <$> choice' [identifierP, stdlibFuncP]
+      Ast.ExprIdentifier <$> identifierP
     ]
 
 -- TODO : Support all operators
@@ -107,9 +104,6 @@ relOp name op = binary name (Ast.ExprBinaryOp (Ast.RelOp op))
 addOp :: Text -> Ast.AddOp -> Operator Parser Ast.Expression
 addOp name op = binary name (Ast.ExprBinaryOp (Ast.AddOp op))
 
-addSpOp :: Text -> Ast.AddOp -> Operator Parser Ast.Expression
-addSpOp name op = binary name (Ast.ExprBinaryOp (Ast.AddOp op))
-
 mulOp :: Text -> Ast.MulOp -> Operator Parser Ast.Expression
 mulOp name op = binary name (Ast.ExprBinaryOp (Ast.MulOp op))
 
@@ -151,7 +145,7 @@ functionTypeP = do
 -- Function definition
 
 functionDefP :: Parser Ast.FunctionDef
-functionDefP = Ast.FunctionDef <$ kwFunc <*> identifierP <*> functionSignatureP <*> stmtBlockP
+functionDefP = Ast.FunctionDef <$ kwFunc <*> identifierP <*> (Ast.FunctionLiteral <$> functionSignatureP <*> stmtBlockP)
 
 functionSignatureP :: Parser Ast.FunctionSignature
 functionSignatureP = do
@@ -186,14 +180,14 @@ stmtContinueP = Ast.StmtContinue <$ kwContinue
 -- TODO : Add For
 
 stmtForP :: Parser Ast.Statement
-stmtForP = undefined
+stmtForP = todo $ unpack "`for` statement parser"
 
 -- ForStmt   = { "for" ~ ( ForClause | Condition )? ~ Block }
 -- ForClause = { SimpleStmt? ~ ";" ~ Condition? ~ ";" ~ SimpleStmt? }
 -- Condition = { expressionP }
 
 stmtVarDeclP :: Parser Ast.VarDecl
-stmtVarDeclP = Ast.VarDecl <$ kwVar <*> choice' [listed stmtVarSpecP semicolon, (: []) <$> stmtVarSpecP]
+stmtVarDeclP = Ast.VarDecl <$ kwVar <*> choice' [listed1 stmtVarSpecP semicolon, (: []) <$> stmtVarSpecP]
 
 stmtVarSpecP :: Parser Ast.VarSpec
 stmtVarSpecP = do
@@ -218,8 +212,8 @@ stmtVarSpecP = do
       Ast.TInt -> Ast.LitInt 0
       Ast.TBool -> Ast.LitBool False
       Ast.TString -> Ast.LitString ""
-      Ast.TArray arrT@(Ast.ArrayType elT len) -> Ast.LitArray arrT $ replicate len (Ast.ElementExpr $ defaultValue elT)
-      Ast.TFunction _ -> Ast.LitNil
+      Ast.TArray arrT@(Ast.ArrayType elT len) -> Ast.LitArray (Ast.ArrayLiteral arrT $ replicate len (Ast.ElementExpr $ defaultValue elT))
+      Ast.TFunction _ -> Ast.LitFunction Ast.Nil
 
 stmtIfElseP :: Parser Ast.IfElse
 stmtIfElseP = do
@@ -282,10 +276,10 @@ arrayLitP :: Parser Ast.Literal
 arrayLitP = do
   t <- arrayTypeP
   value <- arrayLitValueP
-  return Ast.LitArray {t = t, value = value}
+  return $ Ast.LitArray Ast.ArrayLiteral {t = t, value = value}
 
 arrayLitValueP :: Parser [Ast.Element]
-arrayLitValueP = undefined
+arrayLitValueP = todo $ unpack "array literal value parser"
 
 -- ArrayLiteral      = { ArrayType ~ ArrayLiteralValue }
 -- ArrayLiteralValue = { "{" ~ ( KeyedElementList ~ ","? )? ~ "}" }

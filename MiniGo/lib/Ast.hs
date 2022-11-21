@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# OPTIONS_GHC -Wno-partial-fields #-}
 
 module Ast where
 
@@ -126,36 +127,19 @@ data Type
   deriving (Show, Eq)
 
 -- | Array type, it contains the length of the array and its elements type.
-data ArrayType = ArrayType
-  { elementType :: Type,
-    length :: Int
-  }
+data ArrayType = ArrayType {elementType :: Type, length :: Int}
   deriving (Show, Eq)
 
 -- | Function type,
 -- it contains the result of the function (which can be `void` if the result is equal to `Nothing`)
 -- and its parameters types.
-data FunctionType = FunctionType
-  { parameters :: [Type],
-    result :: Maybe Type
-  }
+data FunctionType = FunctionType {parameters :: [Type], result :: Maybe Type}
   deriving (Show, Eq)
 
 -- Function definition
 
 -- TODO : Docs
-data FunctionDef = FunctionDef
-  { name :: Identifier,
-    signature :: FunctionSignature,
-    body :: [Statement]
-  }
-  deriving (Show)
-
--- TODO : Docs
-data FunctionSignature = FunctionSignature
-  { parameters :: [(Identifier, Type)],
-    result :: Maybe Type
-  }
+data FunctionDef = FunctionDef {name :: Identifier, funcLit :: FunctionLiteral}
   deriving (Show)
 
 -- Statements
@@ -190,14 +174,9 @@ data For
         block :: [Statement]
       }
   | -- TODO : Docs
-    While
-      { whileCondition :: Expression,
-        block :: [Statement]
-      }
+    While {whileCondition :: Expression, block :: [Statement]}
   | -- TODO : Docs
-    Loop
-      { block :: [Statement]
-      }
+    Loop {block :: [Statement]}
   deriving (Show)
 
 -- TODO : Docs
@@ -205,11 +184,7 @@ newtype VarDecl = VarDecl [VarSpec]
   deriving (Show)
 
 -- TODO : Docs
-data VarSpec = VarSpec
-  { identifier :: Identifier,
-    t :: Maybe Type,
-    value :: Expression
-  }
+data VarSpec = VarSpec {identifier :: Identifier, t :: Maybe Type, value :: Expression}
   deriving (Show)
 
 -- TODO : Docs
@@ -255,22 +230,18 @@ data Literal
     LitBool Bool
   | -- | String literal (e.g., `"Hello"`, `""`, `"Some\ntext"`).
     LitString Text
-  | -- | Array literal (e.g., `[3] int {1, 2}`, `[10] bool`).
-    LitArray
-      { t :: ArrayType,
-        value :: [Element]
-      }
-  | -- | Function literal (e.g., `func (x int) int { return x * x; }`, `func () {}`).
-    LitFunction
-      { signature :: FunctionSignature,
-        body :: [Statement]
-      }
-  | -- | Null (nil) literal (e.g., `nil`).
-    LitNil
+  | -- | Array literal.
+    LitArray ArrayLiteral
+  | -- | Function literal.
+    LitFunction FunctionLiteral
   deriving (Show)
 
 -- | Represents runtime value of the calculated expression.
 type Value = Literal
+
+-- | Array literal (e.g., `[3] int {1, 2}`, `[10] bool`).
+data ArrayLiteral = ArrayLiteral {t :: ArrayType, value :: [Element]}
+  deriving (Show)
 
 -- TODO : Docs
 data Element
@@ -278,6 +249,24 @@ data Element
     ElementExpr Expression
   | -- TODO : Docs
     ElementElements [Element]
+  deriving (Show)
+
+-- | Function literal.
+data FunctionLiteral
+  = -- | Function literal (e.g., `func (x int) int { return x * x; }`, `func () {}`).
+    FunctionLiteral {signature :: FunctionSignature, body :: [Statement]}
+  | -- | StdLib function (e.g., `printlnInt`, `lenStr`).
+    StdLibFunction {t :: FunctionType, impl :: [Literal] -> (Maybe Literal, [Text])}
+  | -- | Null (nil) literal (e.g., `nil`).
+    Nil
+
+instance Show FunctionLiteral where
+  show (FunctionLiteral s b) = "FunctionLiteral {" ++ "signature = " ++ show s ++ ", " ++ "body = " ++ show b ++ "}"
+  show (StdLibFunction t' _) = "StdLibFunction {" ++ "t = " ++ show t' ++ "}"
+  show Nil = "Nil"
+
+-- TODO : Docs
+data FunctionSignature = FunctionSignature {parameters :: [(Identifier, Type)], result :: Maybe Type}
   deriving (Show)
 
 -- Identifier

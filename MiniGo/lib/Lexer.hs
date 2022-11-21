@@ -3,12 +3,11 @@
 module Lexer where
 
 import qualified Ast (Identifier)
-import Control.Applicative.Combinators (between, sepEndBy)
 import Control.Monad (void)
 import Data.Text (Text, pack, singleton)
 import Data.Void (Void)
 import Numeric (readBin, readDec, readHex, readOct)
-import Text.Megaparsec (MonadParsec (..), Parsec, anySingle, choice, many, oneOf, optional, sepBy1, (<|>))
+import Text.Megaparsec (MonadParsec (..), Parsec, anySingle, between, choice, many, oneOf, optional, sepBy1, sepEndBy, sepEndBy1, (<|>))
 import Text.Megaparsec.Char (binDigitChar, char, char', digitChar, hexDigitChar, letterChar, newline, octDigitChar, space1)
 import qualified Text.Megaparsec.Char.Lexer as L
 
@@ -44,6 +43,9 @@ comma = symbol ","
 
 listed :: Parser a -> Parser Text -> Parser [a]
 listed p sep = parens $ sepEndBy p sep
+
+listed1 :: Parser a -> Parser Text -> Parser [a]
+listed1 p sep = parens $ sepEndBy1 p sep
 
 -- Basic literals
 
@@ -103,7 +105,7 @@ identifierP =
   where
     letterP = letterChar <|> char '_'
 
--- Reserved
+-- Keywords
 
 keywordP :: Parser Ast.Identifier
 keywordP = choice [kwVar, kwFunc, kwReturn, kwIf, kwElse, kwFor, kwBreak, kwContinue]
@@ -132,8 +134,10 @@ kwBreak = symbol "break"
 kwContinue :: Parser Text
 kwContinue = symbol "continue"
 
+-- Predeclared identifiers
+
 predeclaredIdentifierP :: Parser Ast.Identifier
-predeclaredIdentifierP = choice [idBool, idInt, idString, idTrue, idFalse, idNil, stdlibFuncP]
+predeclaredIdentifierP = choice [idBool, idInt, idString, idTrue, idFalse, idNil]
 
 idBool :: Parser Text
 idBool = symbol "bool"
@@ -152,21 +156,6 @@ idFalse = symbol "false"
 
 idNil :: Parser Text
 idNil = symbol "nil"
-
-stdlibFuncP :: Parser Ast.Identifier
-stdlibFuncP = choice $ symbol <$> [funcNameLen, funcNamePanic, funcNamePrintLn, funcNamePrint]
-
-funcNameLen :: Text
-funcNameLen = "len"
-
-funcNamePanic :: Text
-funcNamePanic = "panic"
-
-funcNamePrintLn :: Text
-funcNamePrintLn = "println"
-
-funcNamePrint :: Text
-funcNamePrint = "print"
 
 -- Utils
 

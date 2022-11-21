@@ -53,7 +53,8 @@ library
         AstOptimizer,
         ProgramChecker,
         Interpreter,
-        Result
+        StdLib,
+        Errors
 
     other-modules:
 
