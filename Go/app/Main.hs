@@ -26,7 +26,7 @@ main = do
    in interact f
 
 interpretAndShow :: String -> String
-interpretAndShow fileText = (getInterpretationOut . interpret $ fromJust $ parse (pack fileText)) ++ "\n"
+interpretAndShow fileText = getInterpretationOut . interpret $ fromJust $ parse (pack fileText)
 
 checkAndShow :: String -> String
 checkAndShow fileText = show (check <$> parse (pack fileText)) ++ "\n"
