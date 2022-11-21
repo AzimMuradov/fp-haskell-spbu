@@ -3,15 +3,14 @@
 module Interpreter where
 
 import qualified Ast
-import Data.Map (Map, (!))
+import Data.Map ((!))
 import qualified Data.Map as Map
-import qualified Data.Set as Set
-import Data.Text (Text)
-import Result (AccOut, Env (..), IError, IResult, ISuccess (..), Scope (..))
+import Result (AccOut, Env (..), IResult, ISuccess (..), Scope (..))
+import Prelude hiding (id)
 
 -- | Interpreter entry point.
 --
--- Assumes that program is type safe.
+-- Assumes that program is checked.
 interpretProgram :: Ast.Program -> IResult ()
 interpretProgram (Ast.Program _ funcs) = interpretFunc (Env [Scope Map.empty] funcsMap) [] mainFStmts
   where

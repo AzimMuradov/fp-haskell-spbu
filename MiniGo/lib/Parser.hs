@@ -8,7 +8,8 @@ import AstOptimizer (simplifyConstExpr)
 import Control.Applicative.Combinators (between)
 import Control.Monad (void)
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
-import Data.Maybe (catMaybes)
+import Data.Either (lefts, rights)
+import Data.Maybe (catMaybes, fromMaybe)
 import Data.Text (Text, concat)
 import Data.Void (Void)
 import Lexer hiding (Parser)
@@ -30,8 +31,8 @@ fileP = sc *> programP <* eof
 programP :: Parser Ast.Program
 programP = do
   decls <- many topLevelDeclP
-  let vars = [x | Left x <- decls]
-  let funcs = [x | Right x <- decls]
+  let vars = lefts decls
+  let funcs = rights decls
   return Ast.Program {topLevelVarDecls = vars, topLevelFunctionDefs = funcs}
 
 topLevelDeclP :: Parser (Either Ast.VarDecl Ast.FunctionDef)
@@ -194,11 +195,31 @@ stmtForP = undefined
 stmtVarDeclP :: Parser Ast.VarDecl
 stmtVarDeclP = Ast.VarDecl <$ kwVar <*> choice' [listed stmtVarSpecP semicolon, (: []) <$> stmtVarSpecP]
 
--- TODO : Add support for more complex assignments
--- VarSpec = { Identifier ~ ( Type ~ ( "=" ~ Expression )? | "=" ~ Expression ) }
-
 stmtVarSpecP :: Parser Ast.VarSpec
-stmtVarSpecP = Ast.VarSpec <$> identifierP <*> optional' typeP <* symbol "=" <*> expressionP
+stmtVarSpecP = do
+  name <- identifierP
+  (t, expr) <-
+    choice'
+      [ do
+          t <- typeP
+          void $ symbol "="
+          expr <- fromMaybe (defaultValue t) <$> optional' expressionP
+          return (Just t, expr),
+        do
+          t <- optional' typeP
+          void $ symbol "="
+          expr <- expressionP
+          return (t, expr)
+      ]
+  return $ Ast.VarSpec name t expr
+  where
+    defaultValue :: Ast.Type -> Ast.Expression
+    defaultValue t = Ast.ExprLiteral $ case t of
+      Ast.TInt -> Ast.LitInt 0
+      Ast.TBool -> Ast.LitBool False
+      Ast.TString -> Ast.LitString ""
+      Ast.TArray arrT@(Ast.ArrayType elT len) -> Ast.LitArray arrT $ replicate len (Ast.ElementExpr $ defaultValue elT)
+      Ast.TFunction _ -> Ast.LitNil
 
 stmtIfElseP :: Parser Ast.IfElse
 stmtIfElseP = do
@@ -215,16 +236,16 @@ stmtBlockP = braces $ catMaybes <$> many (optional' statementP <* semicolon)
 simpleStmtP :: Parser Ast.SimpleStmt
 simpleStmtP = choice' [stmtAssignmentP, stmtIncP, stmtDecP, stmtShortVarDeclP, stmtExpressionP]
 
--- TODO : Add support for more complex assignments
+-- TODO : Add support for Ast.UpdArrEl
 
 stmtAssignmentP :: Parser Ast.SimpleStmt
-stmtAssignmentP = (Ast.StmtAssignment . Ast.AssignmentLhsVar <$> identifierP) <* symbol "=" <*> expressionP
+stmtAssignmentP = Ast.StmtAssignment . Ast.UpdVar <$> identifierP <* symbol "=" <*> expressionP
 
 stmtIncP :: Parser Ast.SimpleStmt
-stmtIncP = Ast.StmtInc <$> expressionP <* symbol "++"
+stmtIncP = Ast.StmtInc . Ast.UpdVar <$> identifierP <* symbol "++"
 
 stmtDecP :: Parser Ast.SimpleStmt
-stmtDecP = Ast.StmtDec <$> expressionP <* symbol "--"
+stmtDecP = Ast.StmtDec . Ast.UpdVar <$> identifierP <* symbol "--"
 
 stmtShortVarDeclP :: Parser Ast.SimpleStmt
 stmtShortVarDeclP = Ast.StmtShortVarDecl <$> identifierP <* symbol ":=" <*> expressionP

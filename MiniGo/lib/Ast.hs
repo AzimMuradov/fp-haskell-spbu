@@ -4,8 +4,6 @@ module Ast where
 
 import Data.Text (Text)
 
--- TODO : Add NIL support !!!
-
 -- Program
 
 -- | The head of the AST.
@@ -23,7 +21,7 @@ data Program = Program
 data Expression
   = -- | Literal expression (e.g., `"Hello!"`, `17`, `true`).
     ExprLiteral Literal
-  | -- | Identifier expression (e.g., `x`, `println`).
+  | -- | Identifier expression (e.g., `x`, `foo`).
     ExprIdentifier Identifier
   | -- | Unary operation expression (e.g., `!x`, `-4`).
     ExprUnaryOp UnaryOp Expression
@@ -41,9 +39,9 @@ data Expression
 
 -- | Binary operators.
 data BinaryOp
-  = -- | a || b
+  = -- | Or operator (a || b), works only for `bool`.
     OrOp
-  | -- | a && b
+  | -- | And operator (a && b), works only for `bool`.
     AndOp
   | -- | Relation operator.
     RelOp RelOp
@@ -55,83 +53,88 @@ data BinaryOp
 
 -- | Relation operators.
 data RelOp
-  = -- | a == b
+  = -- | Equality operator (a == b).
     EqOp
-  | -- | a != b
+  | -- | Inequality operator (a != b).
     NeOp
-  | -- | a <= b
+  | -- | Less than or equal operator (a <= b), works only for `int`.
     LeOp
-  | -- | a < b
+  | -- | Less than operator (a < b), works only for `int`.
     LtOp
-  | -- | a >= b
+  | -- | More than or equal operator (a >= b), works only for `int`.
     MeOp
-  | -- | a > b
+  | -- | More than operator (a > b), works only for `int`.
     MtOp
   deriving (Show)
 
 -- | Additive operators.
 data AddOp
-  = -- | a + b
+  = -- | Plus operator (a + b), works only for `int` and `string`.
     PlusOp
-  | -- | a - b
+  | -- | Minus operator (a - b), works only for `int`.
     MinusOp
-  | -- | a | b
+  | -- | Bitwise or operator (a | b), works only for `int`.
     BitOrOp
-  | -- | a ^ b
+  | -- | Bitwise xor operator (a ^ b), works only for `int`.
     BitXorOp
   deriving (Show)
 
 -- | Multiplicative operators.
 data MulOp
-  = -- | a * b
+  = -- | Multiply operator (a * b), works only for `int`.
     MultOp
-  | -- | a / b
+  | -- | Divide operator (a / b), works only for `int`.
     DivOp
-  | -- | a % b
+  | -- | Module operator (a % b), works only for `int`.
     ModOp
-  | -- | a << b
+  | -- | Bitwise left shift operator (a << b), works only for `int`.
     BitShiftLeftOp
-  | -- | a >> b
+  | -- | Bitwise right shift operator (a >> b), works only for `int`.
     BitShiftRightOp
-  | -- | a &^ b
+  | -- | Bitwise clear (and not) operator (a &^ b), works only for `int`.
     BitClearOp
-  | -- | a & b
+  | -- | Bitwise and operator (a & b), works only for `int`.
     BitAndOp
   deriving (Show)
 
 -- | Unary operators.
 data UnaryOp
-  = -- | +a
+  = -- | Unary plus operator (+a), works only for `int`.
     UnaryPlusOp
-  | -- | -a
+  | -- | Unary minus operator (-a), works only for `int`.
     UnaryMinusOp
-  | -- | !a
+  | -- | Not operator (!a), works only for `bool`.
     NotOp
-  | -- | ^a
+  | -- | Bitwise complement operator (^a), works only for `int`.
     BitwiseComplementOp
   deriving (Show)
 
 -- Types
 
+-- | All existing types.
 data Type
-  = -- | 64-bit (???) integer type.
+  = -- | 32-bit/64-bit (depending on the machine) integer type.
     TInt
   | -- | Boolean type.
     TBool
   | -- | String type.
     TString
-  | -- TODO
+  | -- | Array type.
     TArray ArrayType
-  | -- TODO
+  | -- | Function type.
     TFunction FunctionType
   deriving (Show, Eq)
 
+-- | Array type, it contains the length of the array and its elements type.
 data ArrayType = ArrayType
   { elementType :: Type,
     length :: Int
   }
   deriving (Show, Eq)
 
+-- | Function type,
+-- it contains the result of the function (which can be `void` if the result is equal to `Nothing`)
+-- and its parameters types.
 data FunctionType = FunctionType
   { parameters :: [Type],
     result :: Maybe Type
@@ -140,6 +143,7 @@ data FunctionType = FunctionType
 
 -- Function definition
 
+-- TODO : Docs
 data FunctionDef = FunctionDef
   { name :: Identifier,
     signature :: FunctionSignature,
@@ -147,6 +151,7 @@ data FunctionDef = FunctionDef
   }
   deriving (Show)
 
+-- TODO : Docs
 data FunctionSignature = FunctionSignature
   { parameters :: [(Identifier, Type)],
     result :: Maybe Type
@@ -155,48 +160,51 @@ data FunctionSignature = FunctionSignature
 
 -- Statements
 
--- | TODO
+-- | Statement.
 data Statement
-  = -- | TODO
+  = -- | Return statement with optional return value (in the case of `Nothing` we assume, that its `void`).
     StmtReturn (Maybe Expression)
-  | -- | TODO
+  | -- | Break statement, should be inside `for`.
     StmtBreak
-  | -- | TODO
+  | -- | Continue statement, should be inside `for`.
     StmtContinue
-  | -- | TODO
+  | -- | For statement, can represent any of the 3 possible `for` variants (see `For` data type).
     StmtFor For
-  | -- | TODO
+  | -- | Var declaration statement.
     StmtVarDecl VarDecl
-  | -- | TODO
+  | -- | If-else statement.
     StmtIfElse IfElse
-  | -- | { ... }
+  | -- | Block statement (e.g., `{ 34; foo(34); if true {} else {}; return 17; }`).
     StmtBlock [Statement]
-  | -- | TODO
+  | -- | Simple statement.
     StmtSimple SimpleStmt
   deriving (Show)
 
+-- TODO : Docs
 data For
-  = -- | TODO
+  = -- TODO : Docs
     For
       { preStatement :: Maybe SimpleStmt,
         forCondition :: Maybe Expression,
         postStatement :: Maybe SimpleStmt,
         block :: [Statement]
       }
-  | -- | TODO
+  | -- TODO : Docs
     While
       { whileCondition :: Expression,
         block :: [Statement]
       }
-  | -- | TODO
+  | -- TODO : Docs
     Loop
       { block :: [Statement]
       }
   deriving (Show)
 
+-- TODO : Docs
 newtype VarDecl = VarDecl [VarSpec]
   deriving (Show)
 
+-- TODO : Docs
 data VarSpec = VarSpec
   { identifier :: Identifier,
     t :: Maybe Type,
@@ -204,6 +212,7 @@ data VarSpec = VarSpec
   }
   deriving (Show)
 
+-- TODO : Docs
 data IfElse = IfElse
   { simpleStmt :: Maybe SimpleStmt,
     condition :: Expression,
@@ -212,42 +221,66 @@ data IfElse = IfElse
   }
   deriving (Show)
 
+-- | Simple statement, its main difference between other statements is that it can be used inside `if` condition.
+--
+-- E.g., `if i := foo(14); i < 42 { return "hello"; } else { return "goodbye"; }`.
 data SimpleStmt
-  = StmtAssignment AssignmentLhs Expression
-  | StmtInc Expression
-  | StmtDec Expression
-  | StmtShortVarDecl Identifier Expression
-  | StmtExpression Expression
+  = -- | Assignment statement (e.g., `x = 17`, `a[3] = "42"`).
+    StmtAssignment UpdatableElement Expression
+  | -- | Increment statement (e.g., `x++`, `a[3]++`).
+    StmtInc UpdatableElement
+  | -- | Decrement statement (e.g., `x--`, `a[3]--`).
+    StmtDec UpdatableElement
+  | -- | Short var declaration statement (e.g., `x := 3`, `y := true`).
+    StmtShortVarDecl Identifier Expression
+  | -- | Expression statement.
+    StmtExpression Expression
   deriving (Show)
 
-data AssignmentLhs
-  = AssignmentLhsVar Identifier
-  | AssignmentLhsArrayElement Identifier [Int]
-  | AssignmentLhsBlank
+-- | Any element that can be updated.
+data UpdatableElement
+  = -- | Any variable can be updated (e.g., `x = 3`, `x++`).
+    UpdVar Identifier
+  | -- | Any array element can be updated (e.g., `a[5][7] = 3`, `a[0]++`).
+    UpdArrEl Identifier [Int]
   deriving (Show)
 
 -- Literals
 
+-- | Literal value.
 data Literal
-  = LitInt Int
-  | LitBool Bool
-  | LitString Text
-  | LitArray
+  = -- | Int literal (e.g., `17`, `0xFF`, `0b101001`).
+    LitInt Int
+  | -- | Boolean literal (e.g., `true`, `false`).
+    LitBool Bool
+  | -- | String literal (e.g., `"Hello"`, `""`, `"Some\ntext"`).
+    LitString Text
+  | -- | Array literal (e.g., `[3] int {1, 2}`, `[10] bool`).
+    LitArray
       { t :: ArrayType,
         value :: [Element]
       }
-  | LitFunction
+  | -- | Function literal (e.g., `func (x int) int { return x * x; }`, `func () {}`).
+    LitFunction
       { signature :: FunctionSignature,
         body :: [Statement]
       }
+  | -- | Null (nil) literal (e.g., `nil`).
+    LitNil
   deriving (Show)
 
--- | Represents runtime value of the calculated expression
+-- | Represents runtime value of the calculated expression.
 type Value = Literal
 
-data Element = ElementExpr Expression | ElementElements [Element]
+-- TODO : Docs
+data Element
+  = -- TODO : Docs
+    ElementExpr Expression
+  | -- TODO : Docs
+    ElementElements [Element]
   deriving (Show)
 
 -- Identifier
 
+-- | Any valid identifier (e.g., `he42llo`, `_42`).
 type Identifier = Text

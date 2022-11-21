@@ -108,46 +108,64 @@ identifierP =
 keywordP :: Parser Ast.Identifier
 keywordP = choice [kwVar, kwFunc, kwReturn, kwIf, kwElse, kwFor, kwBreak, kwContinue]
 
+kwVar :: Parser Text
 kwVar = symbol "var"
 
+kwFunc :: Parser Text
 kwFunc = symbol "func"
 
+kwReturn :: Parser Text
 kwReturn = symbol "return"
 
+kwIf :: Parser Text
 kwIf = symbol "if"
 
+kwElse :: Parser Text
 kwElse = symbol "else"
 
+kwFor :: Parser Text
 kwFor = symbol "for"
 
+kwBreak :: Parser Text
 kwBreak = symbol "break"
 
+kwContinue :: Parser Text
 kwContinue = symbol "continue"
 
 predeclaredIdentifierP :: Parser Ast.Identifier
 predeclaredIdentifierP = choice [idBool, idInt, idString, idTrue, idFalse, idNil, stdlibFuncP]
 
+idBool :: Parser Text
 idBool = symbol "bool"
 
+idInt :: Parser Text
 idInt = symbol "int"
 
+idString :: Parser Text
 idString = symbol "string"
 
+idTrue :: Parser Text
 idTrue = symbol "true"
 
+idFalse :: Parser Text
 idFalse = symbol "false"
 
+idNil :: Parser Text
 idNil = symbol "nil"
 
 stdlibFuncP :: Parser Ast.Identifier
 stdlibFuncP = choice $ symbol <$> [funcNameLen, funcNamePanic, funcNamePrintLn, funcNamePrint]
 
+funcNameLen :: Text
 funcNameLen = "len"
 
+funcNamePanic :: Text
 funcNamePanic = "panic"
 
+funcNamePrintLn :: Text
 funcNamePrintLn = "println"
 
+funcNamePrint :: Text
 funcNamePrint = "print"
 
 -- Utils

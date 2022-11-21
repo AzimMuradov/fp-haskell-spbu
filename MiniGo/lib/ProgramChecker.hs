@@ -3,13 +3,13 @@
 module ProgramChecker where
 
 import qualified Ast
-import Control.Monad (join, void)
-import Data.Either.Combinators (mapRight, maybeToRight, rightToMaybe)
 import Data.List (find)
-import Data.Map (Map, (!), (!?))
+import Data.Map (Map, (!?))
 import qualified Data.Map as Map
 import Data.Maybe (isJust, isNothing)
 import qualified Data.Set as Set
+import Prelude hiding (id)
+import Data.Either.Combinators (mapRight)
 
 checkProgram :: Ast.Program -> Result ()
 checkProgram (Ast.Program _ funcs) = do
@@ -87,6 +87,7 @@ checkExpr env@(Env scopes) expr = case expr of
       Ast.LitString _ -> ok Ast.TString
       Ast.LitArray _ _ -> undefined -- TODO
       Ast.LitFunction _ _ -> undefined -- TODO
+      Ast.LitNil -> undefined -- TODO
   Ast.ExprIdentifier id -> case getIdentifierType scopes id of
     Just t -> Right $ Success env $ Just t
     Nothing -> Left IdentifierNotFound

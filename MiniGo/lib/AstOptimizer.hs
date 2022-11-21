@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+-- {-# LANGUAGE OverloadedStrings #-}
 
 module AstOptimizer where
 
@@ -13,7 +13,7 @@ simplifyConstExpr :: Ast.Expression -> Maybe Ast.Value
 simplifyConstExpr (Ast.ExprLiteral lit) = Just lit
 simplifyConstExpr (Ast.ExprIdentifier _) = Nothing
 simplifyConstExpr (Ast.ExprUnaryOp _ _) = undefined -- TODO
-simplifyConstExpr (Ast.ExprBinaryOp {}) = undefined -- TODO
+simplifyConstExpr Ast.ExprBinaryOp {} = undefined -- TODO
 simplifyConstExpr (Ast.ExprFuncCall _ _) = undefined -- TODO
 simplifyConstExpr (Ast.ExprArrayAccessByIndex _ _) = undefined -- TODO
 
