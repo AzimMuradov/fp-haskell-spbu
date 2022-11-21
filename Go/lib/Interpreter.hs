@@ -9,19 +9,16 @@ import Data.Bits (Bits (..))
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
-import Data.Text (Text, append)
+import Data.Text (Text, append, unpack)
 import Errors (unreachable')
 import StdLib (stdLibFuncs)
-import Prelude hiding (id)
 
 -- | Interpreter entry point. Assumes that program is checked.
 interpret :: Ast.Program -> Result ()
 interpret = interpretProgram
 
-getInterpretationOut :: Result () -> Either Error AccOut
-getInterpretationOut res = do
-  Success (Env _ out) _ <- res
-  Right $ reverse out
+getInterpretationOut :: Result () -> String
+getInterpretationOut res = unlines $ unpack <$> either (error . show) id (do Success (Env _ out) _ <- res; Right $ reverse out)
 
 interpretProgram :: Ast.Program -> Result ()
 interpretProgram (Ast.Program _ funcs) = do

@@ -1,5 +1,6 @@
 module Main where
 
+import Data.Maybe (fromJust)
 import Data.Text (pack)
 import Interpreter (getInterpretationOut, interpret)
 import Parser (parse)
@@ -25,7 +26,7 @@ main = do
    in interact f
 
 interpretAndShow :: String -> String
-interpretAndShow fileText = show (getInterpretationOut . interpret <$> parse (pack fileText)) ++ "\n"
+interpretAndShow fileText = (getInterpretationOut . interpret $ fromJust $ parse (pack fileText)) ++ "\n"
 
 checkAndShow :: String -> String
 checkAndShow fileText = show (check <$> parse (pack fileText)) ++ "\n"
@@ -40,6 +41,7 @@ debug fileText =
     ++ show (check <$> parse (pack fileText))
     ++ "\n\n"
     ++ show (interpret <$> parse (pack fileText))
+    ++ "\n"
 
 helpMsg :: String
 helpMsg =
