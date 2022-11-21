@@ -1,8 +1,6 @@
 module Interpreter where
 
 import           AST
-import           Data.Maybe  (fromJust)
-import           Text.Parsec
 
 interpret :: Program -> IO ()
 interpret pr = print $ runARM (fEntryP pr) pr
@@ -13,7 +11,7 @@ fEntryP (pr:prs) =
   case pr of
     NEntry _ _ -> fEntryP prs
     Entry n _  -> FApp n FEmpt
-
+fEntryP [] = error "No functions founded"
 -- find function definition
 fFunD :: FName -> Program -> [Sentence]
 fFunD n [] = error ("Cant find fun: " ++ show n)
@@ -22,48 +20,49 @@ fFunD n (NEntry fn sen:xpr) = if n == fn then sen else fFunD n xpr
 
 -- trying to match whole function 
 match :: FExpr -> [Sentence] -> RSide
-match FEmpt (Cond pat c rs:xs) = rs
+match FEmpt (Cond _ _ rs:_) = rs
 match f [] = error (show f ++ "recognition impossible")
-match ex (Cond pat c rs:xs) =
+match ex (Cond pat _ rs:xs) =
   case mOne ex pat of
     Nothing ->  match ex xs
-    Just xs -> replace rs xs
+    Just con -> replace rs con
   where
-    -- trying to match with 1 expr. Also provides conformity
+    -- trying to match with 1 expr. Also provides conformity(con)
     mOne :: FExpr -> Expr -> Maybe [(Term, Term)]
     mOne FEmpt Empt = Just []
     mOne FEmpt _ = Nothing
     mOne _ Empt = Nothing
-    mOne (FTCons tx exx) (Cons t ex) =
+    mOne (FTCons tx exx) (Cons t exs) =
         if tx == t then
-            (case mOne exx ex of
+            (case mOne exx exs of
                Nothing -> Nothing
-               Just xs -> Just ((t, tx) : xs))
+               Just con -> Just ((t, tx) : con))
         else
             Nothing
+    mOne (FACons _ _) (Cons _ _) = Nothing
     -- substituting using conformity 
     replace :: RSide -> [(Term, Term)] -> RSide
-    replace ex xs =
+    replace ex con =
       case ex of
         FEmpt -> FEmpt
-        FTCons (Var t) fex -> FTCons (findV t xs) (replace fex xs)
-        FTCons s fex -> FTCons s (replace fex xs)
+        FTCons (Var t) fex -> FTCons (findV t con) (replace fex con)
+        FTCons s fex -> FTCons s (replace fex con)
         FACons (FApp n ex) fex ->
-          FACons (FApp n (replace ex xs)) (replace fex xs)
+          FACons (FApp n (replace ex con)) (replace fex con)
     findV :: Var -> [(Term, Term)] -> Term
     findV g [] = error $ "Can not find pattern for " ++ show g
-    findV v (x:xs) =
+    findV v (x:con) =
       case fst x of
-        Var u -> if u == v then snd x else findV v xs
-        _ -> findV v xs
+        Var u -> if u == v then snd x else findV v con
+        _ -> findV v con
 
 -- Check for absence of function expressions
 isExp :: FExpr -> Bool
 isExp fex =
   case fex of
     FEmpt         -> True
-    FTCons t fex  -> isExp fex
-    FACons ap fex -> False
+    FTCons _ fex  -> isExp fex
+    FACons _ _ -> False
 
 -- merge of two expressions (like lists)
 mrg :: FExpr -> FExpr -> FExpr
@@ -112,4 +111,4 @@ appBin a (FTCons (Sym (MDig t)) (FTCons (Sym (MDig s)) FEmpt)) =
              Sub -> (-) t s
              Mul -> (*) t s)))
     FEmpt
-appBin a f = error "Too many aruments"
+appBin _ _ = error "Too many aruments"

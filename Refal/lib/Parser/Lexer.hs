@@ -1,10 +1,6 @@
 module Lexer where
 
-import           AST
-import           Text.Parsec          (parse)
 import           Text.Parsec.Language (emptyDef)
-import           Text.Parsec.Prim     (many)
-import           Text.Parsec.String   (Parser)
 import qualified Text.Parsec.Token    as Tok
 
 

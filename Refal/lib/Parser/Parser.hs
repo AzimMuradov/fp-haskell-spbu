@@ -1,14 +1,15 @@
 module Parser where
 
-import           Data.Maybe
+import           Data.Maybe()
 import           Text.Parsec
 import           Text.Parsec.String (Parser)
-import qualified Text.Parsec.Token  as Tok
 
-import           AST
-import           Lexer
+import AST
+import Lexer
+    ( integer, parens, angles, braces, comma, semi, sym, lexeme )
 
 -------------------------------Expressions------------------------------------
+empty :: Parser String
 empty = sym ""
 
 entry :: Parser a -> Parser a
@@ -16,14 +17,15 @@ entry p = spaces *> p <* eof
 
 -- >>> parse (entry identifier') "" " Sub "
 -- >>> parse (entry identifier') "" " as1_ADS- " 
--- Right - 
+-- >>> parse (entry identifier') "" " S " 
+-- Right  - 
 -- Right "as1_ADS-"
+-- Right "S"
 --
 identifier' :: Parser FName
 identifier' =
   lexeme $
-  try $
-  Op <$> choice [Add <$ string "Add", Sub <$ string "Sub", Mul <$ string "Mul"] <|> do
+  Op <$> choice [Add <$ try (string "Add"), Sub <$ try (string "Sub"), Mul <$ try (string "Mul")] <|> do
     c <- letter
     cs <- many (letter <|> digit <|> char '-' <|> char '_')
     return $ Usr (c : cs)
@@ -125,7 +127,7 @@ sentence :: Parser Sentence
 sentence = do
   left <- expr
   cond <- condition
-  sym "="
+  _ <- sym "="
   try (Cond left cond <$> fExpr)
 
 -- >>> parse (entry block) ""  "0 = 1; s.N = \'a\'; "
@@ -135,7 +137,7 @@ block :: Parser [Sentence]
 block =
   many $ do
     sen <- sentence
-    semi
+    _ <- semi
     return sen
 
 -- >>> parse (entry fDefine) ""  "$ENTRY go {  0 = 1; } "
@@ -143,7 +145,7 @@ block =
 --
 fDefine :: Parser FDefinition
 fDefine =
-  do try (lexeme $ string "$ENTRY")
+  do _ <- try (lexeme $ string "$ENTRY")
      Entry <$> identifier' <*> braces block
      <|> NEntry <$> identifier' <*> braces block
 
