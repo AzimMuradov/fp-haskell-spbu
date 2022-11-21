@@ -9,7 +9,7 @@ synopsis: Mini Go parser and interpreter
 description:
     Mini Go parser and interpreter
 
-homepage: https://github.com/AzimMuradov/fp2022-haskell/tree/master/MiniGO
+homepage: https://github.com/AzimMuradov/fp2022-haskell/tree/master/Go
 
 bug-reports: https://github.com/AzimMuradov/fp2022-haskell/issues
 
