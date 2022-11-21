@@ -10,9 +10,8 @@ import Control.Monad (void)
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
 import Data.Either (lefts, rights)
 import Data.Maybe (catMaybes, fromMaybe)
-import Data.Text (Text, concat, unpack)
+import Data.Text (Text, concat)
 import Data.Void (Void)
-import Errors (todo)
 import Lexer hiding (Parser)
 import Text.Megaparsec (MonadParsec (..), Parsec, choice, eitherP, many, optional, parseMaybe, (<|>))
 import Text.Megaparsec.Char (char)
@@ -179,8 +178,8 @@ stmtContinueP = Ast.StmtContinue <$ kwContinue
 
 -- TODO : Add For
 
-stmtForP :: Parser Ast.Statement
-stmtForP = todo $ unpack "`for` statement parser"
+-- stmtForP :: Parser Ast.Statement
+-- stmtForP = todo $ unpack "`for` statement parser"
 
 -- ForStmt   = { "for" ~ ( ForClause | Condition )? ~ Block }
 -- ForClause = { SimpleStmt? ~ ";" ~ Condition? ~ ";" ~ SimpleStmt? }
@@ -249,15 +248,15 @@ stmtExpressionP = Ast.StmtExpression <$> expressionP
 
 -- Array
 
-arrayTypeP :: Parser Ast.ArrayType
-arrayTypeP = do
-  lenExpr <- brackets expressionP
-  len <- do
-    case simplifyConstExpr lenExpr of
-      Just (Ast.LitInt len) -> return len
-      _ -> fail "this is not a const int expression"
-  t <- typeP
-  return Ast.ArrayType {Ast.elementType = t, Ast.length = len}
+-- arrayTypeP :: Parser Ast.ArrayType
+-- arrayTypeP = do
+--   lenExpr <- brackets expressionP
+--   len <- do
+--     case simplifyConstExpr lenExpr of
+--       Just (Ast.LitInt len) -> return len
+--       _ -> fail "this is not a const int expression"
+--   t <- typeP
+--   return Ast.ArrayType {Ast.elementType = t, Ast.length = len}
 
 -- Literals
 
@@ -272,14 +271,14 @@ literalP =
 
 -- functionLitP   = { "func" ~ Signature ~ FunctionBody }
 
-arrayLitP :: Parser Ast.Literal
-arrayLitP = do
-  t <- arrayTypeP
-  value <- arrayLitValueP
-  return $ Ast.LitArray Ast.ArrayLiteral {t = t, value = value}
+-- arrayLitP :: Parser Ast.Literal
+-- arrayLitP = do
+--   t <- arrayTypeP
+--   value <- arrayLitValueP
+--   return $ Ast.LitArray Ast.ArrayLiteral {t = t, value = value}
 
-arrayLitValueP :: Parser [Ast.Element]
-arrayLitValueP = todo $ unpack "array literal value parser"
+-- arrayLitValueP :: Parser [Ast.Element]
+-- arrayLitValueP = todo $ unpack "array literal value parser"
 
 -- ArrayLiteral      = { ArrayType ~ ArrayLiteralValue }
 -- ArrayLiteralValue = { "{" ~ ( KeyedElementList ~ ","? )? ~ "}" }
