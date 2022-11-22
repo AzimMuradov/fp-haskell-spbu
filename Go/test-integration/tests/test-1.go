@@ -4,12 +4,22 @@ func main() {
     printlnInt(fact(n * 2));  // should print 3628800
     printlnInt(fact(n));      // should print 120
     printlnInt(fib(n));       // should print 8
+    ret();                    // should print 1 and then 2
     printlnInt(100000);       // should print 100000
     printlnInt(-10000000);    // should print -10000000
     printlnInt(foo(1000));    // should print 0
     printlnInt(bar(1000));    // should print 0
     printlnInt(fib(fact(3))); // should print 13
-    return;
+}
+
+
+/* Return for short-circuit */
+
+func ret() {
+  printlnInt(1);
+  printlnInt(2);
+  return;
+  printlnInt(3);
 }
 
 
@@ -42,4 +52,3 @@ func bar(n int) int {
   if (n == 0) { return 0; };
   return foo(n - 1);
 }
-
