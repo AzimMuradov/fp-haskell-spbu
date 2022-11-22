@@ -6,7 +6,6 @@ module ProgramChecker (check) where
 import qualified Ast
 import Control.Monad (void)
 import Data.Either.Combinators (mapRight)
-import Data.List (find)
 import Data.Map (Map, (!?))
 import qualified Data.Map as Map
 import Data.Maybe (isJust, isNothing)
@@ -14,46 +13,61 @@ import qualified Data.Set as Set
 import Data.Text (unpack)
 import Errors (todo, unreachable')
 import StdLib (stdLibFuncs)
-import Prelude hiding (id)
 
--- | Checker entry point
+--------------------------------------------------------Checker---------------------------------------------------------
+
+-- | Checker entry point.
 check :: Ast.Program -> Result ()
 check = checkProgram
 
--- TODO : Check for identifier collisions with predeclared
+-------------------------------------------------Program and functions--------------------------------------------------
 
+-- | Check program for types and names.
 checkProgram :: Ast.Program -> Result ()
 checkProgram (Ast.Program _ funcs) = do
-  (Success _ fs) <- uniqueFuncs
-  if isNothing $ find (\f -> funcSelector f == "main") fs
-    then Left NoMain
-    else checkFuncs fs
+  Success _ fs <- uniqueFsRes
+  if any (\f -> getId f == "main") fs then checkFuncs fs else Left NoMain
   where
-    funcSelector f = let Ast.FunctionDef id _ = f in id
-    uniqueFuncs = checkIfHasDuplicates (stdLibFuncs ++ funcs) funcSelector
+    getId f = let Ast.FunctionDef id _ = f in id
+    uniqueFsRes = checkIfHasDuplicates (stdLibFuncs ++ funcs) getId
 
+-- | Check functions.
+--
+-- Gets all functions and returns `()` as the result of checking.
 checkFuncs :: [Ast.FunctionDef] -> Result ()
-checkFuncs funcs = foldl f (Right $ Success emptyEnv ()) funcs
+checkFuncs funcs = foldl f (unitRes initEnv) funcs
   where
-    f res (Ast.FunctionDef _ (Ast.FunctionLiteral (Ast.FunctionSignature params ret) stmts)) = do
-      void res
-      checkStmts emptyEnv (Scope (Map.fromList params)) ret stmts
-    f res _ = void res *> Right (Success emptyEnv ())
+    f res (Ast.FunctionDef _ func) = void res *> checkFunc initEnv func
 
-    emptyEnv = Env [Scope $ Map.fromList $ convertToIdTypePair <$> funcs]
+    initEnv = Env [Scope $ Map.fromList $ convertToIdTypePair <$> funcs]
 
     convertToIdTypePair (Ast.FunctionDef id (Ast.FunctionLiteral (Ast.FunctionSignature params ret) _)) =
       (id, Ast.TFunction $ Ast.FunctionType (snd <$> params) ret)
     convertToIdTypePair (Ast.FunctionDef id (Ast.StdLibFunction t _)) = (id, Ast.TFunction t)
     convertToIdTypePair _ = unreachable'
 
+-- | Check function.
+--
+-- Gets the environment and a function literal.
+-- Returns `()` as the result of checking.
+checkFunc :: Env -> Ast.FunctionLiteral -> Result ()
+checkFunc env (Ast.FunctionLiteral (Ast.FunctionSignature params ret) stmts) =
+  checkStmts env (Scope (Map.fromList params)) ret stmts
+checkFunc _ _ = unreachable'
+
+-------------------------------------------------------Statements-------------------------------------------------------
+
+-- | Check statement.
+--
+-- Gets the environment, return type of the function and a statement.
+-- Returns `()` as the result of checking.
 checkStmt :: Env -> Maybe Ast.Type -> Ast.Statement -> Result ()
 checkStmt env ret stmt = case stmt of
   Ast.StmtReturn expr -> case expr of
     Just expr' -> do
       Success _ t <- checkExpr env expr'
-      if t == ret then Right $ Success env () else Left MismatchedTypes
-    Nothing -> if isNothing ret then Right $ Success env () else Left MismatchedTypes
+      if t == ret then unitRes env else Left MismatchedTypes
+    Nothing -> if isNothing ret then unitRes env else Left MismatchedTypes
   Ast.StmtBreak -> todo $ unpack "`break` statement checker" -- TODO
   Ast.StmtContinue -> todo $ unpack "`continue` statement checker" -- TODO
   Ast.StmtFor _ -> todo $ unpack "`for` statement checker" -- TODO
@@ -68,22 +82,40 @@ checkStmt env ret stmt = case stmt of
       case t of
         Just t' -> addNewIdentifierOrFail env id t'
         Nothing -> Left MismatchedTypes
-    _ -> undefined -- TODO
+    [] -> unreachable'
+    _ -> todo $ unpack "several `var specification` statements checker" -- TODO
   Ast.StmtIfElse (Ast.IfElse _ condition block _) -> do
     -- TODO : Else, SimpleStmt
     Success _ condT <- checkExpr env condition
     if condT == Just Ast.TBool
       then checkStmts env (Scope Map.empty) ret block
       else Left MismatchedTypes
-  Ast.StmtBlock _stmts -> undefined -- TODO
+  Ast.StmtBlock _ -> todo $ unpack "`block` statement checker" -- TODO
   Ast.StmtSimple simpleStmt -> case simpleStmt of
-    Ast.StmtAssignment _ _ -> undefined -- TODO
+    Ast.StmtAssignment _ _ -> todo $ unpack "`assignment` statement checker" -- TODO
     Ast.StmtInc _ -> todo $ unpack "`increment` statement checker" -- TODO
     Ast.StmtDec _ -> todo $ unpack "`decrement` statement checker" -- TODO
     Ast.StmtShortVarDecl _ _ -> todo $ unpack "`short var declaration` statement checker" -- TODO
-    Ast.StmtExpression expr -> do
-      void $ checkExpr env expr
-      return $ Success env ()
+    Ast.StmtExpression expr -> void (checkExpr env expr) *> unitRes env
+
+-- | Check statements.
+--
+-- Gets the environment, initial scope, return type of the function and statements.
+-- Returns `()` as the result of checking.
+checkStmts :: Env -> Scope -> Maybe Ast.Type -> [Ast.Statement] -> Result ()
+checkStmts env initScope ret stmts =
+  mapRight popScope $ foldl f (unitRes (pushScope env initScope)) stmts
+  where
+    f res stmt = do
+      Success env' _ <- res
+      checkStmt env' ret stmt
+
+    pushScope (Env scopes) initScope = Env $ initScope : scopes
+
+    popScope s@(Success (Env (_ : scopes)) _) = s {env = Env scopes}
+    popScope _ = unreachable'
+
+------------------------------------------------------Expressions-------------------------------------------------------
 
 checkExpr :: Env -> Ast.Expression -> Result (Maybe Ast.Type)
 checkExpr env@(Env scopes) expr = case expr of
@@ -94,7 +126,7 @@ checkExpr env@(Env scopes) expr = case expr of
       Ast.LitBool _ -> ok Ast.TBool
       Ast.LitString _ -> ok Ast.TString
       Ast.LitArray (Ast.ArrayLiteral t _) -> ok $ Ast.TArray t
-      Ast.LitFunction _ -> undefined -- TODO
+      Ast.LitFunction _ -> todo $ unpack "function literal checker" -- TODO
   Ast.ExprIdentifier id -> case getIdentifierType scopes id of
     Just t -> Right $ Success env $ Just t
     Nothing -> Left IdentifierNotFound
@@ -128,31 +160,20 @@ checkExpr env@(Env scopes) expr = case expr of
     case t of
       Just (Ast.TFunction (Ast.FunctionType paramsTs ret)) -> checkExprsTypes args paramsTs (Success env ret)
       _ -> Left MismatchedTypes
-  Ast.ExprArrayAccessByIndex _ _ -> undefined -- TODO
+  Ast.ExprArrayAccessByIndex _ _ -> todo $ unpack "array access by index checker" -- TODO
+
+-------------------------------------------------------Utilities--------------------------------------------------------
 
 checkExprsTypes :: [Ast.Expression] -> [Ast.Type] -> Success a -> Result a
 checkExprsTypes exprs expectedTs success@(Success env _) =
-  foldl checkExprType (Right $ Success env ()) (exprs `zip` expectedTs) *> Right success
+  foldl checkExprType (unitRes env) (exprs `zip` expectedTs) *> Right success
   where
     checkExprType res (expr, expectedT) = do
       void res
       Success _ actualT <- checkExpr env expr
       if actualT == Just expectedT
-        then Right $ Success env ()
+        then unitRes env
         else Left MismatchedTypes
-
-checkStmts :: Env -> Scope -> Maybe Ast.Type -> [Ast.Statement] -> Result ()
-checkStmts env initScope ret stmts =
-  mapRight popScope $ foldl f (Right $ Success (pushScope env initScope) ()) stmts
-  where
-    f res stmt = do
-      Success env' _ <- res
-      checkStmt env' ret stmt
-
-    pushScope (Env scopes) initScope = Env $ initScope : scopes
-
-    popScope s@(Success (Env (_ : scopes)) _) = s {env = Env scopes}
-    popScope _ = unreachable'
 
 checkIfHasDuplicates :: Ord b => [a] -> (a -> b) -> Result [a]
 checkIfHasDuplicates list selector =
@@ -173,35 +194,40 @@ getIdentifierType scopes id = foldl acc Nothing scopes
 addNewIdentifierOrFail :: Env -> Ast.Identifier -> Ast.Type -> Result ()
 addNewIdentifierOrFail (Env (Scope ids : scopes)) id t = case ids !? id of
   Just _ -> Left IdentifierRedeclaration
-  Nothing -> Right $ Success (Env $ Scope (Map.insert id t ids) : scopes) ()
+  Nothing -> unitRes (Env $ Scope (Map.insert id t ids) : scopes)
 addNewIdentifierOrFail _ _ _ = unreachable'
+
+unitRes :: Env -> Result ()
+unitRes env = Right $ Success env ()
+
+-------------------------------------------------------Data types-------------------------------------------------------
 
 -- Program checker result
 
--- | Represents the result of checking
+-- | Represents the result of checking.
 type Result a = Either Err (Success a)
 
--- | Represents unsuccessful checking
+-- | Represents unsuccessful checking.
 data Err
-  = -- | Identifier redeclaration error
+  = -- | Identifier redeclaration error.
     IdentifierRedeclaration
-  | -- | Identifier not found error
+  | -- | Identifier not found error.
     IdentifierNotFound
-  | -- | Mismatched types error
+  | -- | Mismatched types error.
     MismatchedTypes
-  | -- | No entry point for the interpreter error
+  | -- | No entry point for the interpreter error.
     NoMain
   deriving (Show)
 
 -- | Represents successful checking,
--- it contains the current environment and the result of checking
+-- it contains the current environment and the result of checking.
 data Success a = Success {env :: Env, res :: a}
   deriving (Show)
 
--- | Environment contains scopes stack
+-- | Environment contains scopes stack.
 newtype Env = Env [Scope]
   deriving (Show)
 
--- | Scope contains identifiers mapped to their types
+-- | Scope contains identifiers mapped to their types.
 newtype Scope = Scope {ids :: Map Ast.Identifier Ast.Type}
   deriving (Show)

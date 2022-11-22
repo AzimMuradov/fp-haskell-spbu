@@ -5,8 +5,9 @@ module StdLib (stdLibFuncs) where
 import qualified Ast
 import Data.Text (Text, pack)
 
--- Definitions
+------------------------------------------------------Definitions-------------------------------------------------------
 
+-- | All available stdlib functions.
 stdLibFuncs :: [Ast.FunctionDef]
 stdLibFuncs = [printlnInt, printlnBool, printlnStr]
 
@@ -32,7 +33,7 @@ printlnStr = Ast.FunctionDef "printlnStr" $ Ast.StdLibFunction (Ast.FunctionType
 -- TODO : Add `printlnFunc` function
 -- TODO : Add `printlnArr` function
 
--- Implementations
+----------------------------------------------------Implementations-----------------------------------------------------
 
 printlnImpl :: [Ast.Value] -> (Maybe Ast.Value, [Text])
 printlnImpl [Ast.LitInt x] = (Nothing, [pack $ show x])

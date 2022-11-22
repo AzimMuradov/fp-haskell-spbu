@@ -5,7 +5,7 @@ module Ast where
 
 import Data.Text (Text)
 
--- Program
+--------------------------------------------------------Program---------------------------------------------------------
 
 -- | The head of the AST.
 data Program = Program
@@ -16,7 +16,11 @@ data Program = Program
   }
   deriving (Show)
 
--- Expressions
+-- | Function definition.
+data FunctionDef = FunctionDef {name :: Identifier, funcLit :: FunctionLiteral}
+  deriving (Show)
+
+------------------------------------------------------Expressions-------------------------------------------------------
 
 -- | Expression.
 data Expression
@@ -28,12 +32,12 @@ data Expression
     ExprUnaryOp UnaryOp Expression
   | -- | Binary operation expression (e.g., `x + 7`).
     ExprBinaryOp BinaryOp Expression Expression
-  | -- | Function call expression.
-    -- E.g., `foo(17, x, bar())`, `(func (x int) int { return x * x; })(3)`.
-    ExprFuncCall Expression [Expression]
   | -- | Array access by index expression.
     -- E.g., `a[3]`, `([2] int {3, 5})[1 + foo()]`, assuming that `foo()` returns `int`.
     ExprArrayAccessByIndex Expression Int
+  | -- | Function call expression.
+    -- E.g., `foo(17, x, bar())`, `(func (x int) int { return x * x; })(3)`.
+    ExprFuncCall Expression [Expression]
   deriving (Show)
 
 -- Operators
@@ -110,7 +114,7 @@ data UnaryOp
     BitwiseComplementOp
   deriving (Show)
 
--- Types
+---------------------------------------------------------Types----------------------------------------------------------
 
 -- | All existing types.
 data Type
@@ -136,13 +140,7 @@ data ArrayType = ArrayType {elementType :: Type, length :: Int}
 data FunctionType = FunctionType {parameters :: [Type], result :: Maybe Type}
   deriving (Show, Eq)
 
--- Function definition
-
--- TODO : Docs
-data FunctionDef = FunctionDef {name :: Identifier, funcLit :: FunctionLiteral}
-  deriving (Show)
-
--- Statements
+-------------------------------------------------------Statements-------------------------------------------------------
 
 -- | Statement.
 data Statement
@@ -179,15 +177,16 @@ data For
     Loop {block :: [Statement]}
   deriving (Show)
 
--- TODO : Docs
+-- | Var declaration, one var declaration may contain many var specifications (e.g., `var x int = 3`, `var (x int = 3; y string = "")`).
 newtype VarDecl = VarDecl [VarSpec]
   deriving (Show)
 
--- TODO : Docs
+-- | Var specification (e.g., `x int = 3`, `y = "hello"`, `z int`).
 data VarSpec = VarSpec {identifier :: Identifier, t :: Maybe Type, value :: Expression}
   deriving (Show)
 
--- TODO : Docs
+-- If-else statement.
+-- E.g., `if i := foo(14); i < 42 { return "hello"; } else { return "goodbye"; }`, `if true { println("hello"); }`.
 data IfElse = IfElse
   { simpleStmt :: Maybe SimpleStmt,
     condition :: Expression,
@@ -220,7 +219,7 @@ data UpdatableElement
     UpdArrEl Identifier [Int]
   deriving (Show)
 
--- Literals
+--------------------------------------------------------Literals--------------------------------------------------------
 
 -- | Literal value.
 data Literal
@@ -247,7 +246,7 @@ data ArrayLiteral = ArrayLiteral {t :: ArrayType, value :: [Element]}
 data Element
   = -- TODO : Docs
     ElementExpr Expression
-  | -- TODO : Docs
+  | -- TODO : Docs (`ElementElements` is needed for multidimensional arrays)
     ElementElements [Element]
   deriving (Show)
 
@@ -265,7 +264,9 @@ instance Show FunctionLiteral where
   show (StdLibFunction t' _) = "StdLibFunction {" ++ "t = " ++ show t' ++ "}"
   show Nil = "Nil"
 
--- TODO : Docs
+-- | Function signature,
+-- it contains the result of the function (which can be `void` if the result is equal to `Nothing`)
+-- and its parameters.
 data FunctionSignature = FunctionSignature {parameters :: [(Identifier, Type)], result :: Maybe Type}
   deriving (Show)
 

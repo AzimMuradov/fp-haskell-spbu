@@ -1,3 +1,8 @@
+// Rough representation of the grammar
+
+// TODO : Update grammar
+
+
 // Program
 
 File         = { SOI ~ Program ~ EOI }
@@ -9,18 +14,16 @@ TopLevelDecl = { VarDecl ~ ";" | FunctionDecl }
 
 // Expression
 
-ExpressionList = { Expression ~ ( "," ~ Expression )* }
+Expression  = { UnaryExpr ~ (BinaryOp ~ UnaryExpr)* }
 
-Expression     = { UnaryExpr ~ (BinaryOp ~ UnaryExpr)* }
+UnaryExpr   = { UnaryOp* ~ PrimaryExpr }
+PrimaryExpr = { Operand ~ ( Index | Arguments )* }
 
-UnaryExpr      = { UnaryOp* ~ PrimaryExpr }
-PrimaryExpr    = { Operand ~ ( Index | Arguments )* }
+Operand     = { Literal | OperandName | "(" ~ Expression ~ ")" }
+OperandName = { Identifier }
 
-Operand        = { Literal | OperandName | "(" ~ Expression ~ ")" }
-OperandName    = { Identifier }
-
-Index          = { "[" ~ Expression ~ "]" }
-Arguments      = { "(" ~ ( ExpressionList ~ ","? )? ~ ")" }
+Index       = { "[" ~ Expression ~ "]" }
+Arguments   = { "(" ~ ( Expression ~ ( "," ~ Expression )* ~ ","? )? ~ ")" }
 
 
 // Operators
@@ -37,13 +40,10 @@ AssignOp = { ( AddOp | MulOp )? ~ "=" }
 
 // Type
 
-Type     = { TypeLit | TypeName | "(" ~ Type ~ ")" }
-TypeName = { "int" | "bool" | "string" }
-TypeLit  = { ArrayType | FunctionType }
+Type = { "int" | "bool" | "string" | ArrayType | FunctionType | "(" ~ Type ~ ")" }
 
 
 // Function declaration (definition)
-// TODO
 
 FunctionDecl    = { "func" ~ FunctionName ~ Signature ~ FunctionBody }
 FunctionName    = { Identifier }
@@ -51,8 +51,8 @@ FunctionBody    = { Block }
 
 FunctionType    = { "func" ~ Signature }
 Signature       = { NamedParameters ~ Result? }
-Result          = { Parameters | Type }
-NamedParameters = { "(" ~ ( (ParameterDecl ~ ( "," ~ ParameterDecl )*) ~ ","? )? ~ ")" }
+Result          = { Type }
+NamedParameters = { "(" ~ ( (NamedParameter ~ ( "," ~ NamedParameter )*) ~ ","? )? ~ ")" }
 NamedParameter  = { Identifier ~ Type }
 Parameters      = { "(" ~ ( (Type ~ ( "," ~ Type )*) ~ ","? )? ~ ")" }
 
@@ -61,7 +61,7 @@ Parameters      = { "(" ~ ( (Type ~ ( "," ~ Type )*) ~ ","? )? ~ ")" }
 
 Statement      = { ReturnStmt | BreakStmt | ContinueStmt | ForStmt | VarDecl | IfElseStmt | Block | SimpleStmt }
 
-ReturnStmt     = { "return" ~ ExpressionList? }
+ReturnStmt     = { "return" ~ Expression? }
 BreakStmt      = { "break" }
 ContinueStmt   = { "continue" }
 
@@ -70,7 +70,7 @@ ForClause      = { SimpleStmt? ~ ";" ~ Condition? ~ ";" ~ SimpleStmt? }
 Condition      = { Expression }
 
 VarDecl        = { "var" ~ ( VarSpec | "(" ~ ( VarSpec ~ ";" )* ~ ")" ) }
-VarSpec        = { IdentifierList ~ ( Type ~ ( "=" ~ ExpressionList )? | "=" ~ ExpressionList ) }
+VarSpec        = { Identifier ~ ( Type ~ ( "=" ~ Expression )? | "=" ~ Expression ) }
 
 IfElseStmt     = { "if" ~ ( SimpleStmt ~ ";" )? ~ Expression ~ Block ~ ("else" ~ ( IfElseStmt | Block ))? }
 
@@ -78,9 +78,9 @@ Block          = { "{" ~ ( Statement? ~ ";")* ~ "}" }
 
 SimpleStmt     = { Assignment | IncDecStmt | ShortVarDecl | ExpressionStmt }
 
-Assignment     = { ExpressionList ~ AssignOp ~ ExpressionList }
+Assignment     = { Expression ~ AssignOp ~ Expression }
 IncDecStmt     = { Expression ~ ( "++" | "--" ) }
-ShortVarDecl   = { IdentifierList ~ ":=" ~ ExpressionList }
+ShortVarDecl   = { Identifier ~ ":=" ~ Expression }
 ExpressionStmt = { Expression }
 
 
@@ -91,14 +91,14 @@ ArrayType = { "[" ~ Expression ~ "]" ~ Type }
 
 // Literal
 
-Literal = {  IntLit | BoolLit | StringLit | ArrayLiteral | FunctionLit }
+Literal = {  IntLit | BoolLit | StringLit | ArrayLit | FunctionLit }
 
 
 // Complex literals
 
 FunctionLit       = { "func" ~ Signature ~ FunctionBody }
 
-ArrayLiteral      = { ArrayLiteralType ~ ArrayLiteralValue }
+ArrayLit          = { ArrayLiteralType ~ ArrayLiteralValue }
 ArrayLiteralType  = { ArrayType }
 ArrayLiteralValue = { "{" ~ ( KeyedElementList ~ ","? )? ~ "}" }
 KeyedElementList  = { KeyedElement ~ ( "," ~ KeyedElement )* }
@@ -124,15 +124,13 @@ EscapedChar = { "\\" ~ ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\\" | "\"" )
 
 // Identifier
 
-IdentifierList        = { Identifier ~ ( "," ~ Identifier )* }
-
 Identifier            = @{ !(Keyword | PredeclaredIdentifier) ~ Letter ~ ( Letter | UnicodeDigit )* }
 
 Letter                = { UnicodeLetter | "_" }
 
 Keyword               = { "break" | "func" | "if" | "else" | "continue" | "for" | "return" | "var" }
 
-PredeclaredIdentifier = { "bool" | "int" | "string" | "true" | "false" | "nil" | "len" | "panic" | "print" | "println" | "recover" }
+PredeclaredIdentifier = { "bool" | "int" | "string" | "true" | "false" | "nil" }
 
 
 // Basic elements

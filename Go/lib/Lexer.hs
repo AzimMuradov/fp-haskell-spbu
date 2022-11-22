@@ -11,20 +11,24 @@ import Text.Megaparsec (MonadParsec (..), Parsec, anySingle, between, choice, ma
 import Text.Megaparsec.Char (binDigitChar, char, char', digitChar, hexDigitChar, letterChar, newline, octDigitChar, space1)
 import qualified Text.Megaparsec.Char.Lexer as L
 
+---------------------------------------------------Basic lexer parts----------------------------------------------------
+
+-- | Parser monad.
 type Parser = Parsec Void Text
 
--- Basic lexer parts
-
+-- | Space consumer, parses whitespace and comments.
 sc :: Parser ()
 sc = L.space space1 (L.skipLineComment "//") (L.skipBlockComment "/*" "*/")
 
+-- | Lexeme, automatically parses trailing whitespace and comments.
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
 
+-- | Symbol, automatically parses trailing whitespace and comments.
 symbol :: Text -> Parser Text
 symbol = L.symbol sc
 
--- Symbols
+--------------------------------------------------------Symbols---------------------------------------------------------
 
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
@@ -47,7 +51,7 @@ listed p sep = parens $ sepEndBy p sep
 listed1 :: Parser a -> Parser Text -> Parser [a]
 listed1 p sep = parens $ sepEndBy1 p sep
 
--- Basic literals
+-----------------------------------------------------Basic literals-----------------------------------------------------
 
 int :: Parser Integer
 int = choice $ try <$> [binaryInt, octalInt, hexInt, decimalInt]
@@ -92,6 +96,8 @@ escapedChar =
         "\\" <$ char '\\',
         "\"" <$ char '\"'
       ]
+
+------------------------------------------------Identifiers and reserved------------------------------------------------
 
 -- Identifier
 

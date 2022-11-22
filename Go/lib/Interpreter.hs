@@ -8,17 +8,22 @@ import qualified Ast
 import Data.Bits (Bits (..))
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as Map
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isNothing)
 import Data.Text (Text, append, unpack)
 import Errors (unreachable')
 import StdLib (stdLibFuncs)
+
+------------------------------------------------------Interpreter-------------------------------------------------------
 
 -- | Interpreter entry point. Assumes that program is checked.
 interpret :: Ast.Program -> Result ()
 interpret = interpretProgram
 
 getInterpretationOut :: Result () -> String
-getInterpretationOut res = unlines $ unpack <$> either (error . show) id (do Success (Env _ out) _ <- res; Right $ reverse out)
+getInterpretationOut res =
+  unlines $ unpack <$> either (error . show) id (do Success (Env _ out) _ <- res; Right $ reverse out)
+
+-------------------------------------------------Program and functions--------------------------------------------------
 
 interpretProgram :: Ast.Program -> Result ()
 interpretProgram (Ast.Program _ funcs) = do
@@ -27,18 +32,22 @@ interpretProgram (Ast.Program _ funcs) = do
   where
     funcSelector f = let Ast.FunctionDef id _ = f in id
     funcsMap = Map.fromList $ (funcSelector <$> (stdLibFuncs ++ funcs)) `zip` (Ast.funcLit <$> (stdLibFuncs ++ funcs))
-    funcsScopeMap = Map.fromList $ (funcSelector <$> (stdLibFuncs ++ funcs)) `zip` (Ast.LitFunction . Ast.funcLit <$> (stdLibFuncs ++ funcs))
+    funcsScopeMap =
+      Map.fromList $
+        (funcSelector <$> (stdLibFuncs ++ funcs)) `zip` (Ast.LitFunction . Ast.funcLit <$> (stdLibFuncs ++ funcs))
 
 interpretFunc :: Env -> Ast.FunctionLiteral -> [Ast.Literal] -> Result (Maybe Ast.Value)
-interpretFunc env (Ast.FunctionLiteral (Ast.FunctionSignature params _) body) args = do
+interpretFunc env (Ast.FunctionLiteral (Ast.FunctionSignature params ret) body) args = do
   s@(Success _ res) <- interpretStmts env (Scope $ Map.fromList $ (fst <$> params) `zip` args) body
   case res of
     Ret val -> Right $ s {result = val}
-    Unit -> Left NoReturn
+    Unit -> if isNothing ret then Right $ s {result = Nothing} else Left NoReturn
 interpretFunc env@(Env _ accOut) (Ast.StdLibFunction _ impl) args =
   let (res, out) = impl args
    in Right $ Success env {out = out ++ accOut} res
 interpretFunc _ _ _ = unreachable'
+
+-------------------------------------------------------Statements-------------------------------------------------------
 
 interpretStmt :: Env -> Ast.Statement -> Result StmtInterpretationResult
 interpretStmt env stmt = case stmt of
@@ -87,6 +96,8 @@ interpretStmts env scope stmts = do
 
     popScope env@(Env (_ : scopes) _) = env {scopes = scopes}
     popScope _ = undefined
+
+------------------------------------------------------Expressions-------------------------------------------------------
 
 interpretExpr :: Env -> Ast.Expression -> Result (Maybe Ast.Value)
 interpretExpr env expr = case expr of
@@ -160,6 +171,8 @@ interpretExprs env = foldl acc (Right $ Success env [])
       Success env'' v <- interpretExpr env' expr
       Right $ Success env'' (fromJust v : vs)
 
+-------------------------------------------------------Utilities--------------------------------------------------------
+
 getIdentifierValue :: Env -> Ast.Identifier -> Ast.Value
 getIdentifierValue (Env scopes _) id = fromJust $ foldl acc Nothing scopes
   where
@@ -171,6 +184,8 @@ addNewIdentifier :: Env -> Ast.Identifier -> Ast.Value -> Env
 addNewIdentifier env@(Env (Scope ids : scopes) _) name v = env {scopes = Scope (Map.insert name v ids) : scopes}
 addNewIdentifier _ _ _ = undefined
 
+-------------------------------------------------------Data types-------------------------------------------------------
+
 -- Interpretation result
 
 -- | Represents the result of interpretation.
@@ -178,13 +193,13 @@ type Result a = Either Error (Success a)
 
 -- | Represents unsuccessful interpretation.
 data Error
-  = -- | Identifier redeclaration error
+  = -- | Division by zero error.
     DivisionByZero
-  | -- | Identifier redeclaration error
+  | -- | Index out of bounds error.
     IndexOutOfBounds
-  | -- | Identifier redeclaration error
+  | -- | No return error.
     NoReturn
-  | -- | Null dereference error
+  | -- | Null dereference error.
     Npe
   deriving (Show)
 
@@ -193,14 +208,16 @@ data Error
 data Success a = Success {env :: Env, result :: a}
   deriving (Show)
 
--- | Environment contains scopes stack
+-- | Environment contains scopes stack and accumulated out.
 data Env = Env {scopes :: [Scope], out :: AccOut}
   deriving (Show)
 
--- | Scope contains identifiers mapped to their types
+-- | Scope contains identifiers mapped to their types.
 newtype Scope = Scope {vars :: Map Ast.Identifier Ast.Value}
   deriving (Show)
 
+-- | Accumulated out (every element is a line printed to the stdout).
 type AccOut = [Text]
 
+-- | Statement interpretation result, its either unit (`void`) or some result of the return statement.
 data StmtInterpretationResult = Unit | Ret (Maybe Ast.Value)
