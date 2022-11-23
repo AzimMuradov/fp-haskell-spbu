@@ -17,7 +17,7 @@ data Program = Program
   deriving (Show)
 
 -- | Function definition.
-data FunctionDef = FunctionDef {name :: Identifier, funcLit :: FunctionLiteral}
+data FunctionDef = FunctionDef {funcName :: Identifier, funcLit :: FunctionLiteral}
   deriving (Show)
 
 ------------------------------------------------------Expressions-------------------------------------------------------

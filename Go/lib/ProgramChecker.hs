@@ -6,10 +6,10 @@ module ProgramChecker (check) where
 import qualified Ast
 import Control.Monad (void)
 import Data.Either.Combinators (mapRight)
+import Data.List.Extra (anySame)
 import Data.Map (Map, (!?))
 import qualified Data.Map as Map
 import Data.Maybe (isJust, isNothing)
-import qualified Data.Set as Set
 import Data.Text (unpack)
 import Errors (todo, unreachable')
 import StdLib (stdLibFuncs)
@@ -26,10 +26,13 @@ check = checkProgram
 checkProgram :: Ast.Program -> Result ()
 checkProgram (Ast.Program _ funcs) = do
   Success _ fs <- uniqueFsRes
-  if any (\f -> getId f == "main") fs then checkFuncs fs else Left NoMain
+  if elem "main" $ Ast.funcName <$> fs then checkFuncs fs else Left NoMain
   where
-    getId f = let Ast.FunctionDef id _ = f in id
-    uniqueFsRes = checkIfHasDuplicates (stdLibFuncs ++ funcs) getId
+    fsWithStdLib = stdLibFuncs ++ funcs
+    uniqueFsRes =
+      if anySame $ Ast.funcName <$> fsWithStdLib
+        then Left IdentifierRedeclaration
+        else Right $ Success (Env []) fsWithStdLib
 
 -- | Check functions.
 --
@@ -175,27 +178,16 @@ checkExprsTypes exprs expectedTs success@(Success env _) =
         then unitRes env
         else Left MismatchedTypes
 
-checkIfHasDuplicates :: Ord b => [a] -> (a -> b) -> Result [a]
-checkIfHasDuplicates list selector =
-  if hasDuplicates $ selector <$> list
-    then Left IdentifierRedeclaration
-    else Right $ Success (Env []) list
-
-hasDuplicates :: (Ord a) => [a] -> Bool
-hasDuplicates list = length list /= length (Set.fromList list)
-
 getIdentifierType :: [Scope] -> Ast.Identifier -> Maybe Ast.Type
 getIdentifierType scopes id = foldl acc Nothing scopes
   where
-    acc t (Scope ids) = case t of
-      Nothing -> ids !? id
-      _ -> t
+    acc t (Scope ids) = if isJust t then t else ids !? id
 
 addNewIdentifierOrFail :: Env -> Ast.Identifier -> Ast.Type -> Result ()
 addNewIdentifierOrFail (Env (Scope ids : scopes)) id t = case ids !? id of
   Just _ -> Left IdentifierRedeclaration
   Nothing -> unitRes (Env $ Scope (Map.insert id t ids) : scopes)
-addNewIdentifierOrFail _ _ _ = unreachable'
+addNewIdentifierOrFail _ id t = unitRes $ Env [Scope $ Map.singleton id t]
 
 unitRes :: Env -> Result ()
 unitRes env = Right $ Success env ()
