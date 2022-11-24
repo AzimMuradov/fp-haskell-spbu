@@ -1,29 +1,34 @@
 #!/bin/bash
 
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-GREEN='\033[0;32m'
+RED='\033[1;31m'
+YELLOW='\033[0;33m'
+GREEN='\033[1;32m'
 NC='\033[0m'
 
-cabal update
 cabal build
 
 cd test-integration/tests
 tests=`ls *.go | sed 's/\.go$//'`
 cd ../..
 
-for test in $tests
-do
-    cat "test-integration/tests/$test.go" | cabal run --verbose=0 > "test-integration/tests/$test.res"
-    dif=$(diff "test-integration/tests/$test.res" "test-integration/tests/$test.out")
-    if [ $? -eq 0 ] ; then
-        echo -e "${GREEN}[Test $test] done${NC}"
+for test in $tests; do
+    cat test-integration/tests/${test}.go | cabal run --verbose=0 > test-integration/tests/${test}.res
+    
+    diff test-integration/tests/${test}.res test-integration/tests/${test}.out &>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}[Test \"${test}\"] - OK${NC}"
     else
-        echo -e "${RED}[Test $test] failed ${NC}"
-        echo -e "${YELLOW}Expected:${NC}"
-        cat "test-integration/tests/$test.out"
-        echo -e "${YELLOW}Actual:${NC}"
-        cat "test-integration/tests/$test.res"
+        cat -An test-integration/tests/${test}.out >test-integration/tests/${test}.out.show
+        cat -An test-integration/tests/${test}.res >test-integration/tests/${test}.res.show
+        
+        echo -e "${RED}[Test \"${test}\"] - FAIL${NC}\n"
+        echo -e "${YELLOW}Expected:${NC}\n${YELLOW}Actual:${NC}\n" | xargs -d '\n' printf '%-47s  %-47s\n'
+        diff -y -W 80 test-integration/tests/${test}.out.show test-integration/tests/${test}.res.show
+        
+        rm test-integration/tests/*.res
+        rm test-integration/tests/*.show
+        
         exit 1
     fi
 done
