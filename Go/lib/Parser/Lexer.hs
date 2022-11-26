@@ -1,15 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lexer where
+module Parser.Lexer where
 
-import qualified Ast (Identifier)
 import Control.Monad (void)
-import Data.Text (Text, pack, singleton)
+import Data.Text (Text, concat, pack, singleton)
 import Data.Void (Void)
 import Numeric (readBin, readDec, readHex, readOct)
+import qualified Parser.Ast as Ast (Identifier)
 import Text.Megaparsec (MonadParsec (..), Parsec, anySingle, between, choice, many, oneOf, optional, sepBy1, sepEndBy, sepEndBy1, (<|>))
 import Text.Megaparsec.Char (binDigitChar, char, char', digitChar, hexDigitChar, letterChar, newline, octDigitChar, space1)
 import qualified Text.Megaparsec.Char.Lexer as L
+import Prelude hiding (concat)
 
 ---------------------------------------------------Basic lexer parts----------------------------------------------------
 
@@ -51,10 +52,11 @@ listed p sep = parens $ sepEndBy p sep
 listed1 :: Parser a -> Parser Text -> Parser [a]
 listed1 p sep = parens $ sepEndBy1 p sep
 
------------------------------------------------------Basic literals-----------------------------------------------------
+--------------------------------------------------------Literals--------------------------------------------------------
 
-int :: Parser Integer
-int = choice $ try <$> [binaryInt, octalInt, hexInt, decimalInt]
+-- | Integer literal parser.
+intLitP :: Parser Integer
+intLitP = choice $ try <$> [binaryInt, octalInt, hexInt, decimalInt]
 
 decimalInt :: Parser Integer
 decimalInt =
@@ -78,6 +80,14 @@ abstractInt charIdP digitP reader = lexeme $ do
   void $ char '0' *> charIdP *> optional (char '_')
   intStr <- sepBy1 digitP $ optional $ char '_'
   return $ readInteger reader intStr
+
+-- | Boolean literal parser.
+boolLitP :: Parser Bool
+boolLitP = True <$ idTrue <|> False <$ idFalse
+
+-- | String literal parser.
+stringLitP :: Parser Text
+stringLitP = lexeme $ concat <$> between (char '"') (char '"') (many stringChar)
 
 stringChar :: Parser Text
 stringChar = notFollowedBy (choice [newline, char '\\', char '"']) *> (singleton <$> anySingle) <|> escapedChar
@@ -163,7 +173,7 @@ idFalse = symbol "false"
 idNil :: Parser Text
 idNil = symbol "nil"
 
--- Utils
+---------------------------------------------------------Utils----------------------------------------------------------
 
 readInteger :: ReadS Integer -> String -> Integer
 readInteger reader s = fst $ head $ reader s

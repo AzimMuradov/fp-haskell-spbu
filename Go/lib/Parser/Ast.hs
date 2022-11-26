@@ -1,7 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# OPTIONS_GHC -Wno-partial-fields #-}
 
-module Ast where
+module Parser.Ast where
 
 import Data.Text (Text)
 
@@ -17,15 +17,15 @@ data Program = Program
   deriving (Show)
 
 -- | Function definition.
-data FunctionDef = FunctionDef {funcName :: Identifier, funcLit :: FunctionLiteral}
+data FunctionDef = FunctionDef {funcName :: Identifier, funcVal :: FunctionValue}
   deriving (Show)
 
 ------------------------------------------------------Expressions-------------------------------------------------------
 
 -- | Expression.
 data Expression
-  = -- | Literal expression (e.g., `"Hello!"`, `17`, `true`).
-    ExprLiteral Literal
+  = -- | Value expression (e.g., `"Hello!"`, `17`, `true`).
+    ExprValue Value
   | -- | Identifier expression (e.g., `x`, `foo`).
     ExprIdentifier Identifier
   | -- | Unary operation expression (e.g., `!x`, `-4`).
@@ -34,7 +34,7 @@ data Expression
     ExprBinaryOp BinaryOp Expression Expression
   | -- | Array access by index expression.
     -- E.g., `a[3]`, `([2] int {3, 5})[1 + foo()]`, assuming that `foo()` returns `int`.
-    ExprArrayAccessByIndex Expression Int
+    ExprArrayAccessByIndex Expression Expression
   | -- | Function call expression.
     -- E.g., `foo(17, x, bar())`, `(func (x int) int { return x * x; })(3)`.
     ExprFuncCall Expression [Expression]
@@ -62,13 +62,13 @@ data RelOp
     EqOp
   | -- | Inequality operator (a != b).
     NeOp
-  | -- | Less than or equal operator (a <= b), works only for `int`.
+  | -- | Less than or equal operator (a <= b), works only for `int` and `string`.
     LeOp
-  | -- | Less than operator (a < b), works only for `int`.
+  | -- | Less than operator (a < b), works only for `int` and `string`.
     LtOp
-  | -- | More than or equal operator (a >= b), works only for `int`.
+  | -- | More than or equal operator (a >= b), works only for `int` and `string`.
     MeOp
-  | -- | More than operator (a > b), works only for `int`.
+  | -- | More than operator (a > b), works only for `int` and `string`.
     MtOp
   deriving (Show)
 
@@ -128,17 +128,17 @@ data Type
     TArray ArrayType
   | -- | Function type.
     TFunction FunctionType
-  deriving (Show, Eq)
+  deriving (Show)
 
 -- | Array type, it contains the length of the array and its elements type.
-data ArrayType = ArrayType {elementType :: Type, length :: Int}
-  deriving (Show, Eq)
+data ArrayType = ArrayType {elementType :: Type, length :: Expression}
+  deriving (Show)
 
 -- | Function type,
 -- it contains the result of the function (which can be `void` if the result is equal to `Nothing`)
 -- and its parameters types.
 data FunctionType = FunctionType {parameters :: [Type], result :: Maybe Type}
-  deriving (Show, Eq)
+  deriving (Show)
 
 -------------------------------------------------------Statements-------------------------------------------------------
 
@@ -163,18 +163,17 @@ data Statement
   deriving (Show)
 
 -- TODO : Docs
-data For
+data For = For {kind :: ForKind, block :: [Statement]}
+  deriving (Show)
+
+-- TODO : Docs
+data ForKind
   = -- TODO : Docs
-    For
-      { preStatement :: Maybe SimpleStmt,
-        forCondition :: Maybe Expression,
-        postStatement :: Maybe SimpleStmt,
-        block :: [Statement]
-      }
+    ForKindFor {preStmt :: Maybe SimpleStmt, condition :: Maybe Expression, postStmt :: Maybe SimpleStmt}
   | -- TODO : Docs
-    While {whileCondition :: Expression, block :: [Statement]}
+    ForKindWhile {whileCondition :: Expression}
   | -- TODO : Docs
-    Loop {block :: [Statement]}
+    ForKindLoop
   deriving (Show)
 
 -- | Var declaration, one var declaration may contain many var specifications (e.g., `var x int = 3`, `var (x int = 3; y string = "")`).
@@ -182,7 +181,9 @@ newtype VarDecl = VarDecl [VarSpec]
   deriving (Show)
 
 -- | Var specification (e.g., `x int = 3`, `y = "hello"`, `z int`).
-data VarSpec = VarSpec {identifier :: Identifier, t :: Maybe Type, value :: Expression}
+data VarSpec
+  = VarSpec Identifier (Maybe Type) Expression
+  | DefaultedVarSpec Identifier Type
   deriving (Show)
 
 -- If-else statement.
@@ -191,13 +192,13 @@ data IfElse = IfElse
   { simpleStmt :: Maybe SimpleStmt,
     condition :: Expression,
     block :: [Statement],
-    elseStmt :: Either IfElse [Statement]
+    elseStmt :: Maybe (Either IfElse [Statement])
   }
   deriving (Show)
 
--- | Simple statement, its main difference between other statements is that it can be used inside `if` condition.
+-- | Simple statement, its main difference between other statements is that it can be used inside `if` condition and `for` "pre" and "post" statements.
 --
--- E.g., `if i := foo(14); i < 42 { return "hello"; } else { return "goodbye"; }`.
+-- E.g., `if i := foo(14); i < 42 { return "hello"; } else { return "goodbye"; }`, `for i := 0; i < n; i++ { println(i); }`.
 data SimpleStmt
   = -- | Assignment statement (e.g., `x = 17`, `a[3] = "42"`).
     StmtAssignment UpdatableElement Expression
@@ -216,53 +217,36 @@ data UpdatableElement
   = -- | Any variable can be updated (e.g., `x = 3`, `x++`).
     UpdVar Identifier
   | -- | Any array element can be updated (e.g., `a[5][7] = 3`, `a[0]++`).
-    UpdArrEl Identifier [Int]
+    UpdArrEl Identifier [Expression]
   deriving (Show)
 
 --------------------------------------------------------Literals--------------------------------------------------------
 
 -- | Literal value.
-data Literal
+data Value
   = -- | Int literal (e.g., `17`, `0xFF`, `0b101001`).
-    LitInt Int
+    ValInt Integer
   | -- | Boolean literal (e.g., `true`, `false`).
-    LitBool Bool
+    ValBool Bool
   | -- | String literal (e.g., `"Hello"`, `""`, `"Some\ntext"`).
-    LitString Text
+    ValString Text
   | -- | Array literal.
-    LitArray ArrayLiteral
+    ValArray ArrayLiteral
   | -- | Function literal.
-    LitFunction FunctionLiteral
+    ValFunction FunctionValue
   deriving (Show)
-
--- | Represents runtime value of the calculated expression.
-type Value = Literal
 
 -- | Array literal (e.g., `[3] int {1, 2}`, `[10] bool`).
-data ArrayLiteral = ArrayLiteral {t :: ArrayType, value :: [Element]}
-  deriving (Show)
-
--- TODO : Docs
-data Element
-  = -- TODO : Docs
-    ElementExpr Expression
-  | -- TODO : Docs (`ElementElements` is needed for multidimensional arrays)
-    ElementElements [Element]
+data ArrayLiteral = ArrayLiteral {t :: ArrayType, value :: [Expression]}
   deriving (Show)
 
 -- | Function literal.
-data FunctionLiteral
+data FunctionValue
   = -- | Function literal (e.g., `func (x int) int { return x * x; }`, `func () {}`).
-    FunctionLiteral {signature :: FunctionSignature, body :: [Statement]}
-  | -- | StdLib function (e.g., `printlnInt`, `lenStr`).
-    StdLibFunction {t :: FunctionType, impl :: [Literal] -> (Maybe Literal, [Text])}
+    Function {signature :: FunctionSignature, body :: [Statement]}
   | -- | Null (nil) literal (e.g., `nil`).
     Nil
-
-instance Show FunctionLiteral where
-  show (FunctionLiteral s b) = "FunctionLiteral {" ++ "signature = " ++ show s ++ ", " ++ "body = " ++ show b ++ "}"
-  show (StdLibFunction t' _) = "StdLibFunction {" ++ "t = " ++ show t' ++ "}"
-  show Nil = "Nil"
+  deriving (Show)
 
 -- | Function signature,
 -- it contains the result of the function (which can be `void` if the result is equal to `Nothing`)
