@@ -48,17 +48,7 @@ data BinaryOp
     OrOp
   | -- | And operator (a && b), works only for `bool`.
     AndOp
-  | -- | Relation operator.
-    RelOp RelOp
-  | -- | Additive operator.
-    AddOp AddOp
-  | -- | Multiplicative operator.
-    MulOp MulOp
-  deriving (Show)
-
--- | Relation operators.
-data RelOp
-  = -- | Equality operator (a == b).
+  | -- | Equality operator (a == b).
     EqOp
   | -- | Inequality operator (a != b).
     NeOp
@@ -70,11 +60,7 @@ data RelOp
     MeOp
   | -- | More than operator (a > b), works only for `int` and `string`.
     MtOp
-  deriving (Show)
-
--- | Additive operators.
-data AddOp
-  = -- | Plus operator (a + b), works only for `int` and `string`.
+  | -- | Plus operator (a + b), works only for `int` and `string`.
     PlusOp
   | -- | Minus operator (a - b), works only for `int`.
     MinusOp
@@ -82,11 +68,7 @@ data AddOp
     BitOrOp
   | -- | Bitwise xor operator (a ^ b), works only for `int`.
     BitXorOp
-  deriving (Show)
-
--- | Multiplicative operators.
-data MulOp
-  = -- | Multiply operator (a * b), works only for `int`.
+  | -- | Multiply operator (a * b), works only for `int`.
     MultOp
   | -- | Divide operator (a / b), works only for `int`.
     DivOp

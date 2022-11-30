@@ -47,33 +47,33 @@ termExpressionP = choice' [parens expressionP, Ast.ExprValue <$> valueP, Ast.Exp
 opsTable :: [[Operator Parser Ast.Expression]]
 opsTable =
   [ [funcCallOp, arrayAccessByIndexOp],
-    [ unaryOp "+" Ast.UnaryPlusOp,
-      unaryOp "-" Ast.UnaryMinusOp,
-      unaryOp "!" Ast.NotOp,
-      unaryOp "^" Ast.BitwiseComplementOp
+    [ unOp "+" Ast.UnaryPlusOp,
+      unOp "-" Ast.UnaryMinusOp,
+      unOp "!" Ast.NotOp,
+      unOp "^" Ast.BitwiseComplementOp
     ],
-    [ mulOp "*" Ast.MultOp,
-      mulOp "/" Ast.DivOp,
-      mulOp "%" Ast.ModOp,
-      mulOp "<<" Ast.BitShiftLeftOp,
-      mulOp ">>" Ast.BitShiftRightOp,
-      mulOp "&^" Ast.BitClearOp,
-      mulOp' "&" ["&&"] Ast.BitAndOp
+    [ binOp "*" Ast.MultOp,
+      binOp "/" Ast.DivOp,
+      binOp "%" Ast.ModOp,
+      binOp "<<" Ast.BitShiftLeftOp,
+      binOp ">>" Ast.BitShiftRightOp,
+      binOp "&^" Ast.BitClearOp,
+      binOp' "&" ["&&"] Ast.BitAndOp
     ],
-    [ addOp "+" Ast.PlusOp,
-      addOp "-" Ast.MinusOp,
-      addOp' "|" ["||"] Ast.BitOrOp,
-      addOp "^" Ast.BitXorOp
+    [ binOp "+" Ast.PlusOp,
+      binOp "-" Ast.MinusOp,
+      binOp' "|" ["||"] Ast.BitOrOp,
+      binOp "^" Ast.BitXorOp
     ],
-    [ relOp "==" Ast.EqOp,
-      relOp "!=" Ast.NeOp,
-      relOp "<=" Ast.LeOp,
-      relOp "<" Ast.LtOp,
-      relOp ">=" Ast.MeOp,
-      relOp ">" Ast.MtOp
+    [ binOp "==" Ast.EqOp,
+      binOp "!=" Ast.NeOp,
+      binOp "<=" Ast.LeOp,
+      binOp "<" Ast.LtOp,
+      binOp ">=" Ast.MeOp,
+      binOp ">" Ast.MtOp
     ],
-    [andOrOp "&&" Ast.AndOp],
-    [andOrOp "||" Ast.OrOp]
+    [binOp "&&" Ast.AndOp],
+    [binOp "||" Ast.OrOp]
   ]
 
 -- Associativity and arity types
@@ -97,32 +97,16 @@ postfix = Postfix
 -- Operators types
 
 -- TODO : Docs
-andOrOp :: Text -> Ast.BinaryOp -> Operator Parser Ast.Expression
-andOrOp opSym op = binary opSym $ Ast.ExprBinaryOp op
+binOp :: Text -> Ast.BinaryOp -> Operator Parser Ast.Expression
+binOp opSym op = binary opSym $ Ast.ExprBinaryOp op
 
 -- TODO : Docs
-relOp :: Text -> Ast.RelOp -> Operator Parser Ast.Expression
-relOp opSym op = binary opSym $ Ast.ExprBinaryOp (Ast.RelOp op)
+binOp' :: Text -> [Text] -> Ast.BinaryOp -> Operator Parser Ast.Expression
+binOp' opSym notOpsSyms op = binary' opSym notOpsSyms $ Ast.ExprBinaryOp op
 
 -- TODO : Docs
-addOp :: Text -> Ast.AddOp -> Operator Parser Ast.Expression
-addOp opSym op = binary opSym $ Ast.ExprBinaryOp (Ast.AddOp op)
-
--- TODO : Docs
-addOp' :: Text -> [Text] -> Ast.AddOp -> Operator Parser Ast.Expression
-addOp' opSym notOpsSyms op = binary' opSym notOpsSyms $ Ast.ExprBinaryOp (Ast.AddOp op)
-
--- TODO : Docs
-mulOp :: Text -> Ast.MulOp -> Operator Parser Ast.Expression
-mulOp opSym op = binary opSym $ Ast.ExprBinaryOp (Ast.MulOp op)
-
--- TODO : Docs
-mulOp' :: Text -> [Text] -> Ast.MulOp -> Operator Parser Ast.Expression
-mulOp' opSym notOpsSyms op = binary' opSym notOpsSyms $ Ast.ExprBinaryOp (Ast.MulOp op)
-
--- TODO : Docs
-unaryOp :: Text -> Ast.UnaryOp -> Operator Parser Ast.Expression
-unaryOp opSym op = prefix opSym $ Ast.ExprUnaryOp op
+unOp :: Text -> Ast.UnaryOp -> Operator Parser Ast.Expression
+unOp opSym op = prefix opSym $ Ast.ExprUnaryOp op
 
 -- TODO : Docs
 funcCallOp :: Operator Parser Ast.Expression
