@@ -1,18 +1,18 @@
 module Main where
 
-  import           System.Environment (getArgs)
-  
-  import           Interpreter
-  import           Parser
-  
-  main :: IO ()
-  main = do
-    args <- getArgs
-    case args of
-      [] -> putStrLn "Provide file name!"
-      [filename] -> do
-        program <- readFile filename
-        case progParser program of
-          Left err      -> print err
-          Right program -> interpret program
-      _ -> putStrLn "Provide one file name!"
+import           System.Environment (getArgs)
+
+import Interpreter ( interpret )
+import Parser ( progParser )
+
+main :: IO ()
+main = do
+  args <- getArgs
+  case args of
+    [] -> putStrLn "Provide file name!"
+    [filename] -> do
+      prog <- readFile filename
+      case progParser prog of
+        Left err   -> print err
+        Right code -> interpret code
+    _ -> putStrLn "Provide one file name!"

@@ -34,3 +34,5 @@ dot = Tok.dot lexer -- _ . _    index follows s.1 e.2 t.3
 sym = Tok.symbol lexer
 
 lexeme = Tok.lexeme lexer
+
+identifier = Tok.identifier lexer

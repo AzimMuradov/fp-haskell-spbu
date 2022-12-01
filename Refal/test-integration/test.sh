@@ -12,7 +12,7 @@ done
 cd test-integration
 dif=$(diff expected actual)
 if [ $? -eq 0 ] ; then
-        echo -e "${GREEN}[Test $test] done${NC}"
+        echo -e "${GREEN}[Test all] done${NC}"
     else
         echo -e "${RED}[Test $test] failed ${NC}"
         echo -e "${YELLOW}Expected:${NC}"

@@ -1,12 +1,11 @@
 module Parser where
 
-import           Data.Maybe()
+import           Data.Maybe         ()
 import           Text.Parsec
 import           Text.Parsec.String (Parser)
 
-import AST
-import Lexer
-    ( integer, parens, angles, braces, comma, semi, sym, lexeme )
+import           AST
+import           Lexer
 
 -------------------------------Expressions------------------------------------
 empty :: Parser String
@@ -15,114 +14,77 @@ empty = sym ""
 entry :: Parser a -> Parser a
 entry p = spaces *> p <* eof
 
--- >>> parse (entry identifier') "" " Sub "
--- >>> parse (entry identifier') "" " as1_ADS- " 
--- >>> parse (entry identifier') "" " S " 
--- Right  - 
--- Right "as1_ADS-"
--- Right "S"
---
+
+-- tested
 identifier' :: Parser FName
 identifier' =
   lexeme $
-  Op <$> choice [Add <$ try (string "Add"), Sub <$ try (string "Sub"), Mul <$ try (string "Mul")] <|> do
+  try
+    (Op <$>
+     choice [Add <$ string "Add", Sub <$ string "Sub", Mul <$ string "Mul"] <*
+     space) <|> do
     c <- letter
     cs <- many (letter <|> digit <|> char '-' <|> char '_')
     return $ Usr (c : cs)
 
-
--- >>> parse (entry char') "" " \'s\'   "
--- Right 's'
---
 char' :: Parser Symbol
-char' = lexeme $ Ch <$> between (char '\'') (char '\'') (notFollowedBy (char '\\') *> anyChar)
+char' =
+  lexeme $
+  Ch <$> between (char '\'') (char '\'') (notFollowedBy (char '\\') *> anyChar)
 
--- >>> parse (entry compound) "" "  \"asd ads\""
--- Right "asd ads"
---
+
+-- tested
 compound :: Parser Symbol
 compound =
-  lexeme $ 
-    Comp <$>
-      between
-        (char '"')
-        (char '"')
-        (many (notFollowedBy (char '\\') *> letter <|> space))
+  lexeme $ Comp <$> between (char '\"') (char '\"') (many $ noneOf "\"")
 
--- >>> parse (entry macrodigit) "" " 1231  "
--- Right 1231
---
 macrodigit :: Parser Symbol
 macrodigit = lexeme $ MDig <$> integer
 
--- >>> parse (entry symbol) "" " 213 "
--- >>> parse (entry symbol) "" " asd_ASD- "
--- >>> parse (entry symbol) "" " 'a' "
--- >>> parse (entry symbol) "" " \"i am symbol \" "
--- Right 213
--- Right id_"asd_ASD-"
--- Right 'a'
--- Right "i am symbol "
---
+
+-- tested
 symbol :: Parser Symbol
 symbol = choice $ try <$> [macrodigit, compound, char', ID <$> identifier']
 
--- >>> parse (entry var) "" "  s.a_1-2   "
--- Right s."a_1-2"
---
+
+-- tested
 var :: Parser Var
 var = lexeme $ choice $ try <$> [var' 's' SVar, var' 't' TVar, var' 'e' EVar]
   where
-    var' ch constr = char ch *> char '.' *> (constr <$> identifier')
+    var' ch constr = char ch *> char '.' *> (constr <$> identifier)
 
--- >>> parse (entry term) "" " \'a\' "
--- >>> parse (entry term) "" " s.a12 "
--- >>> parse (entry term) "" " (        s.a12  )   "
--- Right 'a'
--- Right s."a12"
--- Right ( s."a12" )
---
+
+-- tested
 term :: Parser Term
 term = try (Var <$> var) <|> try (Sym <$> symbol) <|> Par <$> parens expr
 
--- >>> parse (entry expr) "" "\'a\'"
--- >>> parse (entry expr) "" "s.a12"
--- >>> parse (entry expr) "" "( s.a12    (sad)   \'a\' )  () "
--- Right 'a'
--- Right s."a12"
--- Right ( s."a12" ( id_"sad" ) 'a' ) ( )
---
+
+-- tested
 expr :: Parser Expr
 expr = try (Cons <$> term <*> expr) <|> Empt <$ empty
 
+
 ----------------------------------Program------------------------------------
--- >>> parse (entry condition) "" " , 'a' 'b' : e.f, 'e': s.c "
--- Right , 'a' 'b'  : e."f" , 'e'  : s."c"
---
+-- tested
 condition :: Parser Cond
 condition =
-  try (WIs <$> (comma *> expr <* sym ":") <*> expr <*> condition) <|>
+  try (WIs <$> (comma *> fExpr <* sym ":") <*> expr <*> condition) <|>
   Nil <$ empty
 
--- >>> parse (entry fApp) "" " <some s.N 1> "
--- >>> parse (entry fApp) "" " <Sub s.N 1> "
--- Right <"some" s."N" 1 >
--- Right < -  s."N" 1 >
---
+
+-- tested
 fApp :: Parser FApp
 fApp = angles (FApp <$> identifier' <*> fExpr)
 
--- >>> parse (entry fExpr) "" " ('a' ('b' 'f')) 2 <Go 213 'a'>   "
--- Right ( 'a' ( 'b' 'f' ) ) 2 <"Go" 213 'a' >
---
+
+-- tested
 fExpr :: Parser FExpr
 fExpr =
   try (FTCons <$> term <*> fExpr) <|> try (FACons <$> fApp <*> fExpr) <|>
   FEmpt <$ empty
 
--- >>> parse (entry sentence) "" "  'a' = <Mul <Fact <Sub s.N 1>> s.N>    "
--- Right 'a' = < *  <"Fact" < -  s."N" 1 >>s."N" >
---
+
+-- tested
 sentence :: Parser Sentence
 sentence = do
   left <- expr
@@ -130,9 +92,8 @@ sentence = do
   _ <- sym "="
   try (Cond left cond <$> fExpr)
 
--- >>> parse (entry block) ""  "0 = 1; s.N = \'a\'; "
--- Right [0 = 1 ,s."N" = 'a' ]
---
+
+-- tested. TODO not all with ';'
 block :: Parser [Sentence]
 block =
   many $ do
@@ -140,18 +101,14 @@ block =
     _ <- semi
     return sen
 
--- >>> parse (entry fDefine) ""  "$ENTRY go {  0 = 1; } "
--- Right (Entry "go" [0 = 1 ])
---
+
+-- tested
 fDefine :: Parser FDefinition
 fDefine =
   do _ <- try (lexeme $ string "$ENTRY")
      Entry <$> identifier' <*> braces block
      <|> NEntry <$> identifier' <*> braces block
 
--- >>> parse (entry program) ""  "$ENTRY Go { = <Prout <Fact 4>>; } Fact { 0 = 1; s.N = <Mul <Fact <Sub s.N 1>> s.N>;}"
--- Right [Entry "Go" [= <"Prout" <"Fact" 4 >>],NEntry "Fact" [0 = 1 ,s."N" = < *  <"Fact" < -  s."N" 1 >>s."N" >]]
---
 program :: Parser [FDefinition]
 program = many fDefine
 
