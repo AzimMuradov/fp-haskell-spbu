@@ -63,7 +63,7 @@ cmpTest :: TestTree
 cmpTest =
   testGroup
     "Compound"
-    [ testCase "Random sumbol" $
+    [ testCase "Random symbol" $
       parse (entry compound) "" "\"asd ads\"" @?= Right (Comp "asd ads")
     , testCase "With \\" $
       parse (entry compound) "" "\" \r\t\n asd \\ \'\"" @?=
@@ -125,7 +125,7 @@ exprTest =
               (Cons
                  (Par $ Cons (Sym $ Comp "sad") Empt)
                  (Cons (Sym $ Ch 'a') Empt)))
-           (Cons (Par $ Empt) Empt))
+           (Cons (Par Empt) Empt))
     ]
 
 condTest =
@@ -155,12 +155,12 @@ fAppTest =
       parse (entry fApp) "" " <some s.N 'a'> " @?=
       Right
         (FApp
-           (Usr $ "some")
+           (Usr "some")
            (FTCons (Var $ SVar "N") (FTCons (Sym $ Ch 'a') FEmpt)))
     , testCase "Built-in bin ops" $
       parse (entry fApp) "" " <Sub s.N 'a'> " @?=
       Right
-        (FApp (Op $ Sub) (FTCons (Var $ SVar "N") (FTCons (Sym $ Ch 'a') FEmpt)))
+        (FApp (Op Sub) (FTCons (Var $ SVar "N") (FTCons (Sym $ Ch 'a') FEmpt)))
     ]
 
 fExprTest =
@@ -177,7 +177,7 @@ fExprTest =
               (Cons
                  (Par $ Cons (Sym $ Comp "sad") Empt)
                  (Cons (Sym $ Ch 'a') Empt)))
-           (FTCons (Par $ Empt) FEmpt))
+           (FTCons (Par Empt) FEmpt))
     , testCase "Fun Expr" $
       parse (entry fExpr) "" " ('a' ) 2 <Go 213 'a'> " @?=
       Right
@@ -203,9 +203,9 @@ senTest =
            Nil
            (FACons
               (FApp
-                 (Op $ Mul)
+                 (Op Mul)
                  (FTCons (Sym $ MDig 4) (FTCons (Sym $ MDig 5) FEmpt)))
-              (FEmpt)))
+              FEmpt))
     , testCase "Standard" $
       parse (entry sentence) "" " s.b 'a' = <Mul s.b 5>   " @?=
       Right
@@ -214,9 +214,9 @@ senTest =
            Nil
            (FACons
               (FApp
-                 (Op $ Mul)
+                 (Op Mul)
                  (FTCons (Var $ SVar "b") (FTCons (Sym $ MDig 5) FEmpt)))
-              (FEmpt)))
+              FEmpt))
     , testCase "W/ condition" $
       parse (entry sentence) "" "s.a s.b, <Al>: s.a s.b = \'T\' " @?=
       Right
@@ -259,8 +259,8 @@ fDefTest =
                Nil
                (FACons
                   (FApp
-                     (Op $ Mul)
+                     (Op Mul)
                      (FTCons (Sym $ MDig 1) (FTCons (Var $ SVar "n") FEmpt)))
-                  (FEmpt))
+                  FEmpt)
            ])
     ]
