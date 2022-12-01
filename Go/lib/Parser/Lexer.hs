@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- | Provides lexer parts for the [Parser]("Parser.Parser") module.
 module Parser.Lexer where
 
 import Control.Monad (void)
@@ -13,6 +14,8 @@ import qualified Text.Megaparsec.Char.Lexer as L
 import Prelude hiding (concat)
 
 ---------------------------------------------------Basic lexer parts----------------------------------------------------
+
+-- * Basic lexer parts
 
 -- | Parser monad.
 type Parser = Parsec Void Text
@@ -31,33 +34,49 @@ symbol = L.symbol sc
 
 --------------------------------------------------------Symbols---------------------------------------------------------
 
+-- * Symbols
+
+-- | Wraps given parser with parenthesis.
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
 
+-- | Wraps given parser with braces.
 braces :: Parser a -> Parser a
 braces = between (symbol "{") (symbol "}")
 
+-- | Wraps given parser with brackets.
 brackets :: Parser a -> Parser a
 brackets = between (symbol "[") (symbol "]")
 
-semicolon :: Parser Text
-semicolon = symbol ";"
-
+-- | Comma parser.
 comma :: Parser Text
 comma = symbol ","
 
+-- | Colon parser.
+colon :: Parser Text
+colon = symbol ":"
+
+-- | Semicolon parser.
+semicolon :: Parser Text
+semicolon = symbol ";"
+
+-- | List parser.
 listed :: Parser a -> Parser Text -> Parser [a]
 listed p sep = parens $ sepEndBy p sep
 
+-- | Non-empty list parser.
 listed1 :: Parser a -> Parser Text -> Parser [a]
 listed1 p sep = parens $ sepEndBy1 p sep
 
 --------------------------------------------------------Literals--------------------------------------------------------
 
+-- * Literals
+
 -- | Integer literal parser.
 intLitP :: Parser Integer
 intLitP = choice $ try <$> [binaryInt, octalInt, hexInt, decimalInt]
 
+-- | Decimal integer literal parser.
 decimalInt :: Parser Integer
 decimalInt =
   lexeme $
@@ -66,20 +85,28 @@ decimalInt =
       other <- many $ optional (char '_') *> digitChar
       return $ readInteger readDec $ first : other
 
+-- | Binary integer literal parser.
 binaryInt :: Parser Integer
 binaryInt = abstractInt (char' 'b') binDigitChar readBin
 
+-- | Octal integer literal parser.
 octalInt :: Parser Integer
 octalInt = abstractInt (optional $ char' 'o') octDigitChar readOct
 
+-- | Hex integer literal parser.
 hexInt :: Parser Integer
 hexInt = abstractInt (char' 'x') hexDigitChar readHex
 
+-- | Abstract integer parser, encapsulates integer parser structure.
 abstractInt :: Parser a -> Parser Char -> ReadS Integer -> Parser Integer
 abstractInt charIdP digitP reader = lexeme $ do
   void $ char '0' *> charIdP *> optional (char '_')
   intStr <- sepBy1 digitP $ optional $ char '_'
   return $ readInteger reader intStr
+
+-- | Parse integer using given reader and integer string.
+readInteger :: ReadS Integer -> String -> Integer
+readInteger reader s = fst $ head $ reader s
 
 -- | Boolean literal parser.
 boolLitP :: Parser Bool
@@ -89,9 +116,11 @@ boolLitP = True <$ idTrue <|> False <$ idFalse
 stringLitP :: Parser Text
 stringLitP = lexeme $ concat <$> between (char '"') (char '"') (many stringChar)
 
+-- | String character parser.
 stringChar :: Parser Text
 stringChar = notFollowedBy (choice [newline, char '\\', char '"']) *> (singleton <$> anySingle) <|> escapedChar
 
+-- | Escaped character parser.
 escapedChar :: Parser Text
 escapedChar =
   char '\\'
@@ -109,8 +138,11 @@ escapedChar =
 
 ------------------------------------------------Identifiers and reserved------------------------------------------------
 
--- Identifier
+-- * Identifiers and reserved
 
+-- ** Identifier
+
+-- | Custom identifier parser.
 identifierP :: Parser Ast.Identifier
 identifierP =
   lexeme $
@@ -121,59 +153,70 @@ identifierP =
   where
     letterP = letterChar <|> char '_'
 
--- Keywords
+-- ** Keywords
 
-keywordP :: Parser Ast.Identifier
+-- | Keyword parser.
+keywordP :: Parser Text
 keywordP = choice [kwVar, kwFunc, kwReturn, kwIf, kwElse, kwFor, kwBreak, kwContinue]
 
+-- | @var@ keyword parser.
 kwVar :: Parser Text
 kwVar = symbol "var"
 
+-- | @func@ keyword parser.
 kwFunc :: Parser Text
 kwFunc = symbol "func"
 
+-- | @return@ keyword parser.
 kwReturn :: Parser Text
 kwReturn = symbol "return"
 
+-- | @if@ keyword parser.
 kwIf :: Parser Text
 kwIf = symbol "if"
 
+-- | @else@ keyword parser.
 kwElse :: Parser Text
 kwElse = symbol "else"
 
+-- | @for@ keyword parser.
 kwFor :: Parser Text
 kwFor = symbol "for"
 
+-- | @break@ keyword parser.
 kwBreak :: Parser Text
 kwBreak = symbol "break"
 
+-- | @continue@ keyword parser.
 kwContinue :: Parser Text
 kwContinue = symbol "continue"
 
--- Predeclared identifiers
+-- ** Predeclared identifiers
 
+-- | Predeclared identifier parser.
 predeclaredIdentifierP :: Parser Ast.Identifier
 predeclaredIdentifierP = choice [idBool, idInt, idString, idTrue, idFalse, idNil]
 
+-- | @bool@ identifier parser.
 idBool :: Parser Text
 idBool = symbol "bool"
 
+-- | @int@ identifier parser.
 idInt :: Parser Text
 idInt = symbol "int"
 
+-- | @string@ identifier parser.
 idString :: Parser Text
 idString = symbol "string"
 
+-- | @true@ identifier parser.
 idTrue :: Parser Text
 idTrue = symbol "true"
 
+-- | @false@ identifier parser.
 idFalse :: Parser Text
 idFalse = symbol "false"
 
+-- | @nil@ identifier parser.
 idNil :: Parser Text
 idNil = symbol "nil"
-
----------------------------------------------------------Utils----------------------------------------------------------
-
-readInteger :: ReadS Integer -> String -> Integer
-readInteger reader s = fst $ head $ reader s

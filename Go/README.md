@@ -14,10 +14,10 @@ Project parts:
 |     To do      |            In progress            |    Done     |
 | :------------: | :-------------------------------: | :---------: |
 | pretty printer | grammar definition in Pest syntax |     CLI     |
-|                |              parser               |    lexer    |
-|                |          program checker          |     AST     |
-|                |            interpreter            | POC mini go |
-|                |               docs                |             |
+|                |         program analyzer          |    lexer    |
+|                |            interpreter            |     AST     |
+|                |               docs                | POC mini go |
+|                |           analyzed AST            |   parser    |
 
 
 #### Done:
@@ -34,6 +34,7 @@ Project parts:
 - most of the parser
 - check for name collision or missing names, part of the type checker
 - part of the interpreter
+- Const expressions converters (w/o `const` keyword)
 
 #### Missing:
 
@@ -41,7 +42,6 @@ Project parts:
 - arrays, loops
 - closures
 - globals
-- AST optimizer (e.g., const expressions simplification (w/o `const` keyword))
 - several stdlib functions (`len`, `panic`, ...)
 - a lot of operators
 - `else`

@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser.Parser (parse) where
+-- | Provides parser that produces [AST]["Parser.Ast"].
+module Parser.Parser where
 
 import Control.Monad (void)
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
@@ -9,9 +10,11 @@ import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import qualified Parser.Ast as Ast
 import Parser.Lexer
-import Text.Megaparsec (MonadParsec (..), choice, eitherP, many, optional, parseMaybe)
+import Text.Megaparsec (MonadParsec (..), choice, eitherP, many, optional, parseMaybe, sepEndBy, some)
 
 ---------------------------------------------------------Parser---------------------------------------------------------
+
+-- * Parser
 
 -- | Parser entry point
 parse :: Text -> Maybe Ast.Program
@@ -19,104 +22,94 @@ parse = parseMaybe $ sc *> programP <* eof
 
 --------------------------------------------------------Program---------------------------------------------------------
 
+-- * Program (top-level) parsers
+
 -- | Program parser.
 programP :: Parser Ast.Program
 programP = do
   decls <- many topLevelDeclP
   return Ast.Program {Ast.topLevelVarDecls = lefts decls, Ast.topLevelFunctionDefs = rights decls}
 
--- | Top level declaration parser, it parses either var declaration or function definition.
+-- | Top-level declaration parser, it parses either var declaration or function definition.
 topLevelDeclP :: Parser (Either Ast.VarDecl Ast.FunctionDef)
 topLevelDeclP = eitherP' (varDeclP <* semicolon) functionDefP
 
 -- | Function definition parser.
 functionDefP :: Parser Ast.FunctionDef
-functionDefP = Ast.FunctionDef <$ kwFunc <*> identifierP <*> functionLitWithoutKwP
+functionDefP = Ast.FunctionDef <$ kwFunc <*> identifierP <*> anonFuncWithoutKwP
 
 ------------------------------------------------------Expressions-------------------------------------------------------
+
+-- * Expressions parsers
 
 -- | Expression parser.
 expressionP :: Parser Ast.Expression
 expressionP = makeExprParser termExpressionP opsTable
 
--- | Terminal expression parser, its terminal in terms of `makeExprParser` parser.
+-- | Terminal expression parser, it's terminal in terms of 'makeExprParser' parser.
 termExpressionP :: Parser Ast.Expression
 termExpressionP = choice' [parens expressionP, Ast.ExprValue <$> valueP, Ast.ExprIdentifier <$> identifierP]
 
 -- | Operators table, contains all operator parsers and their fixity.
 opsTable :: [[Operator Parser Ast.Expression]]
 opsTable =
-  [ [funcCallOp, arrayAccessByIndexOp],
-    [ unOp "+" Ast.UnaryPlusOp,
-      unOp "-" Ast.UnaryMinusOp,
-      unOp "!" Ast.NotOp,
-      unOp "^" Ast.BitwiseComplementOp
+  [ [ arrayAccessByIndexOp,
+      funcCallOp
     ],
-    [ binOp "*" Ast.MultOp,
-      binOp "/" Ast.DivOp,
-      binOp "%" Ast.ModOp,
-      binOp "<<" Ast.BitShiftLeftOp,
-      binOp ">>" Ast.BitShiftRightOp,
-      binOp "&^" Ast.BitClearOp,
-      binOp' "&" ["&&"] Ast.BitAndOp
+    [ unaryOp "+" Ast.UnaryPlusOp,
+      unaryOp "-" Ast.UnaryMinusOp,
+      unaryOp "!" Ast.NotOp,
+      unaryOp "^" Ast.BitwiseComplementOp
     ],
-    [ binOp "+" Ast.PlusOp,
-      binOp "-" Ast.MinusOp,
-      binOp' "|" ["||"] Ast.BitOrOp,
-      binOp "^" Ast.BitXorOp
+    [ binaryOp "*" Ast.MultOp,
+      binaryOp "/" Ast.DivOp,
+      binaryOp "%" Ast.ModOp,
+      binaryOp "<<" Ast.BitShiftLeftOp,
+      binaryOp ">>" Ast.BitShiftRightOp,
+      binaryOp "&^" Ast.BitClearOp,
+      binaryOp' "&" ["&&"] Ast.BitAndOp
     ],
-    [ binOp "==" Ast.EqOp,
-      binOp "!=" Ast.NeOp,
-      binOp "<=" Ast.LeOp,
-      binOp "<" Ast.LtOp,
-      binOp ">=" Ast.MeOp,
-      binOp ">" Ast.MtOp
+    [ binaryOp "+" Ast.PlusOp,
+      binaryOp "-" Ast.MinusOp,
+      binaryOp' "|" ["||"] Ast.BitOrOp,
+      binaryOp "^" Ast.BitXorOp
     ],
-    [binOp "&&" Ast.AndOp],
-    [binOp "||" Ast.OrOp]
+    [ binaryOp "==" Ast.EqOp,
+      binaryOp "!=" Ast.NeOp,
+      binaryOp "<=" Ast.LeOp,
+      binaryOp "<" Ast.LtOp,
+      binaryOp ">=" Ast.MeOp,
+      binaryOp ">" Ast.MtOp
+    ],
+    [binaryOp "&&" Ast.AndOp],
+    [binaryOp "||" Ast.OrOp]
   ]
 
--- Associativity and arity types
+-- ** Operators
 
--- | Utility function, that takes operator symbol, operator function and gives new binary operator in return.
-binary :: Text -> (Ast.Expression -> Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
-binary opSym fun = InfixL $ fun <$ symbol opSym
+-- | Utility function, that takes operator symbol, binary operator constructor and gives new binary operator in return.
+binaryOp :: Text -> Ast.BinaryOp -> Operator Parser Ast.Expression
+binaryOp opSym op = InfixL $ Ast.ExprBinaryOp op <$ symbol opSym
 
--- TODO : Docs
-binary' :: Text -> [Text] -> (Ast.Expression -> Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
-binary' opSym notOpsSyms fun = InfixL $ fun <$ (notFollowedBy (choice' $ symbol <$> notOpsSyms) *> symbol opSym)
+-- | Utility function, that takes operator symbol, ignored operator symbols (for parser), binary operator constructor and gives new binary operator in return.
+binaryOp' :: Text -> [Text] -> Ast.BinaryOp -> Operator Parser Ast.Expression
+binaryOp' opSym notOpsSyms op = InfixL $ Ast.ExprBinaryOp op <$ (notFollowedBy (choice' $ symbol <$> notOpsSyms) *> symbol opSym)
 
--- | Utility function, that takes operator symbol, operator function and gives new prefix operator in return.
-prefix :: Text -> (Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
-prefix opSym fun = Prefix $ fun <$ symbol opSym
+-- | Utility function, that takes operator symbol, unary operator constructor and gives new unary operator in return.
+unaryOp :: Text -> Ast.UnaryOp -> Operator Parser Ast.Expression
+unaryOp opSym op = Prefix $ Ast.ExprUnaryOp op <$ symbol opSym
 
--- | Utility function, that takes operator symbol, operator function and gives new postfix operator in return.
-postfix :: Parser (Ast.Expression -> Ast.Expression) -> Operator Parser Ast.Expression
-postfix = Postfix
-
--- Operators types
-
--- TODO : Docs
-binOp :: Text -> Ast.BinaryOp -> Operator Parser Ast.Expression
-binOp opSym op = binary opSym $ Ast.ExprBinaryOp op
-
--- TODO : Docs
-binOp' :: Text -> [Text] -> Ast.BinaryOp -> Operator Parser Ast.Expression
-binOp' opSym notOpsSyms op = binary' opSym notOpsSyms $ Ast.ExprBinaryOp op
-
--- TODO : Docs
-unOp :: Text -> Ast.UnaryOp -> Operator Parser Ast.Expression
-unOp opSym op = prefix opSym $ Ast.ExprUnaryOp op
-
--- TODO : Docs
+-- | Function call operator.
 funcCallOp :: Operator Parser Ast.Expression
-funcCallOp = postfix $ flip Ast.ExprFuncCall <$> listed expressionP comma
+funcCallOp = Postfix $ flip Ast.ExprFuncCall <$> listed expressionP comma
 
--- TODO : Docs
+-- | Array access by index operator.
 arrayAccessByIndexOp :: Operator Parser Ast.Expression
-arrayAccessByIndexOp = postfix $ flip Ast.ExprArrayAccessByIndex <$> brackets expressionP
+arrayAccessByIndexOp = Postfix $ flip Ast.ExprArrayAccessByIndex <$> brackets expressionP
 
 ---------------------------------------------------------Types----------------------------------------------------------
+
+-- * Types parsers
 
 -- | Type parser.
 typeP :: Parser Ast.Type
@@ -125,31 +118,22 @@ typeP =
     [ Ast.TInt <$ idInt,
       Ast.TBool <$ idBool,
       Ast.TString <$ idString,
-      functionTypeP,
+      Ast.TArray <$> arrayTypeP,
+      Ast.TFunction <$> functionTypeP,
       parens typeP
     ]
 
--- TODO : arrayTypeP,
+-- | Array type parser.
+arrayTypeP :: Parser Ast.ArrayType
+arrayTypeP = Ast.ArrayType <$> brackets expressionP <*> typeP
 
--- arrayTypeP :: Parser Ast.ArrayType
--- arrayTypeP = do
---   lenExpr <- brackets expressionP
---   len <- do
---     case simplifyConstExpr lenExpr of
---       Just (Ast.LitInt len) -> return len
---       _ -> fail "this is not a const int expression"
---   t <- typeP
---   return Ast.ArrayType {Ast.elementType = t, Ast.length = len}
-
--- | Function type (e.g., `func (int, string) bool`) parser.
-functionTypeP :: Parser Ast.Type
-functionTypeP = do
-  void kwFunc
-  params <- listed typeP comma
-  result <- optional' typeP
-  return $ Ast.TFunction $ Ast.FunctionType params result
+-- | Function type parser.
+functionTypeP :: Parser Ast.FunctionType
+functionTypeP = Ast.FunctionType <$ kwFunc <*> listed typeP comma <*> optional' typeP
 
 -------------------------------------------------------Statements-------------------------------------------------------
+
+-- * Statements parsers
 
 -- | Statement parser.
 statementP :: Parser Ast.Statement
@@ -177,11 +161,11 @@ stmtBreakP = Ast.StmtBreak <$ kwBreak
 stmtContinueP :: Parser Ast.Statement
 stmtContinueP = Ast.StmtContinue <$ kwContinue
 
--- TODO : Docs
+-- | For statement parser.
 stmtForP :: Parser Ast.Statement
 stmtForP = Ast.StmtFor <$> (Ast.For <$ void kwFor <*> forKindP <*> blockP)
 
--- TODO : Docs
+-- | For kind parser.
 forKindP :: Parser Ast.ForKind
 forKindP =
   choice'
@@ -207,7 +191,7 @@ varSpecP =
       Ast.DefaultedVarSpec <$> identifierP <*> typeP
     ]
 
--- If-else parser.
+-- | If-else parser.
 ifElseP :: Parser Ast.IfElse
 ifElseP = do
   void kwIf
@@ -225,19 +209,17 @@ blockP = braces $ catMaybes <$> many (optional' statementP <* semicolon)
 simpleStmtP :: Parser Ast.SimpleStmt
 simpleStmtP = choice' [stmtAssignmentP, stmtIncP, stmtDecP, stmtShortVarDeclP, stmtExpressionP]
 
--- TODO : Add support for `Ast.UpdArrEl`
-
 -- | Assignment statement parser.
 stmtAssignmentP :: Parser Ast.SimpleStmt
-stmtAssignmentP = Ast.StmtAssignment . Ast.UpdVar <$> identifierP <* symbol "=" <*> expressionP
+stmtAssignmentP = Ast.StmtAssignment <$> updElP <* symbol "=" <*> expressionP
 
 -- | Increment statement parser.
 stmtIncP :: Parser Ast.SimpleStmt
-stmtIncP = Ast.StmtInc . Ast.UpdVar <$> identifierP <* symbol "++"
+stmtIncP = Ast.StmtInc <$> updElP <* symbol "++"
 
 -- | Decrement statement parser.
 stmtDecP :: Parser Ast.SimpleStmt
-stmtDecP = Ast.StmtDec . Ast.UpdVar <$> identifierP <* symbol "--"
+stmtDecP = Ast.StmtDec <$> updElP <* symbol "--"
 
 -- | Short var declaration statement parser.
 stmtShortVarDeclP :: Parser Ast.SimpleStmt
@@ -247,7 +229,17 @@ stmtShortVarDeclP = Ast.StmtShortVarDecl <$> identifierP <* symbol ":=" <*> expr
 stmtExpressionP :: Parser Ast.SimpleStmt
 stmtExpressionP = Ast.StmtExpression <$> expressionP
 
+-- | Updatable element parser.
+updElP :: Parser Ast.UpdatableElement
+updElP =
+  choice'
+    [ Ast.UpdArrEl <$> identifierP <*> some (brackets expressionP),
+      Ast.UpdVar <$> identifierP
+    ]
+
 ---------------------------------------------------------Values---------------------------------------------------------
+
+-- * Values parsers
 
 -- | Value parser.
 valueP :: Parser Ast.Value
@@ -256,37 +248,35 @@ valueP =
     [ Ast.ValInt <$> intLitP,
       Ast.ValBool <$> boolLitP,
       Ast.ValString <$> stringLitP,
-      Ast.ValFunction <$> functionLitP
+      Ast.ValArray <$> arrayValP,
+      Ast.ValFunction <$> functionValP
     ]
 
--- TODO : arrayLitP
+-- | Array value parser.
+arrayValP :: Parser Ast.ArrayValue
+arrayValP = Ast.ArrayValue <$> arrayTypeP <*> arrayElementsP
 
--- arrayLitP :: Parser Ast.Literal
--- arrayLitP = do
---   t <- arrayTypeP
---   check arrayLitValue for size <= t.len
---   value <- arrayLitValueP
---   return $ Ast.LitArray Ast.ArrayLiteral {t = t, value = value}
+-- | Array's elements parser.
+arrayElementsP :: Parser [Ast.KeyedElement]
+arrayElementsP = braces $ sepEndBy keyedElementP comma
 
--- arrayLitValueP :: Parser [Ast.Element]
--- arrayLitValueP = todo $ unpack "array literal value parser"
+-- | Array's optionally keyed element parser.
+keyedElementP :: Parser Ast.KeyedElement
+keyedElementP = Ast.KeyedElement <$> optional' (expressionP <* colon) <*> elementP
 
--- ArrayLiteral      = { ArrayType ~ ArrayLiteralValue }
--- ArrayLiteralValue = { "{" ~ ( KeyedElementList ~ ","? )? ~ "}" }
--- KeyedElementList  = { KeyedElement ~ ( "," ~ KeyedElement )* }
--- KeyedElement      = { ( Key ~ ":" )? ~ Element }
--- Key               = { Expression }
--- Element           = { Expression | ArrayLiteralValue }
+-- | Array's element parser.
+elementP :: Parser Ast.Element
+elementP = choice' [Ast.ElementList <$> arrayElementsP, Ast.Element <$> expressionP]
 
--- | Function literal (can also be nil) parser.
-functionLitP :: Parser Ast.FunctionValue
-functionLitP = choice' [Ast.Nil <$ idNil, kwFunc *> functionLitWithoutKwP]
+-- | Function value (can also be @nil@) parser.
+functionValP :: Parser Ast.FunctionValue
+functionValP = choice' [Ast.Nil <$ idNil, kwFunc *> anonFuncWithoutKwP]
 
--- | Function literal without `func` keyword (e.g., `(x int, y string) bool { return; }`) parser.
-functionLitWithoutKwP :: Parser Ast.FunctionValue
-functionLitWithoutKwP = Ast.Function <$> functionSignatureP <*> blockP
+-- | Anonymous function without @func@ keyword parser.
+anonFuncWithoutKwP :: Parser Ast.FunctionValue
+anonFuncWithoutKwP = Ast.AnonymousFunction <$> functionSignatureP <*> blockP
 
--- | Function signature (e.g., `(x int, y string) bool`) parser.
+-- | Function signature parser.
 functionSignatureP :: Parser Ast.FunctionSignature
 functionSignatureP = do
   params <- listed ((,) <$> identifierP <*> typeP) comma
@@ -294,6 +284,8 @@ functionSignatureP = do
   return $ Ast.FunctionSignature params result
 
 ---------------------------------------------------------Utils----------------------------------------------------------
+
+-- * Utils
 
 -- | Choice between elements parser with built-in backtracking support.
 choice' :: (Foldable f, MonadParsec e s m, Functor f) => f (m a) -> m a
