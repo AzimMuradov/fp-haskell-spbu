@@ -58,21 +58,14 @@ opsTable =
     ],
     [ unaryOp "+" Ast.UnaryPlusOp,
       unaryOp "-" Ast.UnaryMinusOp,
-      unaryOp "!" Ast.NotOp,
-      unaryOp "^" Ast.BitwiseComplementOp
+      unaryOp "!" Ast.NotOp
     ],
     [ binaryOp "*" Ast.MultOp,
       binaryOp "/" Ast.DivOp,
-      binaryOp "%" Ast.ModOp,
-      binaryOp "<<" Ast.BitShiftLeftOp,
-      binaryOp ">>" Ast.BitShiftRightOp,
-      binaryOp "&^" Ast.BitClearOp,
-      binaryOp' "&" ["&&"] Ast.BitAndOp
+      binaryOp "%" Ast.ModOp
     ],
     [ binaryOp "+" Ast.PlusOp,
-      binaryOp "-" Ast.MinusOp,
-      binaryOp' "|" ["||"] Ast.BitOrOp,
-      binaryOp "^" Ast.BitXorOp
+      binaryOp "-" Ast.MinusOp
     ],
     [ binaryOp "==" Ast.EqOp,
       binaryOp "!=" Ast.NeOp,
@@ -181,25 +174,21 @@ forKindP =
 
 -- | Var declaration parser.
 varDeclP :: Parser Ast.VarDecl
-varDeclP = Ast.VarDecl <$ kwVar <*> choice' [listed1 varSpecP semicolon, (: []) <$> varSpecP]
-
--- | Var specification parser.
-varSpecP :: Parser Ast.VarSpec
-varSpecP =
-  choice'
-    [ Ast.VarSpec <$> identifierP <*> optional' typeP <* symbol "=" <*> expressionP,
-      Ast.DefaultedVarSpec <$> identifierP <*> typeP
-    ]
+varDeclP =
+  kwVar
+    *> choice'
+      [ Ast.VarDecl <$> identifierP <*> optional' typeP <* symbol "=" <*> expressionP,
+        Ast.DefaultedVarDecl <$> identifierP <*> typeP
+      ]
 
 -- | If-else parser.
 ifElseP :: Parser Ast.IfElse
 ifElseP = do
   void kwIf
-  stmt <- optional' $ simpleStmtP <* semicolon
   condition <- expressionP
   block <- blockP
   elseStmt <- optional' $ kwElse *> eitherP' ifElseP blockP
-  return $ Ast.IfElse stmt condition block elseStmt
+  return $ Ast.IfElse condition block elseStmt
 
 -- | Block parser.
 blockP :: Parser [Ast.Statement]

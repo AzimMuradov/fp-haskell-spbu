@@ -76,24 +76,12 @@ data BinaryOp
     PlusOp
   | -- | Minus operator (@a - b@), works only for @int@.
     MinusOp
-  | -- | Bitwise or operator (@a | b@), works only for @int@.
-    BitOrOp
-  | -- | Bitwise xor operator (@a ^ b@), works only for @int@.
-    BitXorOp
   | -- | Multiply operator (@a * b@), works only for @int@.
     MultOp
   | -- | Divide operator (@a / b@), works only for @int@.
     DivOp
   | -- | Module operator (@a % b@), works only for @int@.
     ModOp
-  | -- | Bitwise left shift operator (@a << b@), works only for @int@.
-    BitShiftLeftOp
-  | -- | Bitwise right shift operator (@a >> b@), works only for @int@.
-    BitShiftRightOp
-  | -- | Bitwise clear (and not) operator (@a &^ b@), works only for @int@.
-    BitClearOp
-  | -- | Bitwise and operator (@a & b@), works only for @int@.
-    BitAndOp
   deriving (Show)
 
 -- | Unary operators.
@@ -104,8 +92,6 @@ data UnaryOp
     UnaryMinusOp
   | -- | Not operator (@!a@), works only for @bool@.
     NotOp
-  | -- | Bitwise complement operator (@^a@), works only for @int@.
-    BitwiseComplementOp
   deriving (Show)
 
 ---------------------------------------------------------Types----------------------------------------------------------
@@ -195,42 +181,31 @@ data ForKind
     ForKindLoop
   deriving (Show)
 
--- | Var declaration, one var declaration may contain many var specifications.
+-- | Var declaration.
 --
 -- > var x int = 3
 --
--- > var (x int = 3; y string = "")
-newtype VarDecl = VarDecl [VarSpec]
-  deriving (Show)
-
--- | Var specification.
+-- > var y = "hello"
 --
--- > x int = 3
---
--- > y = "hello"
---
--- > z int
-data VarSpec
-  = VarSpec Identifier (Maybe Type) Expression
-  | DefaultedVarSpec Identifier Type
+-- > var z int
+data VarDecl
+  = VarDecl Identifier (Maybe Type) Expression
+  | DefaultedVarDecl Identifier Type
   deriving (Show)
 
 -- | If-else statement.
 --
--- > if i := foo(14); i < 42 { return "hello"; } else { return "goodbye"; }
+-- > if i < 42 { return "hello"; } else { return "goodbye"; }
 --
 -- > if true { println("hello"); }
 data IfElse = IfElse
-  { simpleStmt :: Maybe SimpleStmt,
-    condition :: Expression,
+  { condition :: Expression,
     block :: [Statement],
     elseStmt :: Maybe (Either IfElse [Statement])
   }
   deriving (Show)
 
--- | Simple statement, its main difference between other statements is that it can be used inside @if@ condition and @for@ \"pre\" and \"post\" statements.
---
--- > if i := foo(14); i < 42 { return "hello"; } else { return "goodbye"; }
+-- | Simple statement, its main difference between other statements is that it can be used inside @for@ \"pre\" and \"post\" statements.
 --
 -- > for i := 0; i < n; i++ { println(i); }
 data SimpleStmt
