@@ -1,42 +1,59 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module StdLib (stdLibFuncs) where
+-- | Module, that provides data necessary for standard library support.
+module StdLib where
 
-import qualified Ast
+import Analyzer.AnalyzedAst (Identifier)
 import Data.Text (Text, pack)
+import qualified Data.Text as Text
+import Interpreter.RuntimeValue (RuntimeValue (..))
 
-------------------------------------------------------Definitions-------------------------------------------------------
+---------------------------------------------------------StdLib---------------------------------------------------------
+
+-- | Stdlib function.
+data StdLibFunction = StdLibFunction
+  { name :: Identifier,
+    impl :: [RuntimeValue] -> (Maybe RuntimeValue, [Text])
+  }
 
 -- | All available stdlib functions.
-stdLibFuncs :: [Ast.FunctionDef]
-stdLibFuncs = [printlnInt, printlnBool, printlnStr]
+stdLibFunctions :: [StdLibFunction]
+stdLibFunctions = [lenFunction, printlnFunction, panicFunction]
 
--- TODO : Add `lenArr` and `lenStr` functions
+-------------------------------------------------------Functions--------------------------------------------------------
 
--- TODO : Add `panic` function
+-- ** @len@
 
--- TODO : Add `printInt` function
--- TODO : Add `printBool` function
--- TODO : Add `printStr` function
--- TODO : Add `printFunc` function
--- TODO : Add `printArr` function
+-- | @len@ function.
+lenFunction :: StdLibFunction
+lenFunction = StdLibFunction {name = "len", impl = lenImpl}
 
-printlnInt :: Ast.FunctionDef
-printlnInt = Ast.FunctionDef "printlnInt" $ Ast.StdLibFunction (Ast.FunctionType [Ast.TInt] Nothing) printlnImpl
+-- | @len@ implementation.
+lenImpl :: [RuntimeValue] -> (Maybe RuntimeValue, [Text])
+lenImpl [ValString x] = (Just $ ValInt $ Text.length x, [])
+lenImpl [ValArray xs] = (Just $ ValInt $ length xs, [])
+lenImpl _ = undefined
 
-printlnBool :: Ast.FunctionDef
-printlnBool = Ast.FunctionDef "printlnBool" $ Ast.StdLibFunction (Ast.FunctionType [Ast.TBool] Nothing) printlnImpl
+-- ** @println@
 
-printlnStr :: Ast.FunctionDef
-printlnStr = Ast.FunctionDef "printlnStr" $ Ast.StdLibFunction (Ast.FunctionType [Ast.TString] Nothing) printlnImpl
+-- | @println@ function.
+printlnFunction :: StdLibFunction
+printlnFunction = StdLibFunction {name = "println", impl = printlnImpl}
 
--- TODO : Add `printlnFunc` function
--- TODO : Add `printlnArr` function
-
-----------------------------------------------------Implementations-----------------------------------------------------
-
-printlnImpl :: [Ast.Value] -> (Maybe Ast.Value, [Text])
-printlnImpl [Ast.LitInt x] = (Nothing, [pack $ show x])
-printlnImpl [Ast.LitBool x] = (Nothing, [pack $ show x])
-printlnImpl [Ast.LitString x] = (Nothing, [pack $ show x])
+-- | @println@ implementation.
+printlnImpl :: [RuntimeValue] -> (Maybe RuntimeValue, [Text])
+printlnImpl [ValInt x] = (Nothing, [pack $ show x])
+printlnImpl [ValBool x] = (Nothing, [pack $ show x])
+printlnImpl [ValString x] = (Nothing, [pack $ show x])
 printlnImpl _ = undefined
+
+-- ** @panic@
+
+-- | @panic@ function.
+panicFunction :: StdLibFunction
+panicFunction = StdLibFunction {name = "panic", impl = panicImpl}
+
+-- | @panic@ implementation.
+panicImpl :: [RuntimeValue] -> (Maybe RuntimeValue, [Text])
+panicImpl [ValString _] = (Nothing, []) -- TODO
+panicImpl _ = undefined

@@ -8,6 +8,7 @@ import Data.Text (Text, concat, pack, singleton)
 import Data.Void (Void)
 import Numeric (readBin, readDec, readHex, readOct)
 import qualified Parser.Ast as Ast (Identifier)
+import StdLib (StdLibFunction (name), lenFunction, panicFunction, printlnFunction)
 import Text.Megaparsec (MonadParsec (..), Parsec, anySingle, between, choice, many, oneOf, optional, sepBy1, sepEndBy, sepEndBy1, (<|>))
 import Text.Megaparsec.Char (binDigitChar, char, char', digitChar, hexDigitChar, letterChar, newline, octDigitChar, space1)
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -195,7 +196,7 @@ kwContinue = symbol "continue"
 
 -- | Predeclared identifier parser.
 predeclaredIdentifierP :: Parser Ast.Identifier
-predeclaredIdentifierP = choice [idBool, idInt, idString, idTrue, idFalse, idNil]
+predeclaredIdentifierP = choice $ [idBool, idInt, idString, idTrue, idFalse, idNil] ++ [idLenFunc, idPrintlnFunc, idPanicFunc]
 
 -- | @bool@ identifier parser.
 idBool :: Parser Text
@@ -220,3 +221,15 @@ idFalse = symbol "false"
 -- | @nil@ identifier parser.
 idNil :: Parser Text
 idNil = symbol "nil"
+
+-- | @len@ identifier parser.
+idLenFunc :: Parser Text
+idLenFunc = symbol $ name lenFunction
+
+-- | @println@ identifier parser.
+idPrintlnFunc :: Parser Text
+idPrintlnFunc = symbol $ name printlnFunction
+
+-- | @panic@ identifier parser.
+idPanicFunc :: Parser Text
+idPanicFunc = symbol $ name panicFunction

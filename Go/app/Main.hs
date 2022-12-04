@@ -1,10 +1,8 @@
 module Main where
 
-import Data.Maybe (fromJust)
+import Analyzer.Analyzer (analyze)
 import Data.Text (pack)
-import Interpreter (getInterpretationOut, interpret)
-import Parser (parse)
-import ProgramChecker (check)
+import Parser.Parser (parse)
 import System.Environment (getArgs)
 
 main :: IO ()
@@ -13,8 +11,8 @@ main = do
   let f = case args of
         ["-i"] -> interpretAndShow
         ["--interpret"] -> interpretAndShow
-        ["-c"] -> checkAndShow
-        ["--check"] -> checkAndShow
+        ["-a"] -> analyzeAndShow
+        ["--analyze"] -> analyzeAndShow
         ["-p"] -> parseAndShow
         ["--parse"] -> parseAndShow
         ["-d"] -> debug
@@ -26,22 +24,25 @@ main = do
    in interact f
 
 interpretAndShow :: String -> String
-interpretAndShow fileText = getInterpretationOut . interpret $ fromJust $ parse (pack fileText)
+interpretAndShow _ = undefined
+-- interpretAndShow fileText = getInterpretationOut . interpret $ fromJust $ parse (pack fileText)
 
-checkAndShow :: String -> String
-checkAndShow fileText = show (check <$> parse (pack fileText)) ++ "\n"
+analyzeAndShow :: String -> String
+analyzeAndShow fileText = show (analyze <$> parse (pack fileText)) ++ "\n"
 
 parseAndShow :: String -> String
 parseAndShow fileText = show (parse $ pack fileText) ++ "\n"
 
 debug :: String -> String
-debug fileText =
-  show (parse $ pack fileText)
-    ++ "\n\n"
-    ++ show (check <$> parse (pack fileText))
-    ++ "\n\n"
-    ++ show (interpret <$> parse (pack fileText))
-    ++ "\n"
+debug _ = undefined
+
+-- debug fileText =
+--   show (parse $ pack fileText)
+--     ++ "\n\n"
+--     ++ show (check <$> parse (pack fileText))
+--     ++ "\n\n"
+--     ++ show (interpret <$> parse (pack fileText))
+--     ++ "\n"
 
 helpMsg :: String
 helpMsg =
@@ -54,7 +55,7 @@ helpMsg =
       "-                                                                              -",
       "- Arguments:                                                                   -",
       "-   --interpret | (-i)        - interpret mini-go file                         -",
-      "-   --check     | (-c)        - check mini-go file                             -",
+      "-   --analyze   | (-a)        - analyze mini-go file                           -",
       "-   --parse     | (-p)        - parse mini-go file                             -",
       "-   --debug     | (-d)        - debug program using given mini-go file         -",
       "-   --help      | (-h)        - print this message                             -",

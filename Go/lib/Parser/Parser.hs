@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Provides parser that produces [AST]["Parser.Ast"].
+-- | Provides parser that produces [AST]("Parser.Ast").
 module Parser.Parser where
 
 import Control.Monad (void)
@@ -36,7 +36,7 @@ topLevelDeclP = eitherP' (varDeclP <* semicolon) functionDefP
 
 -- | Function definition parser.
 functionDefP :: Parser Ast.FunctionDef
-functionDefP = Ast.FunctionDef <$ kwFunc <*> identifierP <*> anonFuncWithoutKwP
+functionDefP = Ast.FunctionDef <$ kwFunc <*> identifierP <*> functionP
 
 ------------------------------------------------------Expressions-------------------------------------------------------
 
@@ -48,7 +48,15 @@ expressionP = makeExprParser termExpressionP opsTable
 
 -- | Terminal expression parser, it's terminal in terms of 'makeExprParser' parser.
 termExpressionP :: Parser Ast.Expression
-termExpressionP = choice' [parens expressionP, Ast.ExprValue <$> valueP, Ast.ExprIdentifier <$> identifierP]
+termExpressionP =
+  choice'
+    [ parens expressionP,
+      Ast.ExprValue <$> valueP,
+      Ast.ExprIdentifier <$> identifierP,
+      Ast.ExprLenFuncCall <$ idLenFunc <*> parens expressionP,
+      Ast.ExprPrintlnFuncCall <$ idPrintlnFunc <*> parens expressionP,
+      Ast.ExprPanicFuncCall <$ idPanicFunc <*> parens expressionP
+    ]
 
 -- | Operators table, contains all operator parsers and their fixity.
 opsTable :: [[Operator Parser Ast.Expression]]
@@ -118,7 +126,7 @@ typeP =
 
 -- | Array type parser.
 arrayTypeP :: Parser Ast.ArrayType
-arrayTypeP = Ast.ArrayType <$> brackets expressionP <*> typeP
+arrayTypeP = flip Ast.ArrayType <$> brackets expressionP <*> typeP
 
 -- | Function type parser.
 functionTypeP :: Parser Ast.FunctionType
@@ -257,13 +265,13 @@ keyedElementP = Ast.KeyedElement <$> optional' (expressionP <* colon) <*> elemen
 elementP :: Parser Ast.Element
 elementP = choice' [Ast.ElementList <$> arrayElementsP, Ast.Element <$> expressionP]
 
--- | Function value (can also be @nil@) parser.
+-- | Function value parser.
 functionValP :: Parser Ast.FunctionValue
-functionValP = choice' [Ast.Nil <$ idNil, kwFunc *> anonFuncWithoutKwP]
+functionValP = choice' [Ast.Nil <$ idNil, Ast.AnonymousFunction <$ kwFunc <*> functionP]
 
--- | Anonymous function without @func@ keyword parser.
-anonFuncWithoutKwP :: Parser Ast.FunctionValue
-anonFuncWithoutKwP = Ast.AnonymousFunction <$> functionSignatureP <*> blockP
+-- | Nameless function parser.
+functionP :: Parser Ast.Function
+functionP = Ast.Function <$> functionSignatureP <*> blockP
 
 -- | Function signature parser.
 functionSignatureP :: Parser Ast.FunctionSignature

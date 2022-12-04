@@ -20,7 +20,7 @@ data Program = Program
   deriving (Show)
 
 -- | Function definition.
-data FunctionDef = FunctionDef {funcName :: Identifier, funcVal :: FunctionValue}
+data FunctionDef = FunctionDef {funcName :: Identifier, func :: Function}
   deriving (Show)
 
 ------------------------------------------------------Expressions-------------------------------------------------------
@@ -50,6 +50,22 @@ data Expression
     --
     -- > (func (x int) int { return x * x; })(3)
     ExprFuncCall Expression [Expression]
+  | -- | @len@ function call expression.
+    --
+    -- > len("abcd") // returns 4
+    --
+    -- > len([100] int {}) // returns 100
+    ExprLenFuncCall Expression
+  | -- | @println@ function call expression.
+    --
+    -- > println("some logs...") // prints "some logs...\n"
+    --
+    -- > println(3 + 6)  // prints "9\n"
+    ExprPrintlnFuncCall Expression
+  | -- | @panic@ function call expression.
+    --
+    -- > panic("ERROR!!!") // fails with: "panic: ERROR!!!\n"
+    ExprPanicFuncCall Expression
   deriving (Show)
 
 -- ** Operators
@@ -115,7 +131,7 @@ data Type
 -- | Array type, it contains the length of the array and its elements type.
 --
 -- > [3 + 4] int
-data ArrayType = ArrayType {length :: Expression, elementType :: Type}
+data ArrayType = ArrayType {elementType :: Type, length :: Expression}
   deriving (Show)
 
 -- | Function type,
@@ -283,9 +299,13 @@ data FunctionValue
     -- > func (x int) int { return x * x; }
     --
     -- > func () {}
-    AnonymousFunction {signature :: FunctionSignature, body :: [Statement]}
+    AnonymousFunction Function
   | -- | Null literal (@nil@).
     Nil
+  deriving (Show)
+
+-- | Function representation without name.
+data Function = Function {signature :: FunctionSignature, body :: [Statement]}
   deriving (Show)
 
 -- | Function signature,
