@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
 
 module Parser where
 
@@ -7,15 +6,19 @@ import Ast
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
 import Data.Text (Text, concat, pack)
 import Data.Void (Void)
-import Lexer (lexeme, parens, scn, symbol)
+import Lexer (lexeme, parens, scn, sc, symbol)
 import Numeric (readDec)
-import Text.Megaparsec (MonadParsec (..), Parsec, choice, eitherP, many, oneOf, optional, sepBy, sepBy1, some, (<|>))
+import Text.Megaparsec (MonadParsec (..), Parsec, choice, eitherP, many, oneOf, optional, sepBy, sepBy1, some, (<|>), parseMaybe)
 import Text.Megaparsec.Char (alphaNumChar, char, digitChar, letterChar, string)
 import qualified Text.Megaparsec.Char.Lexer as L
 
 type Parser = Parsec Void Text
 
--- >>> 1 + 1
+parse :: Parser a -> Text -> Maybe a
+parse = parseMaybe
+
+fileP :: Parser Program
+fileP = sc *> programP <* eof
 
 programP :: Parser Program
 programP =
