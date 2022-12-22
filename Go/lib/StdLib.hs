@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Module, that provides data necessary for standard library support.
+-- | Module, that provides data necessary for the standard library support.
 module StdLib where
 
 import Analyzer.AnalyzedAst (Identifier)
@@ -8,9 +8,11 @@ import Data.Text (Text, pack)
 import qualified Data.Text as Text
 import Interpreter.RuntimeValue (RuntimeValue (..))
 
+-- * StdLib functions
+
 ---------------------------------------------------------StdLib---------------------------------------------------------
 
--- | Stdlib function.
+-- | StdLib function.
 data StdLibFunction = StdLibFunction
   { name :: Identifier,
     impl :: [RuntimeValue] -> (Maybe RuntimeValue, [Text])
@@ -19,6 +21,8 @@ data StdLibFunction = StdLibFunction
 -- | All available stdlib functions.
 stdLibFunctions :: [StdLibFunction]
 stdLibFunctions = [lenFunction, printlnFunction, panicFunction]
+
+-- * StdLib functions implementation
 
 -------------------------------------------------------Functions--------------------------------------------------------
 
