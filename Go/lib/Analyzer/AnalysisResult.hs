@@ -1,10 +1,11 @@
--- TODO : Docs
+-- | This module contains types and functions needed for representing analysis result.
 module Analyzer.AnalysisResult where
 
 import qualified Analyzer.AnalyzedAst as AnalyzedAst
 import qualified Analyzer.AnalyzedType as AnalyzedType
 import Control.Monad.State (MonadTrans (lift), StateT)
 import Data.Map (Map)
+import qualified Data.Map as Map
 
 -- Program checker result
 
@@ -15,13 +16,17 @@ type Result a = StateT Env ResultValue a
 
 -- ** State
 
--- TODO : Docs
+-- *** Environment
+
+-- | Analyzer environment.
 newtype Env = Env {scopes :: [Scope]}
   deriving (Show)
 
--- TODO : Docs
+-- | Create empty environment.
 emptyEnv :: Env
 emptyEnv = Env []
+
+-- *** Scope
 
 -- | Scope contains identifiers mapped to their types.
 data Scope = Scope
@@ -30,16 +35,21 @@ data Scope = Scope
   }
   deriving (Show)
 
--- TODO : Docs
+-- | @Scope@ type.
 data ScopeType = ForScope | OrdinaryScope
   deriving (Show, Eq)
 
--- TODO : Docs
-type ScopeEntry = (AnalyzedAst.Identifier, AnalyzedType.Type)
+-- | Create @Scope@ from its type and elements.
+scope :: ScopeType -> [(AnalyzedAst.Identifier, AnalyzedType.Type)] -> Scope
+scope t elements = Scope t (Map.fromList elements)
+
+-- | Create empty @Scope@ from its type.
+emptyScope :: ScopeType -> Scope
+emptyScope t = scope t []
 
 -- ** Result Value
 
--- TODO : Docs
+-- | @Result@ value (in other words, it is stateless @Result@).
 type ResultValue = Either Err
 
 -- ** Error
@@ -58,12 +68,12 @@ data Err
     NotInIntBounds
   | -- | Division by 0 in constant integer expression error.
     DivByZero
-  | -- TODO : Docs
-    BreakOrContinueInOrdinaryScope
+  | -- | @break@ or @continue@ statement used outside of @ForScope@.
+    BreakOrContinueOutsideOfForScope
   | -- | Unexpected error, this type of errors must never happen.
     UnexpectedError
   deriving (Show, Eq)
 
--- TODO : Docs
+-- | Throw error of kind @err@ result.
 throw :: Err -> Result a
 throw err = lift $ Left err

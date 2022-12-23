@@ -10,9 +10,9 @@ import Data.Text (Text, pack)
 import qualified Data.Text as Text
 import Interpreter.RuntimeValue (RuntimeValue (..))
 
--- * StdLib functions
-
 ---------------------------------------------------------StdLib---------------------------------------------------------
+
+-- * StdLib functions
 
 -- | StdLib function.
 data StdLibFunction = StdLibFunction
@@ -31,9 +31,9 @@ stdLibFunctions = [lenFunction, printlnFunction, panicFunction]
 stdLibFunctionsMap :: Map Identifier FunctionImplementation
 stdLibFunctionsMap = Map.fromList $ (\f -> (name f, impl f)) <$> stdLibFunctions
 
--- * StdLib functions implementation
-
 -------------------------------------------------------Functions--------------------------------------------------------
+
+-- * StdLib functions implementation
 
 -- ** @len@
 

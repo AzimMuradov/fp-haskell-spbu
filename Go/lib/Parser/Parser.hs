@@ -141,8 +141,7 @@ statementP :: Parser Ast.Statement
 statementP =
   choice'
     [ stmtReturnP,
-      stmtBreakP,
-      stmtContinueP,
+      stmtForGoToP,
       stmtForP,
       Ast.StmtVarDecl <$> varDeclP,
       Ast.StmtIfElse <$> ifElseP,
@@ -154,13 +153,9 @@ statementP =
 stmtReturnP :: Parser Ast.Statement
 stmtReturnP = Ast.StmtReturn <$ kwReturn <*> optional' expressionP
 
--- | Break statement parser.
-stmtBreakP :: Parser Ast.Statement
-stmtBreakP = Ast.StmtBreak <$ kwBreak
-
--- | Continue statement parser.
-stmtContinueP :: Parser Ast.Statement
-stmtContinueP = Ast.StmtContinue <$ kwContinue
+-- | For goto statement parser.
+stmtForGoToP :: Parser Ast.Statement
+stmtForGoToP = Ast.StmtForGoTo <$> choice' [Ast.Break <$ kwBreak, Ast.Continue <$ kwContinue]
 
 -- | For statement parser.
 stmtForP :: Parser Ast.Statement

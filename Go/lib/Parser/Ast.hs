@@ -150,10 +150,8 @@ data FunctionType = FunctionType {parameters :: [Type], result :: Maybe Type}
 data Statement
   = -- | Return statement with optional return value (in the case of 'Nothing' we assume, that it is @void@).
     StmtReturn (Maybe Expression)
-  | -- | Break statement, should be inside @for@.
-    StmtBreak
-  | -- | Continue statement, should be inside @for@.
-    StmtContinue
+  | -- | For goto statement.
+    StmtForGoTo ForGoTo
   | -- | For statement.
     StmtFor For
   | -- | Var declaration statement.
@@ -166,6 +164,14 @@ data Statement
     StmtBlock [Statement]
   | -- | Simple statement.
     StmtSimple SimpleStmt
+  deriving (Show)
+
+-- | For goto statement (either @break@ or @continue@), should be inside @for@.
+data ForGoTo
+  = -- | Break statement.
+    Break
+  | -- | Continue statement.
+    Continue
   deriving (Show)
 
 -- | For statement, can represent any of the 3 possible @for@ kinds.

@@ -7,11 +7,12 @@ module Analyzer.AnalyzedAst
   ( module Analyzer.AnalyzedAst,
     UnaryOp (..),
     BinaryOp (..),
+    ForGoTo (..),
   )
 where
 
 import Data.Text (Text)
-import Parser.Ast (BinaryOp (..), UnaryOp (..))
+import Parser.Ast (BinaryOp (..), UnaryOp (..), ForGoTo (..))
 
 --------------------------------------------------------Program---------------------------------------------------------
 
@@ -40,8 +41,7 @@ data Expression
 
 data Statement
   = StmtReturn (Maybe Expression)
-  | StmtBreak
-  | StmtContinue
+  | StmtForGoTo ForGoTo
   | StmtFor For
   | StmtVarDecl VarDecl
   | StmtIfElse IfElse
@@ -97,7 +97,7 @@ data FunctionValue
   deriving (Show)
 
 data Function
-  = Function {capturedScope :: [Identifier], parameters :: [Identifier], body :: [Statement]}
+  = Function {parameters :: [Identifier], body :: [Statement]}
   | StdLibFunction Identifier
   deriving (Show)
 

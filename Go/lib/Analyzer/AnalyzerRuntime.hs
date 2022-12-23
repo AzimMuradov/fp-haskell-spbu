@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- TODO : Docs
 module Analyzer.AnalyzerRuntime where
 
 import Analyzer.AnalysisResult
@@ -11,6 +12,7 @@ import qualified Data.Map as Map
 
 -- ** Get a variable type
 
+-- TODO : Docs
 getVarType :: AAst.Identifier -> Result AType.Type
 getVarType name = do
   env <- get
@@ -18,11 +20,13 @@ getVarType name = do
 
 -- ** Add a new variable
 
+-- TODO : Docs
 addNewVar :: AAst.Identifier -> AType.Type -> Result ()
 addNewVar name t = do
   env <- get
   either throw put (addNewVar' name t env)
 
+-- TODO : Docs
 addNewVar' :: AAst.Identifier -> AType.Type -> Env -> ResultValue Env
 addNewVar' _ _ (Env []) = Left UnexpectedError
 addNewVar' _ _ (Env [_]) = Left UnexpectedError
@@ -32,6 +36,7 @@ addNewVar' n t (Env (Scope scT ns : scs)) = case ns !? n of
 
 -- ** Add or update a variable
 
+-- TODO : Docs
 addOrUpdateVar :: AAst.Identifier -> AType.Type -> Result ()
 addOrUpdateVar name t = do
   env <- get
@@ -41,6 +46,7 @@ addOrUpdateVar name t = do
 
 -- ** Update a variable
 
+-- TODO : Docs
 updateVar :: AAst.Identifier -> AType.Type -> Result ()
 updateVar name t = do
   env <- get
@@ -51,6 +57,7 @@ updateVar name t = do
 
 -- ** Search for a variable
 
+-- TODO : Docs
 searchVar :: AAst.Identifier -> Env -> Maybe (AType.Type, ScopeLocation)
 searchVar name (Env scs) = searchVar' name scs Curr
   where
@@ -59,8 +66,10 @@ searchVar name (Env scs) = searchVar' name scs Curr
       Nothing -> searchVar' n outerScs Outer
     searchVar' _ _ _ = Nothing
 
+-- TODO : Docs
 data ScopeLocation = Curr | Outer
 
+-- TODO : Docs
 getTypeDefault :: AType.Type -> AAst.Expression
 getTypeDefault t = AAst.ExprValue $ case t of
   AType.TInt -> AAst.ValInt 0
@@ -72,13 +81,16 @@ getTypeDefault t = AAst.ExprValue $ case t of
 
 -- ** Scopes manipulation
 
+-- TODO : Docs
 pushScope :: Scope -> Env -> Env
 pushScope initScope (Env scs) = Env $ initScope : scs
 
+-- TODO : Docs
 popScope :: Env -> Env
 popScope (Env (_ : scs)) = Env scs
 popScope env = env
 
-getScopeType :: Env -> ResultValue ScopeType
-getScopeType (Env (Scope scT _ : _)) = Right scT
-getScopeType _ = Left UnexpectedError
+-- TODO : Docs
+getCurrScopeType :: Env -> ResultValue ScopeType
+getCurrScopeType (Env (Scope scT _ : _)) = Right scT
+getCurrScopeType _ = Left UnexpectedError
