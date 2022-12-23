@@ -1,15 +1,13 @@
 func main() {
   var n = 5;
 
-  printlnInt(fact(n - 1));  // should print 24
-  printlnInt(fact(n * 2));  // should print 3628800
-  printlnInt(fact(n));      // should print 120
-  printlnInt(fib(n));       // should print 8
-  printlnInt(100000);       // should print 100000
-  printlnInt(-10000000);    // should print -10000000
-  printlnInt(foo(1000));    // should print 0
-  printlnInt(bar(1000));    // should print 0
-  printlnInt(fib(fact(3))); // should print 13
+  println(fact(n - 1));  // should print 24
+  println(fact(n * 2));  // should print 3628800
+  println(fact(n));      // should print 120
+  println(fib(n));       // should print 8
+  println(foo(1000));    // should print 0
+  println(bar(1000));    // should print 0
+  println(fib(fact(3))); // should print 13
 }
 
 
