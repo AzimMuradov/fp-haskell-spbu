@@ -5,13 +5,13 @@
 
 module Analyzer.AnalyzedAst
   ( module Analyzer.AnalyzedAst,
-    Ast.UnaryOp (..),
-    Ast.BinaryOp (..),
+    UnaryOp (..),
+    BinaryOp (..),
   )
 where
 
 import Data.Text (Text)
-import qualified Parser.Ast as Ast
+import Parser.Ast (BinaryOp (..), UnaryOp (..))
 
 --------------------------------------------------------Program---------------------------------------------------------
 
@@ -30,8 +30,8 @@ data FunctionDef = FunctionDef {funcName :: Identifier, func :: Function}
 data Expression
   = ExprValue Value
   | ExprIdentifier Identifier
-  | ExprUnaryOp Ast.UnaryOp Expression
-  | ExprBinaryOp Ast.BinaryOp Expression Expression
+  | ExprUnaryOp UnaryOp Expression
+  | ExprBinaryOp BinaryOp Expression Expression
   | ExprArrayAccessByIndex Expression Expression
   | ExprFuncCall Expression [Expression]
   deriving (Show)
@@ -97,7 +97,7 @@ data FunctionValue
   deriving (Show)
 
 data Function
-  = Function {parameters :: [Identifier], body :: [Statement]}
+  = Function {capturedScope :: [Identifier], parameters :: [Identifier], body :: [Statement]}
   | StdLibFunction Identifier
   deriving (Show)
 

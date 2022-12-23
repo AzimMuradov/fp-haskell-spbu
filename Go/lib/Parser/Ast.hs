@@ -61,7 +61,7 @@ data Expression
     -- > println("some logs...") // prints "some logs...\n"
     --
     -- > println(3 + 6)  // prints "9\n"
-    ExprPrintlnFuncCall Expression
+    ExprPrintlnFuncCall (Maybe Expression)
   | -- | @panic@ function call expression.
     --
     -- > panic("ERROR!!!") // fails with: "panic: ERROR!!!\n"
@@ -169,25 +169,25 @@ data Statement
   deriving (Show)
 
 -- | For statement, can represent any of the 3 possible @for@ kinds.
-data For = For {kind :: ForKind, block :: [Statement]}
+data For = For {forKind :: ForKind, block :: [Statement]}
   deriving (Show)
 
 -- | For statement, can represent any of the 3 possible @for@ kinds.
 data ForKind
-  = -- | For kind, represents classic for loop.
+  = -- | For kind, represents classic @for@ loop.
     --
     -- > for i := 0; i < n; i++ {
     -- >   foo(i * i);
     -- > }
-    ForKindFor {preStmt :: Maybe SimpleStmt, condition :: Maybe Expression, postStmt :: Maybe SimpleStmt}
-  | -- | While kind, represents classic while loop.
+    ForKindFor {preStatement :: Maybe SimpleStmt, condition :: Maybe Expression, postStatement :: Maybe SimpleStmt}
+  | -- | While kind, represents classic @while@ loop.
     --
     -- > for i < n {
     -- >   foo(i * i);
     -- >   i = i + 2;
     -- > }
     ForKindWhile {whileCondition :: Expression}
-  | -- | Loop kind, represents endless loop (while true).
+  | -- | Loop kind, represents endless loop (@while true@).
     --
     -- > for {
     -- >   temp := foo(i * i * i);
@@ -268,28 +268,7 @@ data Value
 -- > [3] int {1, 2}
 --
 -- > [10] bool {}
---
--- > // same as [3][2] int {{1, 0}, {0, 0}, {1, 2}}
--- > [3][2] int {{1}, 2 : {1, 2}}
-data ArrayValue = ArrayValue {t :: ArrayType, elements :: [KeyedElement]}
-  deriving (Show)
-
--- | Array's optionally keyed element.
---
--- > 14
---
--- > 2 : 14
---
--- > 1 : {"abc", 2 : "xyz"}
-data KeyedElement = KeyedElement {key :: Maybe Expression, element :: Element}
-  deriving (Show)
-
--- | Array's element.
---
--- > 14
---
--- > {"abc", 3 : "xyz"}
-data Element = Element Expression | ElementList [KeyedElement]
+data ArrayValue = ArrayValue {t :: ArrayType, elements :: [Expression]}
   deriving (Show)
 
 -- | Function value.

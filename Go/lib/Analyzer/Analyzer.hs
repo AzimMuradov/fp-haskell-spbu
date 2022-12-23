@@ -6,7 +6,7 @@ module Analyzer.Analyzer where
 import Analyzer.AnalysisResult
 import qualified Analyzer.AnalyzedAst as AAst
 import qualified Analyzer.AnalyzedType as AType
-import Analyzer.AnalyzerRuntime (addNewVar, addOrUpdateVar, getTypeDefault, getVarType)
+import Analyzer.AnalyzerRuntime (addNewVar, addOrUpdateVar, getScopeType, getTypeDefault, getVarType, popScope, pushScope)
 import Analyzer.ConstExpressionConverters (simplifyConstExpr, simplifyConstIntExpr)
 import Control.Monad (when, (>=>))
 import Control.Monad.State (MonadState (..), MonadTrans (..), StateT (runStateT), modify)
@@ -14,8 +14,6 @@ import Data.Functor (($>))
 import Data.List.Extra (anySame, find)
 import qualified Data.Map as Map
 import Data.Maybe (isNothing)
-import Data.Text (unpack)
-import Errors (todo)
 import qualified Parser.Ast as Ast
 import qualified StdLib
 
@@ -47,39 +45,32 @@ analyzeProgram (Ast.Program _ functions) = do
     predicate (Ast.FunctionDef name (Ast.Function (Ast.FunctionSignature params ret) _)) =
       name == "main" && null params && null ret
 
-    predicate' (AAst.FunctionDef name (AAst.Function args _)) = name == "main" && null args
+    predicate' (AAst.FunctionDef name (AAst.Function [] args _)) = name == "main" && null args
     predicate' _ = False
 
 analyzeFuncs :: [Ast.FunctionDef] -> Result [AAst.FunctionDef]
-analyzeFuncs functions = do
-  env <- initEnv functions
+analyzeFuncs functionDefinitions = do
+  env <- initEnv functionDefinitions
   put env
-  mapM checkFunc' functions
+  mapM checkFunc' functionDefinitions
   where
-    checkFunc' (Ast.FunctionDef name func) = AAst.FunctionDef name <$> analyzeFunc func
+    checkFunc' (Ast.FunctionDef name func) = AAst.FunctionDef name <$> (snd <$> analyzeFunc func)
 
     initEnv funcs = do
       funcs' <- mapM convertToPair funcs
-      return $ Env (Scope $ Map.fromList funcs') []
+      return $ Env [Scope OrdinaryScope (Map.fromList funcs')]
 
     convertToPair (Ast.FunctionDef name (Ast.Function (Ast.FunctionSignature params ret) _)) = do
       params' <- mapM analyzeType (snd <$> params)
       ret' <- mapM analyzeType ret
       return (name, AType.TFunction $ AType.FunctionType params' ret')
 
-analyzeFunc :: Ast.Function -> Result AAst.Function
+analyzeFunc :: Ast.Function -> Result (AType.FunctionType, AAst.Function)
 analyzeFunc (Ast.Function (Ast.FunctionSignature params ret) stmts) = do
   params' <- mapM (\(name, t) -> (name,) <$> analyzeType t) params
   ret' <- mapM analyzeType ret
-  modify $ pushScope (Scope (Map.fromList params'))
-  stmts' <- analyzeBlock stmts ret'
-  modify popScope
-  return $ AAst.Function (fst <$> params') stmts'
-  where
-    pushScope initScope env@(Env _ fScs) = env {funcsScopes = FuncScope [initScope] : fScs}
-
-    popScope env@(Env _ (_ : fScs)) = env {funcsScopes = fScs}
-    popScope env = env
+  stmts' <- analyzeBlock (Scope OrdinaryScope (Map.fromList params')) stmts ret'
+  return (AType.FunctionType (snd <$> params') ret', AAst.Function [] (fst <$> params') stmts')
 
 -------------------------------------------------------Statements-------------------------------------------------------
 
@@ -93,63 +84,102 @@ analyzeStmt statement funcReturn = case statement of
   Ast.StmtReturn Nothing -> do
     checkTypesEq Nothing funcReturn
     return $ AAst.StmtReturn Nothing
-  Ast.StmtBreak -> todo $ unpack "`break` statement checker" -- TODO
-  Ast.StmtContinue -> todo $ unpack "`continue` statement checker" -- TODO
-  Ast.StmtFor _ -> todo $ unpack "`for` statement checker" -- TODO
+  Ast.StmtBreak -> do
+    env <- get
+    if getScopeType env == Right ForScope
+      then return AAst.StmtBreak
+      else throw BreakOrContinueInOrdinaryScope
+  Ast.StmtContinue -> do
+    env <- get
+    if getScopeType env == Right ForScope
+      then return AAst.StmtContinue
+      else throw BreakOrContinueInOrdinaryScope
+  Ast.StmtFor (Ast.For kind stmts) ->
+    AAst.StmtFor <$> case kind of
+      Ast.ForKindFor preStmt cond postStmt -> do
+        modify $ pushScope (Scope OrdinaryScope Map.empty)
+        preStmt' <- maybe (return Nothing) (fmap Just . analyzeSimpleStmt) preStmt
+        cond' <- maybe (return Nothing) (fmap (Just . snd) . analyzeExpr) cond
+        postStmt' <- maybe (return Nothing) (fmap Just . analyzeSimpleStmt) postStmt
+        stmts' <- analyzeBlock (Scope ForScope Map.empty) stmts funcReturn
+        modify popScope
+        return $ AAst.For (AAst.ForKindFor preStmt' cond' postStmt') stmts'
+      Ast.ForKindWhile cond ->
+        AAst.For
+          <$> (AAst.ForKindWhile . snd <$> analyzeExpr cond)
+          <*> analyzeBlock (Scope ForScope Map.empty) stmts funcReturn
+      Ast.ForKindLoop ->
+        AAst.For AAst.ForKindLoop
+          <$> analyzeBlock (Scope ForScope Map.empty) stmts funcReturn
   Ast.StmtVarDecl varDecl -> case varDecl of
     Ast.VarDecl name (Just t) expr -> do
       (t', expr') <- analyzeExpr expr
       t'' <- analyzeType t
       checkTypesEq (Just t'') t'
-      addNewVar $ return (name, t'')
+      addNewVar name t''
       return $ AAst.StmtVarDecl $ AAst.VarDecl name expr'
     Ast.VarDecl name Nothing expr -> do
       (t, expr') <- analyzeExpr expr
       case t of
         Just t' -> do
-          addNewVar $ return (name, t')
+          addNewVar name t'
           return $ AAst.StmtVarDecl $ AAst.VarDecl name expr'
         _ -> throw MismatchedTypes
     Ast.DefaultedVarDecl name t -> do
       t' <- analyzeType t
-      addNewVar $ return (name, t')
+      addNewVar name t'
       return $ AAst.StmtVarDecl $ AAst.VarDecl name (getTypeDefault t')
-  Ast.StmtIfElse (Ast.IfElse condition stmts _) -> do
-    -- TODO : Else
-    (condT, condExpr) <- analyzeExpr condition
-    checkTypesEq condT (Just AType.TBool)
-    stmts' <- analyzeBlock stmts funcReturn
-    return $ AAst.StmtIfElse (AAst.IfElse condExpr stmts' Nothing)
-  Ast.StmtBlock stmts -> AAst.StmtBlock <$> analyzeBlock stmts funcReturn
-  Ast.StmtSimple simpleStmt ->
-    AAst.StmtSimple <$> case simpleStmt of
-      Ast.StmtAssignment updEl expr -> do
-        (updElT, updEl') <- analyzeUpdEl updEl
-        (t, expr') <- analyzeExpr expr
-        checkTypesEq (Just updElT) t
-        return $ AAst.StmtAssignment updEl' expr'
-      Ast.StmtInc updEl -> do
-        (updElT, updEl') <- analyzeUpdEl updEl
-        checkTypesEq (Just updElT) (Just AType.TInt)
-        return $ AAst.StmtInc updEl'
-      Ast.StmtDec updEl -> do
-        (updElT, updEl') <- analyzeUpdEl updEl
-        checkTypesEq (Just updElT) (Just AType.TInt)
-        return $ AAst.StmtDec updEl'
-      Ast.StmtShortVarDecl name expr -> do
-        (t, expr') <- analyzeExpr expr
-        case t of
-          Just t' -> addOrUpdateVar (return (name, t')) $> AAst.StmtShortVarDecl name expr'
-          _ -> throw MismatchedTypes
-      Ast.StmtExpression expr -> do
-        (_, expr') <- analyzeExpr expr
-        return $ AAst.StmtExpression expr'
+  Ast.StmtIfElse ifElse -> AAst.StmtIfElse <$> analyzeIfElse ifElse funcReturn
+  Ast.StmtBlock stmts -> AAst.StmtBlock <$> analyzeBlock (Scope OrdinaryScope Map.empty) stmts funcReturn
+  Ast.StmtSimple simpleStmt -> AAst.StmtSimple <$> analyzeSimpleStmt simpleStmt
+
+analyzeIfElse :: Ast.IfElse -> Maybe AType.Type -> Result AAst.IfElse
+analyzeIfElse (Ast.IfElse condition stmts elseStmt) funcReturn = do
+  (condT, condExpr) <- analyzeExpr condition
+  checkTypesEq condT (Just AType.TBool)
+  stmts' <- analyzeBlock (Scope OrdinaryScope Map.empty) stmts funcReturn
+  elseStmt' <- case elseStmt of
+    Just (Left ifElse) -> Just . Left <$> analyzeIfElse ifElse funcReturn
+    Just (Right elseStmt') -> Just . Right <$> analyzeBlock (Scope OrdinaryScope Map.empty) elseStmt' funcReturn
+    Nothing -> return Nothing
+  return $ AAst.IfElse condExpr stmts' elseStmt'
+
+analyzeBlock :: Scope -> [Ast.Statement] -> Maybe AType.Type -> Result [AAst.Statement]
+analyzeBlock scope stmts ret = do
+  modify $ pushScope scope
+  stmts'' <- mapM (`analyzeStmt` ret) stmts
+  modify popScope
+  return stmts''
+
+analyzeSimpleStmt :: Ast.SimpleStmt -> Result AAst.SimpleStmt
+analyzeSimpleStmt simpleStmt = case simpleStmt of
+  Ast.StmtAssignment updEl expr -> do
+    (updElT, updEl') <- analyzeUpdEl updEl
+    (t, expr') <- analyzeExpr expr
+    checkTypesEq (Just updElT) t
+    return $ AAst.StmtAssignment updEl' expr'
+  Ast.StmtInc updEl -> do
+    (updElT, updEl') <- analyzeUpdEl updEl
+    checkTypesEq (Just updElT) (Just AType.TInt)
+    return $ AAst.StmtInc updEl'
+  Ast.StmtDec updEl -> do
+    (updElT, updEl') <- analyzeUpdEl updEl
+    checkTypesEq (Just updElT) (Just AType.TInt)
+    return $ AAst.StmtDec updEl'
+  Ast.StmtShortVarDecl name expr -> do
+    (t, expr') <- analyzeExpr expr
+    case t of
+      Just t' -> addOrUpdateVar name t' $> AAst.StmtShortVarDecl name expr'
+      _ -> throw MismatchedTypes
+  Ast.StmtExpression expr -> do
+    (_, expr') <- analyzeExpr expr
+    return $ AAst.StmtExpression expr'
 
 analyzeUpdEl :: Ast.UpdatableElement -> Result (AType.Type, AAst.UpdatableElement)
 analyzeUpdEl updEl = case updEl of
-  Ast.UpdVar name -> (,AAst.UpdVar name) <$> getVarType (return name)
+  Ast.UpdVar name -> (,AAst.UpdVar name) <$> getVarType name
   Ast.UpdArrEl name indexExprs -> do
-    varT <- getVarType $ return name
+    varT <- getVarType name
     indexExprs' <- mapM (analyzeExpr >=> \(t, expr) -> checkTypesEq (Just AType.TInt) t $> expr) indexExprs
     let calculatedType =
           let getArrayElementType t dimCnt = case t of
@@ -158,24 +188,6 @@ analyzeUpdEl updEl = case updEl of
                 _ -> Nothing
            in getArrayElementType varT (length indexExprs)
     maybe (throw MismatchedTypes) (return . (,AAst.UpdArrEl name indexExprs')) calculatedType
-
-analyzeBlock :: [Ast.Statement] -> Maybe AType.Type -> Result [AAst.Statement]
-analyzeBlock stmts ret = do
-  modify pushScope
-  stmts'' <- foldl analyzeStmt' (return []) stmts
-  modify popScope
-  return stmts''
-  where
-    analyzeStmt' res stmt = do
-      stmts' <- res
-      stmt' <- analyzeStmt stmt ret
-      return (stmt' : stmts')
-
-    pushScope env@(Env _ (fSc@(FuncScope scs) : fScs)) = env {funcsScopes = fSc {scopes = Scope Map.empty : scs} : fScs}
-    pushScope env = env {funcsScopes = [FuncScope [Scope Map.empty]]}
-
-    popScope env@(Env _ (fSc@(FuncScope (_ : scs)) : fScs)) = env {funcsScopes = fSc {scopes = scs} : fScs}
-    popScope env = env
 
 ------------------------------------------------------Expressions-------------------------------------------------------
 
@@ -192,11 +204,18 @@ analyzeExpr expression = case simplifyConstExpr expression of
               Ast.ValInt v -> return' AType.TInt $ AAst.ValInt $ fromIntegral v
               Ast.ValBool v -> return' AType.TBool $ AAst.ValBool v
               Ast.ValString v -> return' AType.TString $ AAst.ValString v
-              Ast.ValArray _ -> todo $ unpack "array value analyzer" -- TODO
-              Ast.ValFunction (Ast.AnonymousFunction _) -> todo $ unpack "anonymous function analyzer" -- TODO
+              Ast.ValArray (Ast.ArrayValue t els) -> do
+                t'@(elT, len) <- analyzeArrayType t
+                els' <- mapM analyzeExpr els
+                if length els' <= len then return () else throw MismatchedTypes
+                mapM_ (checkTypesEq (Just elT)) (fst <$> els')
+                return' (uncurry AType.TArray t') $ AAst.ValArray $ replicate (len - length els') (getTypeDefault elT) ++ (snd <$> els')
+              Ast.ValFunction (Ast.AnonymousFunction function) -> do
+                (t, f) <- analyzeFunc function
+                return' (AType.TFunction t) $ AAst.ValFunction (AAst.AnonymousFunction f)
               Ast.ValFunction Ast.Nil -> return' AType.TNil $ AAst.ValFunction AAst.Nil
       Ast.ExprIdentifier name -> do
-        t <- getVarType $ return name
+        t <- getVarType name
         return (Just t, AAst.ExprIdentifier name)
       Ast.ExprUnaryOp unOp expr -> do
         (t, expr') <- analyzeExpr expr
@@ -260,19 +279,24 @@ analyzeExpr expression = case simplifyConstExpr expression of
           Just AType.TString -> return'
           Just (AType.TArray _ _) -> return'
           _ -> throw MismatchedTypes
-      Ast.ExprPrintlnFuncCall arg -> do
-        (argT, argE) <- analyzeExpr arg
-        let return' = return (Nothing, AAst.ExprFuncCall (stdLibFuncExpr $ StdLib.name StdLib.printlnFunction) [argE])
-        case argT of
-          Just AType.TInt -> return'
-          Just AType.TBool -> return'
-          Just AType.TString -> return'
-          Just (AType.TArray _ _) -> return'
-          _ -> throw MismatchedTypes
+      Ast.ExprPrintlnFuncCall maybeArg -> case maybeArg of
+        Just arg -> do
+          (argT, argE) <- analyzeExpr arg
+          let return' = return (Nothing, AAst.ExprFuncCall (stdLibFuncExpr $ StdLib.name StdLib.printlnFunction) [argE])
+          case argT of
+            Just AType.TInt -> return'
+            Just AType.TBool -> return'
+            Just AType.TString -> return'
+            Just (AType.TArray _ _) -> return'
+            _ -> throw MismatchedTypes
+        Nothing -> return (Nothing, AAst.ExprFuncCall (stdLibFuncExpr $ StdLib.name StdLib.printlnFunction) [])
       Ast.ExprPanicFuncCall arg -> do
         (argT, argE) <- analyzeExpr arg
         checkTypesEq (Just AType.TString) argT
         return (Nothing, AAst.ExprFuncCall (stdLibFuncExpr $ StdLib.name StdLib.panicFunction) [argE])
+
+stdLibFuncExpr :: AAst.Identifier -> AAst.Expression
+stdLibFuncExpr name = AAst.ExprValue $ AAst.ValFunction $ AAst.AnonymousFunction $ AAst.StdLibFunction name
 
 checkTypesEq :: Maybe AType.Type -> Maybe AType.Type -> Result ()
 checkTypesEq lhs rhs = if lhs == rhs then return () else throw MismatchedTypes
@@ -284,10 +308,12 @@ analyzeType t = case t of
   Ast.TInt -> return AType.TInt
   Ast.TBool -> return AType.TBool
   Ast.TString -> return AType.TString
-  Ast.TArray (Ast.ArrayType elementT len) ->
-    AType.TArray <$> analyzeType elementT <*> lift (simplifyConstIntExpr len)
-  Ast.TFunction (Ast.FunctionType paramsTs retT) ->
-    AType.TFunction <$> (AType.FunctionType <$> mapM analyzeType paramsTs <*> mapM analyzeType retT)
+  Ast.TArray arrType -> uncurry AType.TArray <$> analyzeArrayType arrType
+  Ast.TFunction funcType -> AType.TFunction <$> analyzeFunctionType funcType
 
-stdLibFuncExpr :: AAst.Identifier -> AAst.Expression
-stdLibFuncExpr name = AAst.ExprValue $ AAst.ValFunction $ AAst.AnonymousFunction $ AAst.StdLibFunction name
+analyzeArrayType :: Ast.ArrayType -> Result (AType.Type, Int)
+analyzeArrayType (Ast.ArrayType elementT len) = (,) <$> analyzeType elementT <*> lift (simplifyConstIntExpr len)
+
+analyzeFunctionType :: Ast.FunctionType -> Result AType.FunctionType
+analyzeFunctionType (Ast.FunctionType paramsTs retT) =
+  AType.FunctionType <$> mapM analyzeType paramsTs <*> mapM analyzeType retT

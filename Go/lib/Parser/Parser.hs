@@ -54,7 +54,7 @@ termExpressionP =
       Ast.ExprValue <$> valueP,
       Ast.ExprIdentifier <$> identifierP,
       Ast.ExprLenFuncCall <$ idLenFunc <*> parens expressionP,
-      Ast.ExprPrintlnFuncCall <$ idPrintlnFunc <*> parens expressionP,
+      Ast.ExprPrintlnFuncCall <$ idPrintlnFunc <*> parens (optional expressionP),
       Ast.ExprPanicFuncCall <$ idPanicFunc <*> parens expressionP
     ]
 
@@ -251,19 +251,7 @@ valueP =
 
 -- | Array value parser.
 arrayValP :: Parser Ast.ArrayValue
-arrayValP = Ast.ArrayValue <$> arrayTypeP <*> arrayElementsP
-
--- | Array's elements parser.
-arrayElementsP :: Parser [Ast.KeyedElement]
-arrayElementsP = braces $ sepEndBy keyedElementP comma
-
--- | Array's optionally keyed element parser.
-keyedElementP :: Parser Ast.KeyedElement
-keyedElementP = Ast.KeyedElement <$> optional' (expressionP <* colon) <*> elementP
-
--- | Array's element parser.
-elementP :: Parser Ast.Element
-elementP = choice' [Ast.ElementList <$> arrayElementsP, Ast.Element <$> expressionP]
+arrayValP = Ast.ArrayValue <$> arrayTypeP <*> braces (sepEndBy expressionP comma)
 
 -- | Function value parser.
 functionValP :: Parser Ast.FunctionValue

@@ -1,10 +1,10 @@
+-- TODO : Docs
 module Analyzer.AnalysisResult where
 
 import qualified Analyzer.AnalyzedAst as AnalyzedAst
 import qualified Analyzer.AnalyzedType as AnalyzedType
 import Control.Monad.State (MonadTrans (lift), StateT)
 import Data.Map (Map)
-import qualified Data.Map as Map
 
 -- Program checker result
 
@@ -15,23 +15,31 @@ type Result a = StateT Env ResultValue a
 
 -- ** State
 
-data Env = Env {globals :: Scope, funcsScopes :: [FuncScope]}
+-- TODO : Docs
+newtype Env = Env {scopes :: [Scope]}
   deriving (Show)
 
+-- TODO : Docs
 emptyEnv :: Env
-emptyEnv = Env (Scope Map.empty) []
-
-newtype FuncScope = FuncScope {scopes :: [Scope]}
-  deriving (Show)
+emptyEnv = Env []
 
 -- | Scope contains identifiers mapped to their types.
-newtype Scope = Scope (Map AnalyzedAst.Identifier AnalyzedType.Type)
+data Scope = Scope
+  { scopeType :: ScopeType,
+    names :: Map AnalyzedAst.Identifier AnalyzedType.Type
+  }
   deriving (Show)
 
+-- TODO : Docs
+data ScopeType = ForScope | OrdinaryScope
+  deriving (Show, Eq)
+
+-- TODO : Docs
 type ScopeEntry = (AnalyzedAst.Identifier, AnalyzedType.Type)
 
 -- ** Result Value
 
+-- TODO : Docs
 type ResultValue = Either Err
 
 -- ** Error
@@ -50,9 +58,12 @@ data Err
     NotInIntBounds
   | -- | Division by 0 in constant integer expression error.
     DivByZero
+  | -- TODO : Docs
+    BreakOrContinueInOrdinaryScope
   | -- | Unexpected error, this type of errors must never happen.
     UnexpectedError
-  deriving (Show)
+  deriving (Show, Eq)
 
+-- TODO : Docs
 throw :: Err -> Result a
 throw err = lift $ Left err

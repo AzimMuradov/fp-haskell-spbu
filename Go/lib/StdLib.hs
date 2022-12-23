@@ -4,6 +4,8 @@
 module StdLib where
 
 import Analyzer.AnalyzedAst (Identifier)
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Data.Text (Text, pack)
 import qualified Data.Text as Text
 import Interpreter.RuntimeValue (RuntimeValue (..))
@@ -15,12 +17,19 @@ import Interpreter.RuntimeValue (RuntimeValue (..))
 -- | StdLib function.
 data StdLibFunction = StdLibFunction
   { name :: Identifier,
-    impl :: [RuntimeValue] -> (Maybe RuntimeValue, [Text])
+    impl :: FunctionImplementation
   }
+
+-- | Convenient type alias for stdlib function implementation.
+type FunctionImplementation = [RuntimeValue] -> (Maybe RuntimeValue, [Text])
 
 -- | All available stdlib functions.
 stdLibFunctions :: [StdLibFunction]
 stdLibFunctions = [lenFunction, printlnFunction, panicFunction]
+
+-- | @stdLibFunctions@ given in map representation for convenience.
+stdLibFunctionsMap :: Map Identifier FunctionImplementation
+stdLibFunctionsMap = Map.fromList $ (\f -> (name f, impl f)) <$> stdLibFunctions
 
 -- * StdLib functions implementation
 
@@ -46,6 +55,7 @@ printlnFunction = StdLibFunction {name = "println", impl = printlnImpl}
 
 -- | @println@ implementation.
 printlnImpl :: [RuntimeValue] -> (Maybe RuntimeValue, [Text])
+printlnImpl [] = (Nothing, [""])
 printlnImpl [ValInt x] = (Nothing, [pack $ show x])
 printlnImpl [ValBool x] = (Nothing, [pack $ show x])
 printlnImpl [ValString x] = (Nothing, [pack $ show x])

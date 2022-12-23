@@ -56,6 +56,8 @@ library
         Analyzer.ConstExpressionConverters,
         Analyzer.AnalyzerRuntime,
         Analyzer.Analyzer,
+        StdLib,
+        PrimitiveValue,
         Errors
 
     other-modules:

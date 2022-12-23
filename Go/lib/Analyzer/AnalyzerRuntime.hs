@@ -8,53 +8,41 @@ import qualified Analyzer.AnalyzedType as AType
 import Control.Monad.State (get, put)
 import Data.Map ((!?))
 import qualified Data.Map as Map
-import qualified Parser.Ast as Ast
-
--- TODO : Support globals
 
 -- ** Get a variable type
 
-getVarType :: Result Ast.Identifier -> Result AType.Type
-getVarType res = do
-  name <- res
+getVarType :: AAst.Identifier -> Result AType.Type
+getVarType name = do
   env <- get
-  case searchVar name env of
-    Just (t, _) -> return t
-    _ -> throw UnexpectedError
+  maybe (throw IdentifierNotFound) (return . fst) (searchVar name env)
 
 -- ** Add a new variable
 
-addNewVar :: Result ScopeEntry -> Result ()
-addNewVar res = do
-  entry <- res
+addNewVar :: AAst.Identifier -> AType.Type -> Result ()
+addNewVar name t = do
   env <- get
-  maybe (throw IdentifierRedeclaration) put (addNewVar' entry env)
+  either throw put (addNewVar' name t env)
 
-addNewVar' :: ScopeEntry -> Env -> Maybe Env
-addNewVar' (name, t) (Env gSc funcScs) = case funcScs of
-  (FuncScope (Scope names : scs) : rFuncScs) -> case names !? name of
-    Just _ -> Nothing
-    Nothing -> Just (Env gSc (FuncScope (Scope (Map.insert name t names) : scs) : rFuncScs))
-  (FuncScope [] : rFuncScs) -> Just $ Env gSc (FuncScope [Scope $ Map.singleton name t] : rFuncScs)
-  [] -> Just $ Env gSc [FuncScope [Scope $ Map.singleton name t]]
+addNewVar' :: AAst.Identifier -> AType.Type -> Env -> ResultValue Env
+addNewVar' _ _ (Env []) = Left UnexpectedError
+addNewVar' _ _ (Env [_]) = Left UnexpectedError
+addNewVar' n t (Env (Scope scT ns : scs)) = case ns !? n of
+  Just _ -> Left IdentifierRedeclaration
+  Nothing -> Right $ Env $ Scope scT (Map.insert n t ns) : scs
 
 -- ** Add or update a variable
 
-addOrUpdateVar :: Result ScopeEntry -> Result ()
-addOrUpdateVar res = do
-  (name, _) <- res
+addOrUpdateVar :: AAst.Identifier -> AType.Type -> Result ()
+addOrUpdateVar name t = do
   env <- get
   case searchVar name env of
-    -- If found in this scope, update the variable
-    Just (_, ([], _, _)) -> updateVar res
-    -- Otherwise add new variable
-    _ -> addNewVar res
+    Just (_, Curr) -> updateVar name t
+    _ -> addNewVar name t
 
 -- ** Update a variable
 
-updateVar :: Result ScopeEntry -> Result ()
-updateVar res = do
-  (name, t) <- res
+updateVar :: AAst.Identifier -> AType.Type -> Result ()
+updateVar name t = do
   env <- get
   case searchVar name env of
     Just (t', _) | t == t' -> return ()
@@ -63,19 +51,15 @@ updateVar res = do
 
 -- ** Search for a variable
 
-searchVar :: AAst.Identifier -> Env -> Maybe (AType.Type, ([Scope], Scope, [Scope]))
-searchVar name (Env gSc funcScs) = case funcScs of
-  FuncScope (sc : scs) : _ -> searchVar' name [] sc (scs ++ [gSc])
-  FuncScope [] : _ -> searchVar' name [] gSc []
-  _ -> searchVar' name [] gSc []
+searchVar :: AAst.Identifier -> Env -> Maybe (AType.Type, ScopeLocation)
+searchVar name (Env scs) = searchVar' name scs Curr
   where
-    searchVar' :: AAst.Identifier -> [Scope] -> Scope -> [Scope] -> Maybe (AType.Type, ([Scope], Scope, [Scope]))
-    searchVar' n leftScs sc@(Scope ns) rightScs@(rSc : rScs) = case ns !? n of
-      Just t -> Just (t, (reverse leftScs, sc, rightScs))
-      Nothing -> searchVar' n (sc : leftScs) rSc rScs
-    searchVar' n leftScs sc@(Scope ns) [] = case ns !? n of
-      Just t -> Just (t, (reverse leftScs, sc, []))
-      Nothing -> Nothing
+    searchVar' n (Scope _ ns : outerScs) loc = case ns !? n of
+      Just t -> Just (t, loc)
+      Nothing -> searchVar' n outerScs Outer
+    searchVar' _ _ _ = Nothing
+
+data ScopeLocation = Curr | Outer
 
 getTypeDefault :: AType.Type -> AAst.Expression
 getTypeDefault t = AAst.ExprValue $ case t of
@@ -85,3 +69,16 @@ getTypeDefault t = AAst.ExprValue $ case t of
   AType.TArray elT len -> AAst.ValArray $ replicate len (getTypeDefault elT)
   AType.TFunction _ -> AAst.ValFunction AAst.Nil
   AType.TNil -> AAst.ValFunction AAst.Nil
+
+-- ** Scopes manipulation
+
+pushScope :: Scope -> Env -> Env
+pushScope initScope (Env scs) = Env $ initScope : scs
+
+popScope :: Env -> Env
+popScope (Env (_ : scs)) = Env scs
+popScope env = env
+
+getScopeType :: Env -> ResultValue ScopeType
+getScopeType (Env (Scope scT _ : _)) = Right scT
+getScopeType _ = Left UnexpectedError
