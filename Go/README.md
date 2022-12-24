@@ -11,13 +11,14 @@ This is a homework for functional programming course.
 
 Project parts:
 
-|     To do      |            In progress            |    Done     |
-| :------------: | :-------------------------------: | :---------: |
-| pretty printer | grammar definition in Pest syntax |     CLI     |
-|                |         program analyzer          |    lexer    |
-|                |            interpreter            |     AST     |
-|                |               docs                | POC mini go |
-|                |           analyzed AST            |   parser    |
+|     To do      |            In progress            |     Done     |
+| :------------: | :-------------------------------: | :----------: |
+| pretty printer | grammar definition in Pest syntax |     CLI      |
+|                |            interpreter            |    lexer     |
+|                |               docs                |     AST      |
+|                |                                   |    parser    |
+|                |                                   |   analyzer   |
+|                |                                   | analyzed AST |
 
 
 #### Done:
@@ -25,25 +26,20 @@ Project parts:
 - `int`, `bool`, `string` support
 - function definitions
 - variable declarations
-- `printlnInt`, `printlnBool`, `printlnStr`
 - `void` support
-- `if`
+- `if`, `else`
 - recursion, mutual recursion
-- some of the operators
-- lexer
-- most of the parser
-- check for name collision or missing names, part of the type checker
-- part of the interpreter
-- Const expressions converters (w/o `const` keyword)
+- operators (...)
+- parser, lexer
+- analyzer (check for name collision or missing names, type checker, const expressions converters (w/o `const` keyword))
+- various assignments and short variable declaration
+- increment, decrement
+- several stdlib functions (`len`, `panic`, `print`, `println`)
+- globals
+- arrays, loops
+- function literals
 
 #### Missing:
 
-- function literals
-- arrays, loops
 - closures
-- globals
-- several stdlib functions (`len`, `panic`, ...)
-- a lot of operators
-- `else`
-- various assignments and short variable declaration
-- increment, decrement
+- interpreter

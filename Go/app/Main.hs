@@ -5,7 +5,7 @@ import qualified Analyzer.AnalyzedAst
 import Analyzer.Analyzer (analyze)
 import Data.Text (pack)
 import Data.Void (Void)
-import Interpreter.Interpreter (interpret)
+import Errors (todo')
 import Options.Applicative
 import qualified Parser.Ast
 import Parser.Parser (parse)
@@ -60,7 +60,7 @@ debug fileText = parseResultMsg fileText ++ "\n\n" ++ analyzerResultMsg fileText
 -- ** Utils
 
 interpreterResultMsg :: String -> String
-interpreterResultMsg fileText = analyzerResultMapper fileText $ interpret . fst
+interpreterResultMsg _ = todo'
 
 analyzerResultMapper :: String -> ((Analyzer.AnalyzedAst.Program, Analyzer.AnalysisResult.Env) -> String) -> String
 analyzerResultMapper fileText f = parseResultMapper fileText $ either (("analysis failed: " ++) . show) f . analyze

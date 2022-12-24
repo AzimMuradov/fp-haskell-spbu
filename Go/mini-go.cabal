@@ -56,6 +56,9 @@ library
         Analyzer.ConstExpressionConverters,
         Analyzer.AnalyzerRuntime,
         Analyzer.Analyzer,
+        Interpreter.RuntimeValue,
+        Interpreter.InterpretationResult,
+        Interpreter.Interpreter,
         StdLib,
         PrimitiveValue,
         Errors
