@@ -17,8 +17,6 @@ import Data.Maybe (isNothing)
 import qualified Parser.Ast as Ast
 import qualified StdLib
 
--- TODO : main call err
-
 --------------------------------------------------------Analyzer--------------------------------------------------------
 
 -- * Analyzer
@@ -31,36 +29,31 @@ analyze ast = runStateT (analyzeProgram ast) emptyEnv
 
 -- TODO : Docs
 analyzeProgram :: Ast.Program -> Result AAst.Program
-analyzeProgram (Ast.Program _ functions) = do
-  checkForUniqueness $ Ast.funcName <$> functions
+analyzeProgram (Ast.Program vars functions) = do
+  checkForUniqueness $ (Ast.funcName <$> functions) ++ (Ast.varName <$> vars)
   checkForMain functions
-  funcs <- analyzeFuncs functions
-  case find predicate' funcs of
-    Just main -> return $ AAst.Program main [] funcs
-    Nothing -> throw UnexpectedError
+  funcs <- analyzeFuncs vars functions
+  return $ AAst.Program [] funcs
   where
-    checkForUniqueness funcsNames = when (anySame funcsNames) (throw IdentifierRedeclaration)
+    checkForUniqueness ns = when (anySame ns) (throw IdentifierRedeclaration)
 
     checkForMain funcs = when (isNothing $ find predicate funcs) (throw NoMain)
-
     predicate (Ast.FunctionDef name (Ast.Function (Ast.FunctionSignature params ret) _)) =
       name == "main" && null params && null ret
 
-    predicate' (AAst.FunctionDef name (AAst.Function args _)) = name == "main" && null args
-    predicate' _ = False
-
 -- TODO : Docs
-analyzeFuncs :: [Ast.FunctionDef] -> Result [AAst.FunctionDef]
-analyzeFuncs functionDefinitions = do
-  env <- initEnv functionDefinitions
-  put env
+analyzeFuncs :: [Ast.VarDecl] -> [Ast.FunctionDef] -> Result [AAst.FunctionDef]
+analyzeFuncs varDeclarations functionDefinitions = do
+  initEnv >>= put
   mapM checkFunc' functionDefinitions
   where
     checkFunc' (Ast.FunctionDef name func) = AAst.FunctionDef name <$> (snd <$> analyzeFunc func)
 
-    initEnv funcs = do
-      funcs' <- mapM convertToPair funcs
-      return $ Env [scope OrdinaryScope funcs']
+    initEnv = do
+      mapM_ analyzeStmtVarDecl varDeclarations
+      funcs <- mapM convertToPair functionDefinitions
+      Env scs <- get
+      return $ Env {scopes = scope OrdinaryScope funcs : scs}
 
     convertToPair (Ast.FunctionDef name (Ast.Function (Ast.FunctionSignature params ret) _)) = do
       params' <- mapM analyzeType (snd <$> params)
@@ -85,7 +78,7 @@ analyzeStmt statement funcReturn = case statement of
   Ast.StmtReturn expr -> analyzeStmtReturn expr funcReturn
   Ast.StmtForGoTo goto -> analyzeStmtForGoTo goto
   Ast.StmtFor for -> analyzeStmtFor for funcReturn
-  Ast.StmtVarDecl varDecl -> analyzeStmtVarDecl varDecl
+  Ast.StmtVarDecl varDecl -> AAst.StmtVarDecl <$> analyzeStmtVarDecl varDecl
   Ast.StmtIfElse ifElse -> AAst.StmtIfElse <$> analyzeIfElse ifElse funcReturn
   Ast.StmtBlock stmts -> AAst.StmtBlock <$> analyzeBlock' stmts funcReturn
   Ast.StmtSimple simpleStmt -> AAst.StmtSimple <$> analyzeSimpleStmt simpleStmt
@@ -130,22 +123,22 @@ analyzeStmtFor (Ast.For kind stmts) funcReturn =
     analyzeStmts = analyzeBlock (emptyScope ForScope) stmts funcReturn
 
 -- TODO : Docs
-analyzeStmtVarDecl :: Ast.VarDecl -> Result AAst.Statement
-analyzeStmtVarDecl varDecl = do
-  (n, t, e) <- case varDecl of
-    Ast.VarDecl name (Just t) expr -> do
+analyzeStmtVarDecl :: Ast.VarDecl -> Result AAst.VarDecl
+analyzeStmtVarDecl (Ast.VarDecl name val) = do
+  (t, e) <- case val of
+    Ast.VarValue (Just t) expr -> do
       (t', expr') <- analyzeExpr' expr
       t'' <- analyzeType t
       checkEq t' t''
-      return (name, t', expr')
-    Ast.VarDecl name Nothing expr -> do
+      return (t', expr')
+    Ast.VarValue Nothing expr -> do
       (t, expr') <- analyzeExpr' expr
-      return (name, t, expr')
-    Ast.DefaultedVarDecl name t -> do
+      return (t, expr')
+    Ast.DefaultedVarValue t -> do
       t' <- analyzeType t
-      return (name, t', getTypeDefault t')
-  addNewVar n t
-  return $ AAst.StmtVarDecl $ AAst.VarDecl n e
+      return (t', getTypeDefault t')
+  addNewVar name t
+  return $ AAst.VarDecl name e
 
 -- TODO : Docs
 analyzeIfElse :: Ast.IfElse -> Maybe AType.Type -> Result AAst.IfElse

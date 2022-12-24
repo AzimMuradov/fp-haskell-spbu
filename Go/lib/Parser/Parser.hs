@@ -178,10 +178,12 @@ forKindP =
 -- | Var declaration parser.
 varDeclP :: Parser Ast.VarDecl
 varDeclP =
-  kwVar
-    *> choice'
-      [ Ast.VarDecl <$> identifierP <*> optional' typeP <* symbol "=" <*> expressionP,
-        Ast.DefaultedVarDecl <$> identifierP <*> typeP
+  Ast.VarDecl
+    <$ kwVar
+    <*> identifierP
+    <*> choice'
+      [ Ast.VarValue <$> optional' typeP <* symbol "=" <*> expressionP,
+        Ast.DefaultedVarValue <$> typeP
       ]
 
 -- | If-else parser.

@@ -210,9 +210,13 @@ data ForKind
 -- > var y = "hello"
 --
 -- > var z int
-data VarDecl
-  = VarDecl Identifier (Maybe Type) Expression
-  | DefaultedVarDecl Identifier Type
+data VarDecl = VarDecl {varName :: Identifier, varValue :: VarValue}
+  deriving (Show)
+
+-- | Var value.
+data VarValue
+  = VarValue (Maybe Type) Expression
+  | DefaultedVarValue Type
   deriving (Show)
 
 -- | If-else statement.

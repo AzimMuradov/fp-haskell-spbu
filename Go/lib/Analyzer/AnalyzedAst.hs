@@ -17,8 +17,7 @@ import Parser.Ast (BinaryOp (..), UnaryOp (..), ForGoTo (..))
 --------------------------------------------------------Program---------------------------------------------------------
 
 data Program = Program
-  { main :: FunctionDef,
-    topLevelVarDecls :: [VarDecl],
+  { topLevelVarDecls :: [VarDecl],
     topLevelFunctionDefs :: [FunctionDef]
   }
   deriving (Show)
