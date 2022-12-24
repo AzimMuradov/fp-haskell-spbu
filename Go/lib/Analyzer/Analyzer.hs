@@ -118,7 +118,7 @@ analyzeStmtFor (Ast.For kind stmts) funcReturn =
   where
     analyzeCondition cond = do
       (t, e) <- analyzeExpr' cond
-      checkEq t AType.TInt
+      checkEq t AType.TBool
       return e
     analyzeStmts = analyzeBlock (emptyScope ForScope) stmts funcReturn
 
