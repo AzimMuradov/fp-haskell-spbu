@@ -161,10 +161,13 @@ data Statement
   | -- | Block statement.
     --
     -- > { 34; foo(34); if true {} else {}; return 17; }
-    StmtBlock [Statement]
+    StmtBlock Block
   | -- | Simple statement.
     StmtSimple SimpleStmt
   deriving (Show)
+
+-- | Block of statements.
+type Block = [Statement]
 
 -- | For goto statement (either @break@ or @continue@), should be inside @for@.
 data ForGoTo
@@ -175,7 +178,7 @@ data ForGoTo
   deriving (Show)
 
 -- | For statement, can represent any of the 3 possible @for@ kinds.
-data For = For {forKind :: ForKind, block :: [Statement]}
+data For = For {forKind :: ForKind, block :: Block}
   deriving (Show)
 
 -- | For statement, can represent any of the 3 possible @for@ kinds.
@@ -226,9 +229,13 @@ data VarValue
 -- > if true { println("hello"); }
 data IfElse = IfElse
   { condition :: Expression,
-    block :: [Statement],
-    elseStmt :: Maybe (Either IfElse [Statement])
+    block :: Block,
+    elseStmt :: Else
   }
+  deriving (Show)
+
+-- | Else part of the if-else statement.
+data Else = NoElse | Else Block | Elif IfElse
   deriving (Show)
 
 -- | Simple statement, its main difference between other statements is that it can be used inside @for@ \"pre\" and \"post\" statements.
@@ -294,7 +301,7 @@ data FunctionValue
   deriving (Show)
 
 -- | Function representation without name.
-data Function = Function {signature :: FunctionSignature, body :: [Statement]}
+data Function = Function {signature :: FunctionSignature, body :: Block}
   deriving (Show)
 
 -- | Function signature,

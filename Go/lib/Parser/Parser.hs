@@ -192,11 +192,16 @@ ifElseP = do
   void kwIf
   condition <- expressionP
   block <- blockP
-  elseStmt <- optional' $ kwElse *> eitherP' ifElseP blockP
+  elseStmt <-
+    choice'
+      [ Ast.Elif <$ kwElse <*> ifElseP,
+        Ast.Else <$ kwElse <*> blockP,
+        return Ast.NoElse
+      ]
   return $ Ast.IfElse condition block elseStmt
 
 -- | Block parser.
-blockP :: Parser [Ast.Statement]
+blockP :: Parser Ast.Block
 blockP = braces $ catMaybes <$> many (optional' statementP <* semicolon)
 
 -- | Simple statement parser.

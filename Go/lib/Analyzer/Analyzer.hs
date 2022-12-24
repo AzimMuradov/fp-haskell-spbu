@@ -147,14 +147,13 @@ analyzeIfElse (Ast.IfElse condition stmts elseStmt) funcReturn = do
   checkEq condT AType.TBool
   stmts' <- analyzeBlock' stmts funcReturn
   elseStmt' <- case elseStmt of
-    Just (Left ifElse) -> Just . Left <$> analyzeIfElse ifElse funcReturn
-    Just (Right elseStmt') ->
-      Just . Right <$> analyzeBlock' elseStmt' funcReturn
-    Nothing -> return Nothing
+    Ast.NoElse -> return AAst.NoElse
+    Ast.Else elseStmt' -> AAst.Else <$> analyzeBlock' elseStmt' funcReturn
+    Ast.Elif ifElse -> AAst.Elif <$> analyzeIfElse ifElse funcReturn
   return $ AAst.IfElse condExpr stmts' elseStmt'
 
 -- TODO : Docs
-analyzeBlock :: Scope -> [Ast.Statement] -> Maybe AType.Type -> Result [AAst.Statement]
+analyzeBlock :: Scope -> Ast.Block -> Maybe AType.Type -> Result AAst.Block
 analyzeBlock initScope stmts ret = do
   modify $ pushScope initScope
   stmts'' <- mapM (`analyzeStmt` ret) stmts
@@ -162,7 +161,7 @@ analyzeBlock initScope stmts ret = do
   return stmts''
 
 -- TODO : Docs
-analyzeBlock' :: [Ast.Statement] -> Maybe AType.Type -> Result [AAst.Statement]
+analyzeBlock' :: Ast.Block -> Maybe AType.Type -> Result AAst.Block
 analyzeBlock' = analyzeBlock (emptyScope OrdinaryScope)
 
 -- TODO : Docs

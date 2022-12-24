@@ -12,7 +12,7 @@ module Analyzer.AnalyzedAst
 where
 
 import Data.Text (Text)
-import Parser.Ast (BinaryOp (..), UnaryOp (..), ForGoTo (..))
+import Parser.Ast (BinaryOp (..), ForGoTo (..), UnaryOp (..))
 
 --------------------------------------------------------Program---------------------------------------------------------
 
@@ -48,6 +48,8 @@ data Statement
   | StmtSimple SimpleStmt
   deriving (Show)
 
+type Block = [Statement]
+
 data For = For {kind :: ForKind, block :: [Statement]}
   deriving (Show)
 
@@ -63,8 +65,11 @@ data VarDecl = VarDecl {identifier :: Identifier, value :: Expression}
 data IfElse = IfElse
   { condition :: Expression,
     block :: [Statement],
-    elseStmt :: Maybe (Either IfElse [Statement])
+    elseStmt :: Else
   }
+  deriving (Show)
+
+data Else = NoElse | Else Block | Elif IfElse
   deriving (Show)
 
 data SimpleStmt

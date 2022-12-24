@@ -59,6 +59,15 @@ debug fileText = parseResultMsg fileText ++ "\n\n" ++ analyzerResultMsg fileText
 
 -- ** Utils
 
+interpreterResultMsg :: String -> String
+interpreterResultMsg fileText = analyzerResultMapper fileText $ interpret . fst
+
+analyzerResultMapper :: String -> ((Analyzer.AnalyzedAst.Program, Analyzer.AnalysisResult.Env) -> String) -> String
+analyzerResultMapper fileText f = parseResultMapper fileText $ either (("analysis failed: " ++) . show) f . analyze
+
+analyzerResultMsg :: String -> String
+analyzerResultMsg fileText = analyzerResultMapper fileText show
+
 parseResult :: String -> Maybe Parser.Ast.Program
 parseResult fileText = parse $ pack fileText
 
@@ -67,15 +76,6 @@ parseResultMapper fileText f = maybe "parse failed" f (parseResult fileText)
 
 parseResultMsg :: String -> String
 parseResultMsg fileText = parseResultMapper fileText show
-
-analyzerResultMapper :: String -> ((Analyzer.AnalyzedAst.Program, Analyzer.AnalysisResult.Env) -> String) -> String
-analyzerResultMapper fileText f = parseResultMapper fileText $ either (const "analysis failed") f . analyze
-
-analyzerResultMsg :: String -> String
-analyzerResultMsg fileText = analyzerResultMapper fileText show
-
-interpreterResultMsg :: String -> String
-interpreterResultMsg fileText = analyzerResultMapper fileText $ interpret . fst
 
 -- * Command line options parsing
 
