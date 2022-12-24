@@ -56,6 +56,12 @@ data Expression
     --
     -- > len([100] int {}) // returns 100
     ExprLenFuncCall Expression
+  | -- | @print@ function call expression.
+    --
+    -- > print("some logs...") // prints "some logs..."
+    --
+    -- > print(3 + 6)  // prints "9"
+    ExprPrintFuncCall (Maybe Expression)
   | -- | @println@ function call expression.
     --
     -- > println("some logs...") // prints "some logs...\n"

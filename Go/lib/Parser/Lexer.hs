@@ -8,7 +8,7 @@ import Data.Text (Text, concat, pack, singleton)
 import Data.Void (Void)
 import Numeric (readBin, readDec, readHex, readOct)
 import qualified Parser.Ast as Ast (Identifier)
-import StdLib (StdLibFunction (name), lenFunction, panicFunction, printlnFunction)
+import StdLib (StdLibFunction (name), lenFunction, panicFunction, printFunction, printlnFunction)
 import Text.Megaparsec (MonadParsec (..), Parsec, anySingle, between, choice, many, oneOf, optional, sepBy1, sepEndBy, sepEndBy1, (<|>))
 import Text.Megaparsec.Char (binDigitChar, char, char', digitChar, hexDigitChar, letterChar, newline, octDigitChar, space1)
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -225,6 +225,10 @@ idNil = symbol "nil"
 -- | @len@ identifier parser.
 idLenFunc :: Parser Text
 idLenFunc = symbol $ name lenFunction
+
+-- | @print@ identifier parser.
+idPrintFunc :: Parser Text
+idPrintFunc = symbol $ name printFunction
 
 -- | @println@ identifier parser.
 idPrintlnFunc :: Parser Text
