@@ -8,6 +8,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text, pack)
 import qualified Data.Text as Text
+import Interpreter.InterpretationResult (Err (Panicked, UnexpectedError), ResultValue)
 import Interpreter.RuntimeValue (RuntimeValue (..))
 
 ---------------------------------------------------------StdLib---------------------------------------------------------
@@ -17,18 +18,21 @@ import Interpreter.RuntimeValue (RuntimeValue (..))
 -- | StdLib function.
 data StdLibFunction = StdLibFunction
   { name :: Identifier,
-    impl :: FunctionImplementation
+    impl :: StdLibFuncImpl
   }
 
 -- | Convenient type alias for stdlib function implementation.
-type FunctionImplementation = [RuntimeValue] -> (Maybe RuntimeValue, Text)
+type StdLibFuncImpl = [RuntimeValue] -> StdLibFuncResult
+
+-- | Convenient type alias for stdlib function result.
+type StdLibFuncResult = ResultValue (Maybe RuntimeValue, Text)
 
 -- | All available stdlib functions.
 stdLibFunctions :: [StdLibFunction]
 stdLibFunctions = [lenFunction, printFunction, printlnFunction, panicFunction]
 
 -- | @stdLibFunctions@ given in map representation for convenience.
-stdLibFunctionsMap :: Map Identifier FunctionImplementation
+stdLibFunctionsMap :: Map Identifier StdLibFuncImpl
 stdLibFunctionsMap = Map.fromList $ (\f -> (name f, impl f)) <$> stdLibFunctions
 
 -------------------------------------------------------Functions--------------------------------------------------------
@@ -42,10 +46,13 @@ lenFunction :: StdLibFunction
 lenFunction = StdLibFunction {name = "len", impl = lenImpl}
 
 -- | @len@ implementation.
-lenImpl :: [RuntimeValue] -> (Maybe RuntimeValue, Text)
-lenImpl [ValString x] = (Just $ ValInt $ Text.length x, "")
-lenImpl [ValArray xs] = (Just $ ValInt $ length xs, "")
-lenImpl _ = undefined
+lenImpl :: StdLibFuncImpl
+lenImpl args = case args of
+  [ValString x] -> ok $ Text.length x
+  [ValArray xs] -> ok $ length xs
+  _ -> Left UnexpectedError
+  where
+    ok int = Right (Just $ ValInt int, "")
 
 -- ** @print@
 
@@ -54,13 +61,16 @@ printFunction :: StdLibFunction
 printFunction = StdLibFunction {name = "print", impl = printImpl}
 
 -- | @print@ implementation.
-printImpl :: [RuntimeValue] -> (Maybe RuntimeValue, Text)
-printImpl [] = (Nothing, "")
-printImpl [ValInt x] = (Nothing, pack $ show x)
-printImpl [ValBool x] = (Nothing, pack $ show x)
-printImpl [ValString x] = (Nothing, pack $ show x)
-printImpl [ValFunction Nil] = (Nothing, "nil")
-printImpl _ = undefined
+printImpl :: StdLibFuncImpl
+printImpl args = case args of
+  [] -> ok ""
+  [ValInt x] -> ok $ pack $ show x
+  [ValBool x] -> ok $ pack $ show x
+  [ValString x] -> ok $ pack $ show x
+  [ValFunction Nil] -> ok "nil"
+  _ -> Left UnexpectedError
+  where
+    ok msg = Right (Nothing, msg)
 
 -- ** @println@
 
@@ -69,13 +79,16 @@ printlnFunction :: StdLibFunction
 printlnFunction = StdLibFunction {name = "println", impl = printlnImpl}
 
 -- | @println@ implementation.
-printlnImpl :: [RuntimeValue] -> (Maybe RuntimeValue, Text)
-printlnImpl [] = (Nothing, "\n")
-printlnImpl [ValInt x] = (Nothing, pack $ show x ++ "\n")
-printlnImpl [ValBool x] = (Nothing, pack $ show x ++ "\n")
-printlnImpl [ValString x] = (Nothing, pack $ show x ++ "\n")
-printlnImpl [ValFunction Nil] = (Nothing, "nil\n")
-printlnImpl _ = undefined
+printlnImpl :: StdLibFuncImpl
+printlnImpl args = case args of
+  [] -> ok "\n"
+  [ValInt x] -> ok $ pack (show x ++ "\n")
+  [ValBool x] -> ok $ pack (show x ++ "\n")
+  [ValString x] -> ok $ pack (show x ++ "\n")
+  [ValFunction Nil] -> ok "nil\n"
+  _ -> Left UnexpectedError
+  where
+    ok msg = Right (Nothing, msg)
 
 -- ** @panic@
 
@@ -84,6 +97,7 @@ panicFunction :: StdLibFunction
 panicFunction = StdLibFunction {name = "panic", impl = panicImpl}
 
 -- | @panic@ implementation.
-panicImpl :: [RuntimeValue] -> (Maybe RuntimeValue, Text)
-panicImpl [ValString _] = (Nothing, "") -- TODO
-panicImpl _ = undefined
+panicImpl :: StdLibFuncImpl
+panicImpl args = case args of
+  [ValString msg] -> Left $ Panicked msg
+  _ -> Left UnexpectedError

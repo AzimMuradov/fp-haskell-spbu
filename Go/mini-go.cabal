@@ -58,6 +58,7 @@ library
         Analyzer.Analyzer,
         Interpreter.RuntimeValue,
         Interpreter.InterpretationResult,
+        Interpreter.InterpreterRuntime,
         Interpreter.Interpreter,
         StdLib,
         PrimitiveValue,
@@ -68,6 +69,7 @@ library
     other-extensions:
 
     build-depends:
+        lens >=5.2,
         extra >=1.7.12,
         mtl >=2.3.1,
         either >=5.0.2,

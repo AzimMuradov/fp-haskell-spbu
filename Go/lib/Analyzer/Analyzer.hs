@@ -68,7 +68,10 @@ analyzeFunc (Ast.Function (Ast.FunctionSignature params ret) stmts) = do
   let params' = paramsNs `zip` paramsTs
   ret' <- mapM analyzeType ret
   stmts' <- analyzeBlock (scope OrdinaryScope params') stmts ret'
-  return (AType.FunctionType paramsTs ret', AAst.Function paramsNs stmts')
+  return
+    ( AType.FunctionType paramsTs ret',
+      AAst.Function paramsNs stmts' (returnTypeToVoidMark ret')
+    )
 
 -------------------------------------------------------Statements-------------------------------------------------------
 
@@ -156,9 +159,9 @@ analyzeIfElse (Ast.IfElse condition stmts elseStmt) funcReturn = do
 analyzeBlock :: Scope -> Ast.Block -> Maybe AType.Type -> Result AAst.Block
 analyzeBlock initScope stmts ret = do
   modify $ pushScope initScope
-  stmts'' <- mapM (`analyzeStmt` ret) stmts
+  stmts' <- mapM (`analyzeStmt` ret) stmts
   modify popScope
-  return stmts''
+  return stmts'
 
 -- TODO : Docs
 analyzeBlock' :: Ast.Block -> Maybe AType.Type -> Result AAst.Block
@@ -402,3 +405,7 @@ unwrapJust = maybe (throw MismatchedTypes) return
 -- TODO : Docs
 unwrapExprRes :: (Maybe AType.Type, AAst.Expression) -> Result (AType.Type, AAst.Expression)
 unwrapExprRes (t, expr) = (,expr) <$> unwrapJust t
+
+-- TODO : Docs
+returnTypeToVoidMark :: Maybe AType.Type -> AAst.VoidMark
+returnTypeToVoidMark = maybe AAst.VoidFunc (const AAst.NonVoidFunc)

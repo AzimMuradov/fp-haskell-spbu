@@ -44,17 +44,21 @@ data Statement
   | StmtFor For
   | StmtVarDecl VarDecl
   | StmtIfElse IfElse
-  | StmtBlock [Statement]
+  | StmtBlock Block
   | StmtSimple SimpleStmt
   deriving (Show)
 
 type Block = [Statement]
 
-data For = For {kind :: ForKind, block :: [Statement]}
+data For = For {kind :: ForKind, block :: Block}
   deriving (Show)
 
 data ForKind
-  = ForKindFor {preStmt :: Maybe SimpleStmt, condition :: Maybe Expression, postStmt :: Maybe SimpleStmt}
+  = ForKindFor
+      { preStmt :: Maybe SimpleStmt,
+        condition :: Maybe Expression,
+        postStmt :: Maybe SimpleStmt
+      }
   | ForKindWhile {whileCondition :: Expression}
   | ForKindLoop
   deriving (Show)
@@ -64,7 +68,7 @@ data VarDecl = VarDecl {identifier :: Identifier, value :: Expression}
 
 data IfElse = IfElse
   { condition :: Expression,
-    block :: [Statement],
+    block :: Block,
     elseStmt :: Else
   }
   deriving (Show)
@@ -101,8 +105,11 @@ data FunctionValue
   deriving (Show)
 
 data Function
-  = Function {parameters :: [Identifier], body :: [Statement]}
+  = Function {parameters :: [Identifier], body :: Block, voidMark :: VoidMark}
   | StdLibFunction Identifier
+  deriving (Show)
+
+data VoidMark = VoidFunc | NonVoidFunc
   deriving (Show)
 
 type Identifier = Text
