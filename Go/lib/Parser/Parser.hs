@@ -16,7 +16,7 @@ import Text.Megaparsec (MonadParsec (..), choice, eitherP, many, optional, parse
 
 -- * Parser
 
--- | Parser entry point
+-- | Parser entry point.
 parse :: Text -> Maybe Ast.Program
 parse = parseMaybe $ sc *> programP <* eof
 

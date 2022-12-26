@@ -70,7 +70,7 @@ data Expression
     ExprPrintlnFuncCall (Maybe Expression)
   | -- | @panic@ function call expression.
     --
-    -- > panic("ERROR!!!") // fails with: "panic: ERROR!!!\n"
+    -- > panic("ERROR!!!") // fails with "panic: ERROR!!!\n"
     ExprPanicFuncCall Expression
   deriving (Show)
 
@@ -145,6 +145,8 @@ data ArrayType = ArrayType {elementType :: Type, length :: Expression}
 -- and its parameters types.
 --
 -- > func (int, string) bool
+--
+-- > func ([3] int)
 data FunctionType = FunctionType {parameters :: [Type], result :: Maybe Type}
   deriving (Show)
 
@@ -194,6 +196,8 @@ data ForKind
     -- > for i := 0; i < n; i++ {
     -- >   foo(i * i);
     -- > }
+    --
+    -- > for ; ; {} // same as `for {}`
     ForKindFor {preStatement :: Maybe SimpleStmt, condition :: Maybe Expression, postStatement :: Maybe SimpleStmt}
   | -- | While kind, represents classic @while@ loop.
     --
@@ -207,7 +211,7 @@ data ForKind
     -- > for {
     -- >   temp := foo(i * i * i);
     -- >   if temp == 108 { break; }
-    -- >   temp = temp + 23;
+    -- >   i = i + 23;
     -- > }
     ForKindLoop
   deriving (Show)
