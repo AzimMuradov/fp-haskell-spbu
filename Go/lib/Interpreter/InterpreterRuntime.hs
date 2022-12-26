@@ -5,6 +5,7 @@ module Interpreter.InterpreterRuntime where
 
 import qualified Analyzer.AnalyzedAst as Ast
 import Control.Lens
+import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State (get, modify, put)
 import Data.Map ((!?))
 import qualified Data.Map as Map
@@ -22,7 +23,7 @@ getVarValue name = fst3 <$> (get >>= unwrapJust . searchVar name)
 
 -- TODO : Docs
 addNewVar :: Ast.Identifier -> RuntimeValue -> Result ()
-addNewVar name value = modify $ var 0 0 name .~ value
+addNewVar name value = modify $ var 0 0 name ?~ value
 
 -- ** Add or update a variable
 
@@ -54,7 +55,7 @@ searchVar name env@(Env fs fScs _) = case fScs of
   where
     searchVar' n i sc outerScs = uncurry searchMapper <$> searchVar'' n i sc outerScs
 
-    searchMapper val i = (val, if i == 0 then Curr else Outer, \v -> env & var 0 i name .~ v)
+    searchMapper val i = (val, if i == 0 then Curr else Outer, \v -> env & var 0 i name ?~ v)
 
     searchVar'' n i (Scope ns) (outerSc : outerScs) = case ns !? n of
       Just v -> Just (v, i)
@@ -91,4 +92,4 @@ popBlockScope = (funcScopes . ix 0 . scopes) %~ tail
 
 -- TODO : Docs
 unwrapJust :: Maybe a -> Result a
-unwrapJust = maybe (throw UnexpectedError) return
+unwrapJust = maybe (throwError UnexpectedError) return

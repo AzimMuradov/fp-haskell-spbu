@@ -4,8 +4,9 @@
 module Interpreter.InterpretationResult where
 
 import qualified Analyzer.AnalyzedAst as Ast
-import Control.Lens (ix, makeLenses, makePrisms)
-import Control.Monad.State (StateT, lift)
+import Control.Lens (At (at), ix, makeLenses, makePrisms)
+import Control.Monad.Except (ExceptT)
+import Control.Monad.State (State)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text)
@@ -16,7 +17,7 @@ import Interpreter.RuntimeValue
 -- * Result
 
 -- | Represents the result of interpretation.
-type Result a = StateT Env ResultValue a
+type Result a = ExceptT Err (State Env) a
 
 -- ** State
 
@@ -78,10 +79,6 @@ type AccOut = [Text]
 data StmtResult = Unit | Ret (Maybe RuntimeValue)
   deriving (Show, Eq)
 
--- TODO : Docs
-throw :: Err -> Result a
-throw err = lift $ Left err
-
 -- Optics
 
 makeLenses ''Env
@@ -91,5 +88,5 @@ makeLenses ''Scope
 makePrisms ''FuncScope
 makePrisms ''Scope
 
-var :: Applicative f => Int -> Int -> Ast.Identifier -> (RuntimeValue -> f RuntimeValue) -> Env -> f Env
-var i j name = funcScopes . ix i . scopes . ix j . vars . ix name
+var :: Applicative f => Int -> Int -> Ast.Identifier -> (Maybe RuntimeValue -> f (Maybe RuntimeValue)) -> Env -> f Env
+var i j name = funcScopes . ix i . scopes . ix j . vars . at name

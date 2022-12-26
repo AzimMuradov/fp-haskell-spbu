@@ -32,6 +32,7 @@ common shared-properties
 
     build-depends:
         base >=4.16.3.0,
+        extra >=1.7.12,
         text >=2.0.1
 
     ghc-options:
@@ -70,7 +71,6 @@ library
 
     build-depends:
         lens >=5.2,
-        extra >=1.7.12,
         mtl >=2.3.1,
         either >=5.0.2,
         containers >=0.6.6,

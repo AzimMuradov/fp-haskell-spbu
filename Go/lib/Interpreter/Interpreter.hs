@@ -6,11 +6,13 @@ module Interpreter.Interpreter where
 import qualified Analyzer.AnalyzedAst as Ast
 import Control.Lens
 import Control.Monad (void, (>=>))
-import Control.Monad.State (execStateT, lift, modify)
+import Control.Monad.Except (MonadError (throwError), liftEither, runExceptT)
+import Control.Monad.State (modify, runState)
+import Data.Either.Combinators (leftToMaybe)
 import Data.Functor (($>))
 import Data.List.Extra ((!?))
 import qualified Data.Map as Map
-import Data.Text (append)
+import Data.Text (Text, append, intercalate, pack)
 import Errors (todo')
 import Interpreter.InterpretationResult
 import Interpreter.InterpreterRuntime
@@ -20,12 +22,13 @@ import StdLib (stdLibFunctionsMap)
 ------------------------------------------------------Interpreter-------------------------------------------------------
 
 -- | Interpreter entry point. Assumes that program is checked.
-interpret :: Ast.Program -> ResultValue Env
-interpret ast = execStateT (interpretProgram ast) emptyEnv
+interpret :: Ast.Program -> (ResultValue (), Env)
+interpret ast = runState (runExceptT (interpretProgram ast)) emptyEnv
 
 -- TODO : Docs
-getInterpretationOut :: ResultValue Env -> Either String String
-getInterpretationOut = todo'
+getInterpretationOut :: (ResultValue (), Env) -> (Text, Maybe Text)
+getInterpretationOut (result, env) =
+  (intercalate "" $ env ^. accumulatedOutput, pack . show <$> leftToMaybe result)
 
 -------------------------------------------------Program and functions--------------------------------------------------
 
@@ -35,9 +38,10 @@ interpretProgram (Ast.Program _ functions) = do
   main <- getMain
   modify $ funcs .~ fs
   void $ interpretFunc main []
+  modify $ accumulatedOutput %~ reverse
   where
     fs = Map.fromList $ (Ast.funcName <$> functions) `zip` (Ast.func <$> functions)
-    getMain = maybe (throw UnexpectedError) return (fs Map.!? "main")
+    getMain = maybe (throwError UnexpectedError) return (fs Map.!? "main")
 
 -- TODO : Docs
 interpretFunc :: Ast.Function -> [RuntimeValue] -> Result (Maybe RuntimeValue)
@@ -46,10 +50,10 @@ interpretFunc (Ast.Function params body voidMark) args = do
   case (res, voidMark) of
     (Ret val, _) -> return val
     (Unit, Ast.VoidFunc) -> return Nothing
-    (Unit, Ast.NonVoidFunc) -> throw NoReturn
+    (Unit, Ast.NonVoidFunc) -> throwError NoReturn
 interpretFunc (Ast.StdLibFunction name) args = do
   func <- unwrapJust $ stdLibFunctionsMap Map.!? name
-  (res, out) <- lift $ func args
+  (res, out) <- liftEither $ func args
   modify $ accumulatedOutput %~ (out :)
   return res
 
@@ -90,8 +94,7 @@ interpretStmtFor = todo' -- TODO
 
 -- TODO : Docs
 interpretStmtVarDecl :: Ast.VarDecl -> Result StmtResult
-interpretStmtVarDecl (Ast.VarDecl name expr) =
-  (interpretExpr' expr >>= addNewVar name) $> Unit
+interpretStmtVarDecl (Ast.VarDecl name expr) = (interpretExpr' expr >>= addNewVar name) $> Unit
 
 -- TODO : Docs
 interpretStmtIfElse :: Ast.IfElse -> Result StmtResult
@@ -155,7 +158,7 @@ interpretExprValue value = case value of
   Ast.ValBool v -> return' $ ValBool v
   Ast.ValString v -> return' $ ValString v
   Ast.ValArray es -> mapM interpretExpr' es >>= return' . ValArray
-  Ast.ValFunction _ -> todo' -- TODO
+  Ast.ValFunction v -> return' $ ValFunction v
   where
     return' v = return $ Just v
 
@@ -171,7 +174,7 @@ interpretExprUnaryOp unOp expr = do
     (Ast.UnaryPlusOp, ValInt v) -> returnInt v
     (Ast.UnaryMinusOp, ValInt v) -> returnInt $ -v
     (Ast.NotOp, ValBool v) -> returnBool $ not v
-    _ -> throw UnexpectedError
+    _ -> throwError UnexpectedError
   where
     return' val = return $ Just val
     returnInt val = return' $ ValInt val
@@ -197,16 +200,16 @@ interpretExprBinaryOp binOp lhs rhs = do
       Ast.PlusOp -> returnInt $ lhs' + rhs'
       Ast.MinusOp -> returnInt $ lhs' - rhs'
       Ast.MultOp -> returnInt $ lhs' * rhs'
-      Ast.DivOp -> if rhs' /= 0 then returnInt $ lhs' `div` rhs' else throw DivisionByZero
-      Ast.ModOp -> if rhs' /= 0 then returnInt $ lhs' `mod` rhs' else throw DivisionByZero
+      Ast.DivOp -> if rhs' /= 0 then returnInt $ lhs' `div` rhs' else throwError DivisionByZero
+      Ast.ModOp -> if rhs' /= 0 then returnInt $ lhs' `mod` rhs' else throwError DivisionByZero
     (ValString lhs', ValString rhs', _) -> case binOp of
       Ast.LeOp -> returnBool $ lhs' <= rhs'
       Ast.LtOp -> returnBool $ lhs' < rhs'
       Ast.MeOp -> returnBool $ lhs' >= rhs'
       Ast.MtOp -> returnBool $ lhs' > rhs'
       Ast.PlusOp -> returnString $ append lhs' rhs'
-      _ -> throw UnexpectedError
-    _ -> throw UnexpectedError
+      _ -> throwError UnexpectedError
+    _ -> throwError UnexpectedError
   where
     return' val = return $ Just val
     returnInt val = return' $ ValInt val
@@ -218,7 +221,7 @@ interpretExprArrayAccessByIndex :: Ast.Expression -> Ast.Expression -> Result (M
 interpretExprArrayAccessByIndex arr i = do
   arr' <- interpretArrExpr arr
   i' <- interpretIntExpr i
-  maybe (throw IndexOutOfBounds) (return . Just) (arr' !? i')
+  maybe (throwError IndexOutOfBounds) (return . Just) (arr' !? i')
 
 -- TODO : Docs
 interpretExprFuncCall :: Ast.Expression -> [Ast.Expression] -> Result (Maybe RuntimeValue)
@@ -259,23 +262,23 @@ interpretExpr' = interpretExpr >=> unwrapJust
 castToInt :: RuntimeValue -> Result Int
 castToInt val = case val of
   ValInt int -> return int
-  _ -> throw UnexpectedError
+  _ -> throwError UnexpectedError
 
 -- TODO : Docs
 castToBool :: RuntimeValue -> Result Bool
 castToBool val = case val of
   ValBool bool -> return bool
-  _ -> throw UnexpectedError
+  _ -> throwError UnexpectedError
 
 -- TODO : Docs
 castToArr :: RuntimeValue -> Result [RuntimeValue]
 castToArr val = case val of
   ValArray arr -> return arr
-  _ -> throw UnexpectedError
+  _ -> throwError UnexpectedError
 
 -- TODO : Docs
 castToFunc :: RuntimeValue -> Result Ast.Function
 castToFunc val = case val of
   ValFunction (Ast.AnonymousFunction f) -> return f
-  ValFunction Ast.Nil -> throw Npe
-  _ -> throw UnexpectedError
+  ValFunction Ast.Nil -> throwError Npe
+  _ -> throwError UnexpectedError

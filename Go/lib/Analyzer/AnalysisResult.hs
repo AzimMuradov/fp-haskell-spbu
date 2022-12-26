@@ -3,7 +3,8 @@ module Analyzer.AnalysisResult where
 
 import qualified Analyzer.AnalyzedAst as AnalyzedAst
 import qualified Analyzer.AnalyzedType as AnalyzedType
-import Control.Monad.State (MonadTrans (lift), StateT)
+import Control.Monad.Except (ExceptT)
+import Control.Monad.State (State)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -12,7 +13,7 @@ import qualified Data.Map as Map
 -- * Result
 
 -- | Represents the result of checking.
-type Result a = StateT Env ResultValue a
+type Result a = ExceptT Err (State Env) a
 
 -- ** State
 
@@ -73,7 +74,3 @@ data Err
   | -- | Unexpected error, this type of errors must never happen.
     UnexpectedError
   deriving (Show, Eq)
-
--- | Throw error of kind @err@ result.
-throw :: Err -> Result a
-throw err = lift $ Left err

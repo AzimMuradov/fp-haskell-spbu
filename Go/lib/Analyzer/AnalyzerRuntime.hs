@@ -6,6 +6,7 @@ module Analyzer.AnalyzerRuntime where
 import Analyzer.AnalysisResult
 import qualified Analyzer.AnalyzedAst as AAst
 import qualified Analyzer.AnalyzedType as AType
+import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State (get, put)
 import Data.Map ((!?))
 import qualified Data.Map as Map
@@ -16,7 +17,7 @@ import qualified Data.Map as Map
 getVarType :: AAst.Identifier -> Result AType.Type
 getVarType name = do
   env <- get
-  maybe (throw IdentifierNotFound) (return . fst) (searchVar name env)
+  maybe (throwError IdentifierNotFound) (return . fst) (searchVar name env)
 
 -- ** Add a new variable
 
@@ -24,7 +25,7 @@ getVarType name = do
 addNewVar :: AAst.Identifier -> AType.Type -> Result ()
 addNewVar name t = do
   env <- get
-  either throw put (addNewVar' name t env)
+  either throwError put (addNewVar' name t env)
 
 -- TODO : Docs
 addNewVar' :: AAst.Identifier -> AType.Type -> Env -> ResultValue Env
@@ -52,8 +53,8 @@ updateVar name t = do
   env <- get
   case searchVar name env of
     Just (t', _) | t == t' -> return ()
-    Just _ -> throw MismatchedTypes
-    Nothing -> throw IdentifierNotFound
+    Just _ -> throwError MismatchedTypes
+    Nothing -> throwError IdentifierNotFound
 
 -- ** Search for a variable
 

@@ -1,13 +1,15 @@
 module Main where
 
-import qualified Analyzer.AnalysisResult
-import qualified Analyzer.AnalyzedAst
+import qualified Analyzer.AnalysisResult as AnalysisResult
+import qualified Analyzer.AnalyzedAst as AnalyzedAst
 import Analyzer.Analyzer (analyze)
-import Data.Text (pack)
+import Data.Either.Extra (fromEither, mapLeft, maybeToEither)
+import Data.Text (Text, pack, unpack)
 import Data.Void (Void)
-import Errors (todo')
+import qualified Interpreter.InterpretationResult as InterpretationResult
+import Interpreter.Interpreter (getInterpretationOut, interpret)
 import Options.Applicative
-import qualified Parser.Ast
+import qualified Parser.Ast as Ast
 import Parser.Parser (parse)
 import Text.Megaparsec (Parsec, choice, parseMaybe)
 import Text.Megaparsec.Char (char)
@@ -44,38 +46,56 @@ getRunner m = case m of
   Debug -> debug
 
 interpretAndShow :: String -> String
-interpretAndShow fileText = interpreterResultMsg fileText ++ "\n"
-
--- interpretAndShow fileText = getInterpretationOut . interpret $ fromJust $ parse (pack fileText)
-
+interpretAndShow fileText = fromEither (interpreterResultMapper' fileText (\(out, err) -> unpack out ++ maybe "" ((++ "\n") . unpack) err))
 analyzeAndShow :: String -> String
-analyzeAndShow fileText = analyzerResultMapper fileText (show . fst) ++ "\n"
+analyzeAndShow fileText = fromEither (analyzerResultMapper' fileText show) ++ "\n"
 
 parseAndShow :: String -> String
 parseAndShow fileText = parseResultMsg fileText ++ "\n"
 
 debug :: String -> String
-debug fileText = parseResultMsg fileText ++ "\n\n" ++ analyzerResultMsg fileText ++ "\n"
+debug fileText = parseResultMsg fileText ++ "\n\n" ++ analyzerResultMsg fileText ++ "\n\n" ++ interpreterResultMsg fileText ++ "\n"
 
 -- ** Utils
 
-interpreterResultMsg :: String -> String
-interpreterResultMsg _ = todo'
+-- *** Parser
 
-analyzerResultMapper :: String -> ((Analyzer.AnalyzedAst.Program, Analyzer.AnalysisResult.Env) -> String) -> String
-analyzerResultMapper fileText f = parseResultMapper fileText $ either (("analysis failed: " ++) . show) f . analyze
+interpreterResult :: String -> Either String (InterpretationResult.ResultValue (), InterpretationResult.Env)
+interpreterResult fileText = analyzerResultMapper' fileText interpret
+
+interpreterResultMapper :: String -> ((InterpretationResult.ResultValue (), InterpretationResult.Env) -> a) -> Either String a
+interpreterResultMapper fileText f = f <$> interpreterResult fileText
+
+interpreterResultMapper' :: String -> ((Text, Maybe Text) -> a) -> Either String a
+interpreterResultMapper' fileText f = f <$> interpreterResultMapper fileText getInterpretationOut
+
+interpreterResultMsg :: String -> String
+interpreterResultMsg fileText = fromEither (interpreterResultMapper fileText show)
+
+-- *** Analyzer
+
+analyzerResult :: String -> Either String (AnalysisResult.ResultValue AnalyzedAst.Program, AnalysisResult.Env)
+analyzerResult fileText = parseResultMapper fileText analyze
+
+analyzerResultMapper :: String -> ((AnalysisResult.ResultValue AnalyzedAst.Program, AnalysisResult.Env) -> a) -> Either String a
+analyzerResultMapper fileText f = f <$> analyzerResult fileText
+
+analyzerResultMapper' :: String -> (AnalyzedAst.Program -> a) -> Either String a
+analyzerResultMapper' fileText f = analyzerResultMapper fileText fst >>= (fmap f . mapLeft show)
 
 analyzerResultMsg :: String -> String
-analyzerResultMsg fileText = analyzerResultMapper fileText show
+analyzerResultMsg fileText = fromEither (analyzerResultMapper fileText show)
 
-parseResult :: String -> Maybe Parser.Ast.Program
+-- *** Parser
+
+parseResult :: String -> Maybe Ast.Program
 parseResult fileText = parse $ pack fileText
 
-parseResultMapper :: String -> (Parser.Ast.Program -> String) -> String
-parseResultMapper fileText f = maybe "parse failed" f (parseResult fileText)
+parseResultMapper :: String -> (Ast.Program -> a) -> Either String a
+parseResultMapper fileText f = f <$> maybeToEither "parse failed" (parseResult fileText)
 
 parseResultMsg :: String -> String
-parseResultMsg fileText = parseResultMapper fileText show
+parseResultMsg fileText = fromEither (parseResultMapper fileText show)
 
 -- * Command line options parsing
 
