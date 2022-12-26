@@ -23,7 +23,7 @@ import StdLib (stdLibFunctionsMap)
 
 -- | Interpreter entry point. Assumes that program is checked.
 interpret :: Ast.Program -> (ResultValue (), Env)
-interpret ast = runState (runExceptT (interpretProgram ast)) emptyEnv
+interpret ast = runState (runExceptT (interpretProgram ast)) emptyEnv & _2 . accumulatedOutput %~ reverse
 
 -- TODO : Docs
 getInterpretationOut :: (ResultValue (), Env) -> (Text, Maybe Text)
@@ -38,7 +38,6 @@ interpretProgram (Ast.Program _ functions) = do
   main <- getMain
   modify $ funcs .~ fs
   void $ interpretFunc main []
-  modify $ accumulatedOutput %~ reverse
   where
     fs = Map.fromList $ (Ast.funcName <$> functions) `zip` (Ast.func <$> functions)
     getMain = maybe (throwError UnexpectedError) return (fs Map.!? "main")
