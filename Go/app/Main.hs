@@ -47,6 +47,7 @@ getRunner m = case m of
 
 interpretAndShow :: String -> String
 interpretAndShow fileText = fromEither (interpreterResultMapper' fileText (\(out, err) -> unpack out ++ maybe "" ((++ "\n") . unpack) err))
+
 analyzeAndShow :: String -> String
 analyzeAndShow fileText = fromEither (analyzerResultMapper' fileText show) ++ "\n"
 
