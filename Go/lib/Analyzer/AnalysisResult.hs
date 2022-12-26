@@ -68,7 +68,7 @@ data Err
   | -- | Constant integer expression types not in `int` bounds error.
     NotInIntBounds
   | -- | Division by 0 in constant integer expression error.
-    DivByZero
+    DivisionByZero
   | -- | @break@ or @continue@ statement used outside of @ForScope@.
     BreakOrContinueOutsideOfForScope
   | -- | Unexpected error, this type of errors must never happen.

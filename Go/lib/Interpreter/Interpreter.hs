@@ -8,15 +8,16 @@ import Control.Lens
 import Control.Monad (void, (>=>))
 import Control.Monad.Except (MonadError (throwError), liftEither, runExceptT)
 import Control.Monad.State (modify, runState)
-import Data.Either.Combinators (leftToMaybe)
+import Data.Either.Combinators (leftToMaybe, mapBoth)
 import Data.Functor (($>))
 import Data.List.Extra ((!?))
 import qualified Data.Map as Map
-import Data.Text (Text, append, intercalate, pack)
+import Data.Text (Text, intercalate, pack)
 import Errors (todo')
 import Interpreter.InterpretationResult
 import Interpreter.InterpreterRuntime
 import Interpreter.RuntimeValue (RuntimeValue (..))
+import qualified PrimitiveValue as PV
 import StdLib (stdLibFunctionsMap)
 
 ------------------------------------------------------Interpreter-------------------------------------------------------
@@ -165,17 +166,8 @@ interpretExprIdentifier name = Just <$> getVarValue name
 
 -- TODO : Docs
 interpretExprUnaryOp :: Ast.UnaryOp -> Ast.Expression -> Result (Maybe RuntimeValue)
-interpretExprUnaryOp unOp expr = do
-  val <- interpretExpr' expr
-  case (unOp, val) of
-    (Ast.UnaryPlusOp, ValInt v) -> returnInt v
-    (Ast.UnaryMinusOp, ValInt v) -> returnInt $ -v
-    (Ast.NotOp, ValBool v) -> returnBool $ not v
-    _ -> throwError UnexpectedError
-  where
-    return' val = return $ Just val
-    returnInt val = return' $ ValInt val
-    returnBool val = return' $ ValBool val
+interpretExprUnaryOp unOp expr =
+  interpretExpr' expr >>= valueToPrimitive >>= liftPV . PV.primitiveUnOpApplication unOp
 
 -- TODO : Docs
 interpretExprBinaryOp :: Ast.BinaryOp -> Ast.Expression -> Ast.Expression -> Result (Maybe RuntimeValue)
@@ -186,32 +178,13 @@ interpretExprBinaryOp Ast.AndOp lhs rhs = do
 interpretExprBinaryOp binOp lhs rhs = do
   lhsVal <- interpretExpr' lhs
   rhsVal <- interpretExpr' rhs
-  case (lhsVal, rhsVal, binOp) of
-    (lhsVal', rhsVal', Ast.EqOp) -> returnBool $ lhsVal' == rhsVal'
-    (lhsVal', rhsVal', Ast.NeOp) -> returnBool $ lhsVal' /= rhsVal'
-    (ValInt lhs', ValInt rhs', _) -> case binOp of
-      Ast.LeOp -> returnBool $ lhs' <= rhs'
-      Ast.LtOp -> returnBool $ lhs' < rhs'
-      Ast.MeOp -> returnBool $ lhs' >= rhs'
-      Ast.MtOp -> returnBool $ lhs' > rhs'
-      Ast.PlusOp -> returnInt $ lhs' + rhs'
-      Ast.MinusOp -> returnInt $ lhs' - rhs'
-      Ast.MultOp -> returnInt $ lhs' * rhs'
-      Ast.DivOp -> if rhs' /= 0 then returnInt $ lhs' `div` rhs' else throwError DivisionByZero
-      Ast.ModOp -> if rhs' /= 0 then returnInt $ lhs' `mod` rhs' else throwError DivisionByZero
-    (ValString lhs', ValString rhs', _) -> case binOp of
-      Ast.LeOp -> returnBool $ lhs' <= rhs'
-      Ast.LtOp -> returnBool $ lhs' < rhs'
-      Ast.MeOp -> returnBool $ lhs' >= rhs'
-      Ast.MtOp -> returnBool $ lhs' > rhs'
-      Ast.PlusOp -> returnString $ append lhs' rhs'
-      _ -> throwError UnexpectedError
-    _ -> throwError UnexpectedError
-  where
-    return' val = return $ Just val
-    returnInt val = return' $ ValInt val
-    returnBool val = return' $ ValBool val
-    returnString val = return' $ ValString val
+  case binOp of
+    Ast.EqOp -> return $ Just $ ValBool $ lhsVal == rhsVal
+    Ast.NeOp -> return $ Just $ ValBool $ lhsVal /= rhsVal
+    _ -> do
+      lhsPV <- valueToPrimitive lhsVal
+      rhsPV <- valueToPrimitive rhsVal
+      liftPV $ PV.primitiveBinOpApplication binOp lhsPV rhsPV
 
 -- TODO : Docs
 interpretExprArrayAccessByIndex :: Ast.Expression -> Ast.Expression -> Result (Maybe RuntimeValue)
@@ -252,6 +225,29 @@ interpretFuncExpr = interpretExpr' >=> castToFunc
 -- TODO : Docs
 interpretExpr' :: Ast.Expression -> Result RuntimeValue
 interpretExpr' = interpretExpr >=> unwrapJust
+
+-- ** Primitive values
+
+-- TODO : Docs
+valueToPrimitive :: RuntimeValue -> Result (PV.PrimitiveValue Int)
+valueToPrimitive value = case value of
+  ValInt v -> return $ PV.PrimNum v
+  ValBool v -> return $ PV.PrimBool v
+  ValString v -> return $ PV.PrimString v
+  _ -> throwError UnexpectedError
+
+-- TODO : Docs
+liftPV :: Either PV.Err (PV.PrimitiveValue Int) -> Result (Maybe RuntimeValue)
+liftPV pvRes = liftEither $ mapBoth mapErr primitiveToValue pvRes
+  where
+    mapErr err = case err of
+      PV.MismatchedTypes -> UnexpectedError
+      PV.DivisionByZero -> DivisionByZero
+
+    primitiveToValue value = case value of
+      PV.PrimNum v -> Just $ ValInt v
+      PV.PrimBool v -> Just $ ValBool v
+      PV.PrimString v -> Just $ ValString v
 
 -- ** Cast runtime values
 

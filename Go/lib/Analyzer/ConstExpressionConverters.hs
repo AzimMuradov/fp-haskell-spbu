@@ -3,7 +3,6 @@
 -- | Useful constant expression converters.
 module Analyzer.ConstExpressionConverters where
 
-import Analyzer.AnalysisResult (Err (..), ResultValue)
 import Analyzer.AnalyzedAst (Expression (ExprValue), Value (..))
 import Analyzer.AnalyzedType (Type (..))
 import Data.Either.Extra (mapLeft)
@@ -12,7 +11,7 @@ import qualified Parser.Ast as Ast
 import qualified PrimitiveValue as PV
 
 -- | Simplifies expression to value expression if possible.
-simplifyConstExpr :: Ast.Expression -> ResultValue (Maybe Type, Expression)
+simplifyConstExpr :: Ast.Expression -> Either Err (Maybe Type, Expression)
 simplifyConstExpr expression = do
   constant <- simplifyConstExpr' expression
   case constant of
@@ -21,7 +20,7 @@ simplifyConstExpr expression = do
     PV.PrimString c -> return (Just TString, ExprValue $ ValString c)
 
 -- | Simplifies expression to int if possible.
-simplifyConstIntExpr :: Ast.Expression -> ResultValue Int
+simplifyConstIntExpr :: Ast.Expression -> Either Err Int
 simplifyConstIntExpr expression = do
   constant <- simplifyConstExpr' expression
   case constant of
@@ -29,7 +28,7 @@ simplifyConstIntExpr expression = do
     _ -> Left MismatchedTypes
 
 -- | Converts integer to int if possible.
-convertIntegerToInt :: Integer -> ResultValue Int
+convertIntegerToInt :: Integer -> Either Err Int
 convertIntegerToInt integer =
   -- Checks for overflow
   if toInteger (fromIntegral integer :: Int) == integer
@@ -37,23 +36,27 @@ convertIntegerToInt integer =
     else Left NotInIntBounds
 
 -- | Simplifies expression to constant value if possible.
-simplifyConstExpr' :: Ast.Expression -> ResultValue (PV.PrimitiveValue Integer)
+simplifyConstExpr' :: Ast.Expression -> Either Err (PV.PrimitiveValue Integer)
 simplifyConstExpr' expression = case expression of
   Ast.ExprValue val -> case val of
     Ast.ValInt c -> return $ PV.PrimNum c
     Ast.ValBool c -> return $ PV.PrimBool c
     Ast.ValString c -> return $ PV.PrimString c
-    _ -> Left MismatchedTypes
-  Ast.ExprUnaryOp unOp expr -> do
-    expr' <- simplifyConstExpr' expr
-    mapLeft mapErr (PV.primitiveUnOpApplication unOp expr')
+    _ -> Left NotConstExpr
+  Ast.ExprUnaryOp unOp expr -> simplifyConstExpr' expr >>= mapLeft mapErr . PV.primitiveUnOpApplication unOp
   Ast.ExprBinaryOp binOp lhs rhs -> do
     lhs' <- simplifyConstExpr' lhs
     rhs' <- simplifyConstExpr' rhs
-    mapLeft mapErr (PV.primitiveBinOpApplication binOp lhs' rhs')
-  _ -> Left MismatchedTypes
+    mapLeft mapErr $ PV.primitiveBinOpApplication binOp lhs' rhs'
+  _ -> Left NotConstExpr
 
 mapErr :: PV.Err -> Err
 mapErr err = case err of
   PV.MismatchedTypes -> MismatchedTypes
-  PV.DivByZero -> DivByZero
+  PV.DivisionByZero -> DivisionByZero
+
+data Err
+  = MismatchedTypes
+  | DivisionByZero
+  | NotInIntBounds
+  | NotConstExpr

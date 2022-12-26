@@ -13,7 +13,7 @@ data PrimitiveValue num
     PrimString Text
   deriving (Show, Eq)
 
-data Err = MismatchedTypes | DivByZero
+data Err = MismatchedTypes | DivisionByZero
 
 primitiveUnOpApplication :: Integral num => Ast.UnaryOp -> PrimitiveValue num -> Either Err (PrimitiveValue num)
 primitiveUnOpApplication unOp constant = case (unOp, constant) of
@@ -34,8 +34,8 @@ primitiveBinOpApplication binOp lhs rhs = case (binOp, lhs, rhs) of
   (Ast.PlusOp, PrimNum lhs', PrimNum rhs') -> return $ PrimNum $ lhs' + rhs'
   (Ast.MinusOp, PrimNum lhs', PrimNum rhs') -> return $ PrimNum $ lhs' - rhs'
   (Ast.MultOp, PrimNum lhs', PrimNum rhs') -> return $ PrimNum $ lhs' * rhs'
-  (Ast.DivOp, PrimNum lhs', PrimNum rhs') -> if rhs' == 0 then Left DivByZero else return $ PrimNum $ lhs' `div` rhs'
-  (Ast.ModOp, PrimNum lhs', PrimNum rhs') -> if rhs' == 0 then Left DivByZero else return $ PrimNum $ lhs' `mod` rhs'
+  (Ast.DivOp, PrimNum lhs', PrimNum rhs') -> if rhs' == 0 then Left DivisionByZero else return $ PrimNum $ lhs' `div` rhs'
+  (Ast.ModOp, PrimNum lhs', PrimNum rhs') -> if rhs' == 0 then Left DivisionByZero else return $ PrimNum $ lhs' `mod` rhs'
   -- Boolean
   (Ast.OrOp, PrimBool lhs', PrimBool rhs') -> return $ PrimBool $ lhs' || rhs'
   (Ast.AndOp, PrimBool lhs', PrimBool rhs') -> return $ PrimBool $ lhs' && rhs'

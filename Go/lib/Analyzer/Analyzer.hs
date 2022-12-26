@@ -9,9 +9,11 @@ import qualified Analyzer.AnalyzedAst as AAst
 import qualified Analyzer.AnalyzedType as AType
 import Analyzer.AnalyzerRuntime (addNewVar, addOrUpdateVar, getCurrScopeType, getTypeDefault, getVarType, popScope, pushScope)
 import Analyzer.ConstExpressionConverters (simplifyConstExpr, simplifyConstIntExpr)
+import qualified Analyzer.ConstExpressionConverters as CEC
 import Control.Monad (mapAndUnzipM, void, when, (>=>))
 import Control.Monad.Except (MonadError (throwError), liftEither, runExceptT)
 import Control.Monad.State (MonadState (..), modify, runState)
+import Data.Either.Extra (mapLeft)
 import Data.Functor (($>))
 import Data.List.Extra (anySame, find)
 import Data.Maybe (isNothing)
@@ -210,8 +212,10 @@ analyzeUpdEl updEl = case updEl of
 analyzeExpr :: Ast.Expression -> Result (Maybe AType.Type, AAst.Expression)
 analyzeExpr expression = case simplifyConstExpr expression of
   Right res -> return res
-  Left NotInIntBounds -> throwError NotInIntBounds
-  Left _ -> case expression of
+  Left CEC.MismatchedTypes -> throwError MismatchedTypes
+  Left CEC.DivisionByZero -> throwError DivisionByZero
+  Left CEC.NotInIntBounds -> throwError NotInIntBounds
+  Left CEC.NotConstExpr -> case expression of
     Ast.ExprValue val -> analyzeExprValue val
     Ast.ExprIdentifier name -> analyzeExprIdentifier name
     Ast.ExprUnaryOp unOp expr -> analyzeExprUnaryOp unOp expr
@@ -373,7 +377,13 @@ analyzeType t = case t of
 -- TODO : Docs
 analyzeArrayType :: Ast.ArrayType -> Result (AType.Type, Int)
 analyzeArrayType (Ast.ArrayType elementT len) =
-  (,) <$> analyzeType elementT <*> liftEither (simplifyConstIntExpr len)
+  (,) <$> analyzeType elementT <*> liftEither (mapLeft mapErr (simplifyConstIntExpr len))
+  where
+    mapErr err = case err of
+      CEC.MismatchedTypes -> MismatchedTypes
+      CEC.DivisionByZero -> DivisionByZero
+      CEC.NotInIntBounds -> NotInIntBounds
+      CEC.NotConstExpr -> MismatchedTypes
 
 -- TODO : Docs
 analyzeFunctionType :: Ast.FunctionType -> Result AType.FunctionType
