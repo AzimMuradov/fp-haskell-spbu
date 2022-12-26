@@ -3,11 +3,11 @@
 -- | Module, that provides data necessary for the standard library support.
 module StdLib where
 
-import Analyzer.AnalyzedAst (FunctionValue (Nil), Identifier)
+import Analyzer.AnalyzedAst (Identifier)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Text (Text, pack)
-import qualified Data.Text as Text
+import Data.Text (Text, append, pack)
+import qualified Data.Text as T
 import Interpreter.InterpretationResult (Err (Panic, UnexpectedError), ResultValue)
 import Interpreter.RuntimeValue (RuntimeValue (..))
 
@@ -48,7 +48,7 @@ lenFunction = StdLibFunction {name = "len", impl = lenImpl}
 -- | @len@ implementation.
 lenImpl :: StdLibFuncImpl
 lenImpl args = case args of
-  [ValString x] -> ok $ Text.length x
+  [ValString x] -> ok $ T.length x
   [ValArray xs] -> ok $ length xs
   _ -> Left UnexpectedError
   where
@@ -62,14 +62,7 @@ printFunction = StdLibFunction {name = "print", impl = printImpl}
 
 -- | @print@ implementation.
 printImpl :: StdLibFuncImpl
-printImpl args = case args of
-  [ValInt x] -> ok $ pack $ show x
-  [ValBool x] -> ok $ pack $ show x
-  [ValString x] -> ok $ pack $ show x
-  [ValFunction Nil] -> ok "nil"
-  _ -> Left UnexpectedError
-  where
-    ok msg = Right (Nothing, msg)
+printImpl args = Right (Nothing, append (T.concat (pack . show <$> args)) "\n")
 
 -- ** @println@
 
@@ -79,15 +72,7 @@ printlnFunction = StdLibFunction {name = "println", impl = printlnImpl}
 
 -- | @println@ implementation.
 printlnImpl :: StdLibFuncImpl
-printlnImpl args = case args of
-  [] -> ok "\n"
-  [ValInt x] -> ok $ pack (show x ++ "\n")
-  [ValBool x] -> ok $ pack (show x ++ "\n")
-  [ValString x] -> ok $ pack (show x ++ "\n")
-  [ValFunction Nil] -> ok "nil\n"
-  _ -> Left UnexpectedError
-  where
-    ok msg = Right (Nothing, msg)
+printlnImpl args = Right (Nothing, append (T.unwords (pack . show <$> args)) "\n")
 
 -- ** @panic@
 

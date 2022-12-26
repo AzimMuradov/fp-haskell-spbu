@@ -61,13 +61,13 @@ data Expression
     -- > print("some logs...") // prints "some logs..."
     --
     -- > print(3 + 6)  // prints "9"
-    ExprPrintFuncCall Expression
+    ExprPrintFuncCall [Expression]
   | -- | @println@ function call expression.
     --
     -- > println("some logs...") // prints "some logs...\n"
     --
     -- > println(3 + 6)  // prints "9\n"
-    ExprPrintlnFuncCall (Maybe Expression)
+    ExprPrintlnFuncCall [Expression]
   | -- | @panic@ function call expression.
     --
     -- > panic("ERROR!!!") // fails with "panic: ERROR!!!\n"

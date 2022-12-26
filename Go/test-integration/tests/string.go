@@ -9,4 +9,5 @@ func main() {
   println(a > b);  // should print "true"
   println(a >= b); // should print "true"
   println(a + b);  // should print "4217"
+  println(len(a)); // should print "2"
 }
