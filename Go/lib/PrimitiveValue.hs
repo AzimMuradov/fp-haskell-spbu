@@ -1,3 +1,4 @@
+-- TODO : Docs
 module PrimitiveValue where
 
 import Data.Text (Text, append)
@@ -13,8 +14,14 @@ data PrimitiveValue num
     PrimString Text
   deriving (Show, Eq)
 
-data Err = MismatchedTypes | DivisionByZero
+-- | Represents an unsuccessful operation application on primitive values.
+data Err
+  = -- | Mismatched types error.
+    MismatchedTypes
+  | -- | Division by 0 error.
+    DivisionByZero
 
+-- TODO : Docs
 primitiveUnOpApplication :: Integral num => Ast.UnaryOp -> PrimitiveValue num -> Either Err (PrimitiveValue num)
 primitiveUnOpApplication unOp constant = case (unOp, constant) of
   (Ast.UnaryPlusOp, PrimNum c) -> return $ PrimNum c
@@ -22,6 +29,7 @@ primitiveUnOpApplication unOp constant = case (unOp, constant) of
   (Ast.NotOp, PrimBool c) -> return $ PrimBool $ not c
   _ -> Left MismatchedTypes
 
+-- TODO : Docs
 primitiveBinOpApplication :: Integral num => Ast.BinaryOp -> PrimitiveValue num -> PrimitiveValue num -> Either Err (PrimitiveValue num)
 primitiveBinOpApplication binOp lhs rhs = case (binOp, lhs, rhs) of
   -- Integer

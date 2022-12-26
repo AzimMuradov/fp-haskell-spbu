@@ -24,23 +24,21 @@ Project parts:
 #### Done:
 
 - `int`, `bool`, `string` support
-- function definitions
-- variable declarations
 - `void` support
+- function literals
+- operators (arithmetic, logic, comparison)
 - `if`, `else`
 - recursion, mutual recursion
-- operators (...)
-- parser, lexer
-- analyzer (check for name collision or missing names, type checker, const expressions converters (w/o `const` keyword))
+- function definitions
+- variable declarations
 - variable assignments
 - short variable declarations
 - increment, decrement
+- parser, lexer
+- analyzer (check for name collision or missing names, type checker, const expressions converters (w/o `const` keyword))
+- interpreter (everything except mentioned in missing)
 - several stdlib functions (`len`, `print`, `println`, `panic`)
-- function literals
 
 #### Missing:
 
-- arrays, loops
-- globals
-- closures
-- interpreter
+- interpreter (arrays, loops, globals, closures)

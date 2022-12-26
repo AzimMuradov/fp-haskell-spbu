@@ -12,7 +12,8 @@ import Data.Either.Combinators (leftToMaybe, mapBoth)
 import Data.Functor (($>))
 import Data.List.Extra ((!?))
 import qualified Data.Map as Map
-import Data.Text (Text, intercalate, pack)
+import Data.Text (Text, pack)
+import qualified Data.Text as T
 import Interpreter.InterpretationResult
 import Interpreter.InterpreterRuntime
 import Interpreter.RuntimeValue (RuntimeValue (..))
@@ -27,8 +28,7 @@ interpret ast = runState (runExceptT (interpretProgram ast)) emptyEnv & _2 . acc
 
 -- TODO : Docs
 getInterpretationOut :: (ResultValue (), Env) -> (Text, Maybe Text)
-getInterpretationOut (result, env) =
-  (intercalate "" $ env ^. accumulatedOutput, pack . show <$> leftToMaybe result)
+getInterpretationOut (result, env) = (T.concat $ env ^. accumulatedOutput, pack . show <$> leftToMaybe result)
 
 -------------------------------------------------Program and functions--------------------------------------------------
 

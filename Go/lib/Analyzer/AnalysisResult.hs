@@ -55,7 +55,7 @@ type ResultValue = Either Err
 
 -- ** Error
 
--- | Represents unsuccessful analyzing.
+-- | Represents an unsuccessful analysis.
 data Err
   = -- | No entry point for the interpreter error.
     NoMain
