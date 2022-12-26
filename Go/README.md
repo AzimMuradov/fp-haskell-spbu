@@ -32,14 +32,15 @@ Project parts:
 - operators (...)
 - parser, lexer
 - analyzer (check for name collision or missing names, type checker, const expressions converters (w/o `const` keyword))
-- various assignments and short variable declaration
+- variable assignments
+- short variable declarations
 - increment, decrement
-- several stdlib functions (`len`, `panic`, `print`, `println`)
-- globals
-- arrays, loops
+- several stdlib functions (`len`, `print`, `println`, `panic`)
 - function literals
 
 #### Missing:
 
+- arrays, loops
+- globals
 - closures
 - interpreter
