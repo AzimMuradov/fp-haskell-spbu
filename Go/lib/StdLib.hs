@@ -8,7 +8,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text, pack)
 import qualified Data.Text as Text
-import Interpreter.InterpretationResult (Err (Panicked, UnexpectedError), ResultValue)
+import Interpreter.InterpretationResult (Err (Panic, UnexpectedError), ResultValue)
 import Interpreter.RuntimeValue (RuntimeValue (..))
 
 ---------------------------------------------------------StdLib---------------------------------------------------------
@@ -99,5 +99,5 @@ panicFunction = StdLibFunction {name = "panic", impl = panicImpl}
 -- | @panic@ implementation.
 panicImpl :: StdLibFuncImpl
 panicImpl args = case args of
-  [ValString msg] -> Left $ Panicked msg
+  [ValString msg] -> Left $ Panic msg
   _ -> Left UnexpectedError

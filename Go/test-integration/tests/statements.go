@@ -5,32 +5,34 @@ func main() {
     println(n);
   };
 
-  if n == 3 + 2 {
+  if n != 3 + 2 {
     println(n);
   } else {
     println(42);
   };
 
-  if n == 3 + 2 {
+  if n == 3 + 3 {
     println(n);
-  } else if n == 2 {
+  } else if n == 6 - 1 {
     println(n * n);
   };
 
-  i := 1;
+  panic("TODO: `for` interpretation");
 
-  for i := 0; i < 17; i++ {
-    println(i * i * i);
-  };
+  // i := 1;
 
-  println(i);
+  // for i := 0; i < 17; i++ {
+  //   println(i * i * i);
+  // };
 
-  for false {
-    println();
-  };
+  // println(i);
 
-  for true {
-    println("true");
-    break;
-  };
+  // for false {
+  //   println();
+  // };
+
+  // for true {
+  //   println("true");
+  //   break;
+  // };
 }

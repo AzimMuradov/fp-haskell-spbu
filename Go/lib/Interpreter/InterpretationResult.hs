@@ -9,7 +9,7 @@ import Control.Monad.Except (ExceptT)
 import Control.Monad.State (State)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Text (Text)
+import Data.Text (Text, unpack)
 import Interpreter.RuntimeValue
 
 -- Interpretation result
@@ -61,16 +61,23 @@ data Err
   = -- | Division by zero error.
     DivisionByZero
   | -- | Index out of bounds error.
-    IndexOutOfBounds
+    IndexOutOfRange
   | -- | No return error.
     NoReturn
   | -- | Null dereference error (happens when trying to call the `nil` as a regular function).
     Npe
   | -- TODO : Docs
-    Panicked Text
+    Panic Text
   | -- | Unexpected error, this type of errors must never happen.
     UnexpectedError
-  deriving (Show)
+
+instance Show Err where
+  show DivisionByZero = "panic: runtime error: integer divide by zero"
+  show IndexOutOfRange = "panic: runtime error: index out of range"
+  show NoReturn = "panic: runtime error: no return"
+  show Npe = "panic: runtime error: nil pointer dereference"
+  show (Panic msg) = "panic: " ++ unpack msg
+  show UnexpectedError = "panic: unexpected error"
 
 -- | Accumulated out (every element is a text printed to the stdout).
 type AccOut = [Text]

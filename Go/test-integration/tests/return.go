@@ -1,6 +1,6 @@
 func main() {
-  printlnInt(1); // should print 1
-  printlnInt(2); // should print 2
-  return;        // return
-  printlnInt(3); // ...
+  println(1); // should print 1
+  println(2); // should print 2
+  return;     // return
+  println(3); // ...
 }
