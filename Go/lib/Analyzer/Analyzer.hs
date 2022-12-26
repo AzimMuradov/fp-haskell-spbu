@@ -223,7 +223,7 @@ analyzeExpr expression = case simplifyConstExpr expression of
     Ast.ExprFuncCall func args -> analyzeExprFuncCall func args
     Ast.ExprArrayAccessByIndex arr index -> analyzeExprArrayAccessByIndex arr index
     Ast.ExprLenFuncCall arg -> analyzeExprLenFuncCall arg
-    Ast.ExprPrintFuncCall maybeArg -> analyzeExprPrintFuncCall maybeArg
+    Ast.ExprPrintFuncCall arg -> analyzeExprPrintFuncCall arg
     Ast.ExprPrintlnFuncCall maybeArg -> analyzeExprPrintlnFuncCall maybeArg
     Ast.ExprPanicFuncCall arg -> analyzeExprPanicFuncCall arg
 
@@ -329,18 +329,16 @@ analyzeExprLenFuncCall arg = do
     _ -> throwError MismatchedTypes
 
 -- TODO : Docs
-analyzeExprPrintFuncCall :: Maybe Ast.Expression -> Result (Maybe AType.Type, AAst.Expression)
-analyzeExprPrintFuncCall maybeArg = case maybeArg of
-  Just arg -> do
-    (argT, argE) <- analyzeExpr' arg
-    let return' = return (Nothing, AAst.ExprFuncCall (stdLibFuncExpr $ StdLib.name StdLib.printFunction) [argE])
-    case argT of
-      AType.TInt -> return'
-      AType.TBool -> return'
-      AType.TString -> return'
-      AType.TNil -> return'
-      _ -> throwError MismatchedTypes
-  Nothing -> return (Nothing, AAst.ExprFuncCall (stdLibFuncExpr $ StdLib.name StdLib.printFunction) [])
+analyzeExprPrintFuncCall :: Ast.Expression -> Result (Maybe AType.Type, AAst.Expression)
+analyzeExprPrintFuncCall arg = do
+  (argT, argE) <- analyzeExpr' arg
+  let return' = return (Nothing, AAst.ExprFuncCall (stdLibFuncExpr $ StdLib.name StdLib.printFunction) [argE])
+  case argT of
+    AType.TInt -> return'
+    AType.TBool -> return'
+    AType.TString -> return'
+    AType.TNil -> return'
+    _ -> throwError MismatchedTypes
 
 -- TODO : Docs
 analyzeExprPrintlnFuncCall :: Maybe Ast.Expression -> Result (Maybe AType.Type, AAst.Expression)

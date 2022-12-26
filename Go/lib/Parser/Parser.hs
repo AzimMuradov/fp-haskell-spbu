@@ -54,7 +54,7 @@ termExpressionP =
       Ast.ExprValue <$> valueP,
       Ast.ExprIdentifier <$> identifierP,
       Ast.ExprLenFuncCall <$ idLenFunc <*> parens expressionP,
-      Ast.ExprPrintFuncCall <$ idPrintFunc <*> parens (optional expressionP),
+      Ast.ExprPrintFuncCall <$ idPrintFunc <*> parens expressionP,
       Ast.ExprPrintlnFuncCall <$ idPrintlnFunc <*> parens (optional expressionP),
       Ast.ExprPanicFuncCall <$ idPanicFunc <*> parens expressionP
     ]

@@ -61,7 +61,7 @@ data Expression
     -- > print("some logs...") // prints "some logs..."
     --
     -- > print(3 + 6)  // prints "9"
-    ExprPrintFuncCall (Maybe Expression)
+    ExprPrintFuncCall Expression
   | -- | @println@ function call expression.
     --
     -- > println("some logs...") // prints "some logs...\n"

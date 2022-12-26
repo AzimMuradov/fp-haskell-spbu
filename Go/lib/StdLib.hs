@@ -63,7 +63,6 @@ printFunction = StdLibFunction {name = "print", impl = printImpl}
 -- | @print@ implementation.
 printImpl :: StdLibFuncImpl
 printImpl args = case args of
-  [] -> ok ""
   [ValInt x] -> ok $ pack $ show x
   [ValBool x] -> ok $ pack $ show x
   [ValString x] -> ok $ pack $ show x
