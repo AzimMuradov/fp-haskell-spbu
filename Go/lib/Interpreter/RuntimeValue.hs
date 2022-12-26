@@ -25,7 +25,7 @@ instance Show RuntimeValue where
   show (ValString string) = take (T.length string) $ tail $ show string
   show (ValArray vs) = "[" ++ unwords (show <$> vs) ++ "]"
   show (ValFunction Ast.Nil) = "nil"
-  show (ValFunction (Ast.AnonymousFunction (Ast.Function {}))) = "function"
+  show (ValFunction (Ast.AnonymousFunction Ast.Function {})) = "function"
   show (ValFunction (Ast.AnonymousFunction (Ast.StdLibFunction name))) = unpack name
 
 instance Eq RuntimeValue where
