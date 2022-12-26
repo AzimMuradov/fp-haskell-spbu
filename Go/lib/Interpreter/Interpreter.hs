@@ -13,7 +13,6 @@ import Data.Functor (($>))
 import Data.List.Extra ((!?))
 import qualified Data.Map as Map
 import Data.Text (Text, intercalate, pack)
-import Errors (todo')
 import Interpreter.InterpretationResult
 import Interpreter.InterpreterRuntime
 import Interpreter.RuntimeValue (RuntimeValue (..))
@@ -86,11 +85,11 @@ interpretStmtReturn = maybe (return $ Ret Nothing) (fmap Ret . interpretExpr)
 
 -- TODO : Docs
 interpretStmtForGoTo :: Ast.ForGoTo -> Result StmtResult
-interpretStmtForGoTo = todo' -- TODO
+interpretStmtForGoTo = undefined -- TODO
 
 -- TODO : Docs
 interpretStmtFor :: Ast.For -> Result StmtResult
-interpretStmtFor = todo' -- TODO
+interpretStmtFor = undefined -- TODO
 
 -- TODO : Docs
 interpretStmtVarDecl :: Ast.VarDecl -> Result StmtResult
@@ -135,7 +134,7 @@ getUpdElF :: Ast.UpdatableElement -> Result (Ast.Identifier, RuntimeValue, Runti
 getUpdElF = getUpdElF'
   where
     getUpdElF' (Ast.UpdVar name) = (name,,id) <$> getVarValue name
-    getUpdElF' (Ast.UpdArrEl _ _) = todo' -- TODO
+    getUpdElF' (Ast.UpdArrEl _ _) = undefined -- TODO
 
 ------------------------------------------------------Expressions-------------------------------------------------------
 

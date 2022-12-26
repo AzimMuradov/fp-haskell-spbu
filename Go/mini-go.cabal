@@ -62,8 +62,7 @@ library
         Interpreter.InterpreterRuntime,
         Interpreter.Interpreter,
         StdLib,
-        PrimitiveValue,
-        Errors
+        PrimitiveValue
 
     other-modules:
 
