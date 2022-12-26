@@ -196,7 +196,7 @@ kwContinue = symbol "continue"
 
 -- | Predeclared identifier parser.
 predeclaredIdentifierP :: Parser Ast.Identifier
-predeclaredIdentifierP = choice $ [idBool, idInt, idString, idTrue, idFalse, idNil] ++ [idLenFunc, idPrintlnFunc, idPanicFunc]
+predeclaredIdentifierP = choice $ [idBool, idInt, idString, idTrue, idFalse, idNil] ++ [idLenFunc, idPrintFunc, idPrintlnFunc, idPanicFunc]
 
 -- | @bool@ identifier parser.
 idBool :: Parser Text

@@ -62,7 +62,7 @@ printFunction = StdLibFunction {name = "print", impl = printImpl}
 
 -- | @print@ implementation.
 printImpl :: StdLibFuncImpl
-printImpl args = Right (Nothing, append (T.concat (pack . show <$> args)) "\n")
+printImpl args = Right (Nothing, T.concat (pack . show <$> args))
 
 -- ** @println@
 
