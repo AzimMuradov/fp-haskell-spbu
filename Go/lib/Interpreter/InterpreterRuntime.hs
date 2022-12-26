@@ -1,15 +1,15 @@
--- TODO : Docs
 {-# LANGUAGE TupleSections #-}
 
+-- TODO : Docs
 module Interpreter.InterpreterRuntime where
 
 import qualified Analyzer.AnalyzedAst as Ast
+import Control.Applicative ((<|>))
 import Control.Lens
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State (get, modify, put)
 import Data.Map ((!?))
 import qualified Data.Map as Map
-import Data.Tuple.Extra (fst3)
 import Interpreter.InterpretationResult
 import Interpreter.RuntimeValue
 
@@ -17,7 +17,7 @@ import Interpreter.RuntimeValue
 
 -- TODO : Docs
 getVarValue :: Ast.Identifier -> Result RuntimeValue
-getVarValue name = fst3 <$> (get >>= unwrapJust . searchVar name)
+getVarValue name = fst <$> (get >>= unwrapJust . searchVar name)
 
 -- ** Add a new variable
 
@@ -32,43 +32,43 @@ addOrUpdateVar :: Ast.Identifier -> RuntimeValue -> Result ()
 addOrUpdateVar name value = do
   env <- get
   case searchVar name env of
-    Just (_, Curr, _) -> updateVar name value
+    Just (_, Curr) -> updateVar name value
     _ -> addNewVar name value
 
 -- ** Update a variable
 
 -- TODO : Docs
 updateVar :: Ast.Identifier -> RuntimeValue -> Result ()
-updateVar name value = do
-  env <- get
-  (_, _, updater) <- unwrapJust $ searchVar name env
-  put $ updater value
+updateVar name value = get >>= (unwrapJust . varUpdater name) >>= (\updater -> put $ updater value)
 
 -- ** Search for a variable
 
 -- TODO : Docs
--- TODO : Make more safe
-searchVar :: Ast.Identifier -> Env -> Maybe (RuntimeValue, ScopeLocation, Updater)
-searchVar name env@(Env fs fScs _) = case fScs of
-  FuncScope (sc : scs) : _ -> searchVar' name 0 sc (scs ++ [fsScope])
-  _ -> searchVar' name 1 fsScope []
+searchVar :: Ast.Identifier -> Env -> Maybe (RuntimeValue, ScopeLocation)
+searchVar name (Env fs fScs _) = case fScs of
+  FuncScope (sc : scs) : _ -> searchVar' name Curr sc (scs ++ [fsScope])
+  _ -> searchVar' name Outer fsScope []
   where
-    searchVar' n i sc outerScs = uncurry searchMapper <$> searchVar'' n i sc outerScs
-
-    searchMapper val i = (val, if i == 0 then Curr else Outer, \v -> env & var 0 i name ?~ v)
-
-    searchVar'' n i (Scope ns) (outerSc : outerScs) = case ns !? n of
-      Just v -> Just (v, i)
-      Nothing -> searchVar'' n (i + 1) outerSc outerScs
-    searchVar'' n i (Scope ns) [] = (,i) <$> ns !? n
+    searchVar' :: Ast.Identifier -> ScopeLocation -> Scope -> [Scope] -> Maybe (RuntimeValue, ScopeLocation)
+    searchVar' n loc (Scope ns) scs =
+      ((,loc) <$> (ns !? n)) <|> (uncons scs >>= uncurry (searchVar' n Outer))
 
     fsScope = Scope $ Map.map (ValFunction . Ast.AnonymousFunction) fs
 
 -- TODO : Docs
-data ScopeLocation = Curr | Outer
+varUpdater :: Ast.Identifier -> Env -> Maybe (RuntimeValue -> Env)
+varUpdater name env@(Env _ fScs _) = case fScs of
+  FuncScope (sc : scs) : _ -> update <$> findScopeIndex name 0 sc scs
+  _ -> Nothing
+  where
+    update i v = env & var 0 i name ?~ v
+
+    findScopeIndex :: Ast.Identifier -> Int -> Scope -> [Scope] -> Maybe Int
+    findScopeIndex n i (Scope ns) scs =
+      (i <$ (ns !? n)) <|> (uncons scs >>= uncurry (findScopeIndex n (i + 1)))
 
 -- TODO : Docs
-type Updater = RuntimeValue -> Env
+data ScopeLocation = Curr | Outer
 
 -- ** Scopes manipulation
 
