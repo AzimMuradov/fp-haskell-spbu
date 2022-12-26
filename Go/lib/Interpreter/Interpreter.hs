@@ -118,15 +118,13 @@ interpretStmtSimple simpleStmt = case simpleStmt of
     (n, _, f) <- getUpdElF updEl
     updateVar n (f e)
     return Unit
-  Ast.StmtInc updEl -> do
+  Ast.StmtIncDec updEl incDec -> do
+    let upd = case incDec of
+          Ast.Inc -> (+ 1)
+          Ast.Dec -> \x -> x - 1
     (n, v, f) <- getUpdElF updEl
     v' <- castToInt v
-    updateVar n (f (ValInt (v' + 1)))
-    return Unit
-  Ast.StmtDec updEl -> do
-    (n, v, f) <- getUpdElF updEl
-    v' <- castToInt v
-    updateVar n (f (ValInt (v' - 1)))
+    updateVar n (f (ValInt (upd v')))
     return Unit
   Ast.StmtShortVarDecl name expr -> (interpretExpr' expr >>= addOrUpdateVar name) $> Unit
   Ast.StmtExpression expr -> interpretExpr expr $> Unit

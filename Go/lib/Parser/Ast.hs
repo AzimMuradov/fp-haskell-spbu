@@ -250,10 +250,8 @@ data Else = NoElse | Else Block | Elif IfElse
 data SimpleStmt
   = -- | Assignment statement (e.g., @x = 17@, @a[3] = \"42\"@).
     StmtAssignment UpdatableElement Expression
-  | -- | Increment statement (e.g., @x++@, @a[3]++@).
-    StmtInc UpdatableElement
-  | -- | Decrement statement (e.g., @x--@, @a[3]--@).
-    StmtDec UpdatableElement
+  | -- | Increment or decrement statement (e.g., @x++@, @a[3]++@, @x--@, @a[3]--@).
+    StmtIncDec UpdatableElement IncDec
   | -- | Short var declaration statement (e.g., @x := 3@, @y := true@).
     StmtShortVarDecl Identifier Expression
   | -- | Expression statement.
@@ -266,6 +264,10 @@ data UpdatableElement
     UpdVar Identifier
   | -- | Any array element can be updated (e.g., @a[5][7] = 3@, @a[0]++@).
     UpdArrEl Identifier [Expression]
+  deriving (Show)
+
+-- | Increment or decrement.
+data IncDec = Inc | Dec
   deriving (Show)
 
 ---------------------------------------------------------Values---------------------------------------------------------

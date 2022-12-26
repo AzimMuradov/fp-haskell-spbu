@@ -179,14 +179,10 @@ analyzeSimpleStmt simpleStmt = case simpleStmt of
     (t, expr') <- analyzeExpr' expr
     checkEq updElT t
     return $ AAst.StmtAssignment updEl' expr'
-  Ast.StmtInc updEl -> do
+  Ast.StmtIncDec updEl incDec -> do
     (updElT, updEl') <- analyzeUpdEl updEl
     checkEq updElT AType.TInt
-    return $ AAst.StmtInc updEl'
-  Ast.StmtDec updEl -> do
-    (updElT, updEl') <- analyzeUpdEl updEl
-    checkEq updElT AType.TInt
-    return $ AAst.StmtDec updEl'
+    return $ AAst.StmtIncDec updEl' incDec
   Ast.StmtShortVarDecl name expr -> do
     (t, expr') <- analyzeExpr' expr
     addOrUpdateVar name t

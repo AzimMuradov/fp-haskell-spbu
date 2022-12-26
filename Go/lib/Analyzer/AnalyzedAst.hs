@@ -8,11 +8,12 @@ module Analyzer.AnalyzedAst
     UnaryOp (..),
     BinaryOp (..),
     ForGoTo (..),
+    IncDec (..),
   )
 where
 
 import Data.Text (Text)
-import Parser.Ast (BinaryOp (..), ForGoTo (..), UnaryOp (..))
+import Parser.Ast (BinaryOp (..), ForGoTo (..), IncDec (..), UnaryOp (..))
 
 --------------------------------------------------------Program---------------------------------------------------------
 
@@ -78,8 +79,7 @@ data Else = NoElse | Else Block | Elif IfElse
 
 data SimpleStmt
   = StmtAssignment UpdatableElement Expression
-  | StmtInc UpdatableElement
-  | StmtDec UpdatableElement
+  | StmtIncDec UpdatableElement IncDec
   | StmtShortVarDecl Identifier Expression
   | StmtExpression Expression
   deriving (Show)

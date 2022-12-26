@@ -207,19 +207,15 @@ blockP = braces $ catMaybes <$> many (optional' statementP <* semicolon)
 
 -- | Simple statement parser.
 simpleStmtP :: Parser Ast.SimpleStmt
-simpleStmtP = choice' [stmtAssignmentP, stmtIncP, stmtDecP, stmtShortVarDeclP, stmtExpressionP]
+simpleStmtP = choice' [stmtAssignmentP, stmtIncDecP, stmtShortVarDeclP, stmtExpressionP]
 
 -- | Assignment statement parser.
 stmtAssignmentP :: Parser Ast.SimpleStmt
 stmtAssignmentP = Ast.StmtAssignment <$> updElP <* symbol "=" <*> expressionP
 
--- | Increment statement parser.
-stmtIncP :: Parser Ast.SimpleStmt
-stmtIncP = Ast.StmtInc <$> updElP <* symbol "++"
-
--- | Decrement statement parser.
-stmtDecP :: Parser Ast.SimpleStmt
-stmtDecP = Ast.StmtDec <$> updElP <* symbol "--"
+-- | Increment or decrement statement parser.
+stmtIncDecP :: Parser Ast.SimpleStmt
+stmtIncDecP = Ast.StmtIncDec <$> updElP <*> choice' [Ast.Inc <$ symbol "++", Ast.Dec <$ symbol "--"]
 
 -- | Short var declaration statement parser.
 stmtShortVarDeclP :: Parser Ast.SimpleStmt
