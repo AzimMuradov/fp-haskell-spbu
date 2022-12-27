@@ -10,13 +10,14 @@ import qualified Analyzer.AnalyzedType as AType
 import Analyzer.AnalyzerRuntime (addNewVar, addOrUpdateVar, getCurrScopeType, getTypeDefault, getVarType, popScope, pushScope)
 import Analyzer.ConstExpressionConverters (simplifyConstExpr, simplifyConstIntExpr)
 import qualified Analyzer.ConstExpressionConverters as CEC
+import Control.Lens ((%~))
 import Control.Monad (mapAndUnzipM, void, when, (>=>))
 import Control.Monad.Except (MonadError (throwError), liftEither, runExceptT)
-import Control.Monad.State (MonadState (..), modify, runState)
+import Control.Monad.State (gets, modify, runState)
 import Data.Either.Extra (mapLeft)
 import Data.Functor (($>))
-import Data.List.Extra (anySame, find)
-import Data.Maybe (isNothing)
+import Data.List.Extra (find, nubOrd, (\\))
+import Data.Maybe (isNothing, listToMaybe)
 import Data.Text (Text)
 import qualified Parser.Ast as Ast
 import qualified StdLib
@@ -33,14 +34,17 @@ analyze ast = runState (runExceptT (analyzeProgram ast)) emptyEnv
 
 -- TODO : Docs
 analyzeProgram :: Ast.Program -> Result AAst.Program
-analyzeProgram (Ast.Program vars functions) = do
-  checkForUniqueness $ (Ast.funcName <$> functions) ++ (Ast.varName <$> vars)
+analyzeProgram (Ast.Program gVars functions) = do
+  checkForUniqueness $ (Ast.funcName <$> functions) ++ (Ast.varName <$> gVars)
   checkForMain functions
-  funcs <- analyzeFuncs vars functions
+  funcs <- analyzeFuncs gVars functions
   return $ AAst.Program [] funcs
   where
     checkForUniqueness :: [Text] -> Result ()
-    checkForUniqueness ns = when (anySame ns) $ throwError IdentifierRedeclaration
+    checkForUniqueness ns = maybe (return ()) (throwError . IdentifierRedeclaration) (findDuplicate ns)
+
+    findDuplicate :: Ord a => [a] -> Maybe a
+    findDuplicate list = listToMaybe $ list \\ nubOrd list
 
     checkForMain :: [Ast.FunctionDef] -> Result ()
     checkForMain funcs = when (isNothing $ find predicate funcs) (void $ throwError NoMain)
@@ -49,17 +53,14 @@ analyzeProgram (Ast.Program vars functions) = do
 
 -- TODO : Docs
 analyzeFuncs :: [Ast.VarDecl] -> [Ast.FunctionDef] -> Result [AAst.FunctionDef]
-analyzeFuncs varDeclarations functionDefinitions = do
-  initEnv >>= put
-  mapM checkFunc' functionDefinitions
+analyzeFuncs varDeclarations functionDefinitions = initializeEnv >> mapM checkFunc' functionDefinitions
   where
     checkFunc' (Ast.FunctionDef name func) = AAst.FunctionDef name <$> (snd <$> analyzeFunc func)
 
-    initEnv = do
+    initializeEnv = do
       mapM_ analyzeStmtVarDecl varDeclarations
       funcs <- mapM convertToPair functionDefinitions
-      Env scs <- get
-      return $ Env {scopes = scope OrdinaryScope funcs : scs}
+      modify $ scopes %~ (scope OrdinaryScope funcs :)
 
     convertToPair (Ast.FunctionDef name (Ast.Function (Ast.FunctionSignature params ret) _)) = do
       params' <- mapM analyzeType (snd <$> params)
@@ -104,10 +105,10 @@ analyzeStmtReturn expression funcReturn = case expression of
 -- TODO : Docs
 analyzeStmtForGoTo :: Ast.ForGoTo -> Result AAst.Statement
 analyzeStmtForGoTo goto = do
-  env <- get
-  if getCurrScopeType env == Right ForScope
-    then return $ AAst.StmtForGoTo goto
-    else throwError BreakOrContinueOutsideOfForScope
+  scopeT <- gets getCurrScopeType
+  case scopeT of
+    ForScope -> return $ AAst.StmtForGoTo goto
+    OrdinaryScope -> throwError BreakOrContinueOutsideOfForScope
 
 -- TODO : Docs
 analyzeStmtFor :: Ast.For -> Maybe AType.Type -> Result AAst.Statement

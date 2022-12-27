@@ -1,8 +1,11 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | This module contains types and functions needed for representing analysis result.
 module Analyzer.AnalysisResult where
 
-import qualified Analyzer.AnalyzedAst as AnalyzedAst
-import qualified Analyzer.AnalyzedType as AnalyzedType
+import Analyzer.AnalyzedAst (Identifier)
+import Analyzer.AnalyzedType (Type)
+import Control.Lens (At (at), ix, makeLenses)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.State (State)
 import Data.Map (Map)
@@ -20,7 +23,7 @@ type Result a = ExceptT Err (State Env) a
 -- *** Environment
 
 -- | Analyzer environment.
-newtype Env = Env {scopes :: [Scope]}
+newtype Env = Env {_scopes :: [Scope]}
   deriving (Show)
 
 -- | Create empty environment.
@@ -31,8 +34,8 @@ emptyEnv = Env []
 
 -- | Scope contains identifiers mapped to their types.
 data Scope = Scope
-  { scopeType :: ScopeType,
-    names :: Map AnalyzedAst.Identifier AnalyzedType.Type
+  { _scopeType :: ScopeType,
+    _vars :: Map Identifier Type
   }
   deriving (Show)
 
@@ -41,7 +44,7 @@ data ScopeType = ForScope | OrdinaryScope
   deriving (Show, Eq)
 
 -- | Create @Scope@ from its type and elements.
-scope :: ScopeType -> [(AnalyzedAst.Identifier, AnalyzedType.Type)] -> Scope
+scope :: ScopeType -> [(Identifier, Type)] -> Scope
 scope t elements = Scope t (Map.fromList elements)
 
 -- | Create empty @Scope@ from its type.
@@ -60,9 +63,9 @@ data Err
   = -- | No entry point for the interpreter error.
     NoMain
   | -- | Identifier not found error.
-    IdentifierNotFound
+    IdentifierNotFound Identifier
   | -- | Identifier redeclaration error.
-    IdentifierRedeclaration
+    IdentifierRedeclaration Identifier
   | -- | Mismatched types error.
     MismatchedTypes
   | -- | Constant integer expression types not in `int` bounds error.
@@ -71,6 +74,13 @@ data Err
     DivisionByZero
   | -- | @break@ or @continue@ statement used outside of @ForScope@.
     BreakOrContinueOutsideOfForScope
-  | -- | Unexpected error, this type of errors must never happen.
-    UnexpectedError
   deriving (Show, Eq)
+
+-- ** Optics
+
+makeLenses ''Env
+makeLenses ''Scope
+makeLenses ''ScopeType
+
+var :: Applicative f => Int -> Identifier -> (Maybe Type -> f (Maybe Type)) -> Env -> f Env
+var i name = scopes . ix i . vars . at name

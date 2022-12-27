@@ -46,26 +46,24 @@ updateVar name value = get >>= (unwrapJust . varUpdater name) >>= (\updater -> p
 -- TODO : Docs
 searchVar :: Ast.Identifier -> Env -> Maybe (RuntimeValue, ScopeLocation)
 searchVar name (Env fs fScs _) = case fScs of
-  FuncScope (sc : scs) : _ -> searchVar' name Curr sc (scs ++ [fsScope])
-  _ -> searchVar' name Outer fsScope []
+  FuncScope scs : _ -> searchVar' name Curr (scs ++ [fsScope])
+  _ -> searchVar' name Outer [fsScope]
   where
-    searchVar' :: Ast.Identifier -> ScopeLocation -> Scope -> [Scope] -> Maybe (RuntimeValue, ScopeLocation)
-    searchVar' n loc (Scope ns) scs =
-      ((,loc) <$> (ns !? n)) <|> (uncons scs >>= uncurry (searchVar' n Outer))
+    searchVar' n loc (Scope ns : scs) = ((,loc) <$> (ns !? n)) <|> searchVar' n Outer scs
+    searchVar' _ _ _ = Nothing
 
     fsScope = Scope $ Map.map (ValFunction . Ast.AnonymousFunction) fs
 
 -- TODO : Docs
 varUpdater :: Ast.Identifier -> Env -> Maybe (RuntimeValue -> Env)
 varUpdater name env@(Env _ fScs _) = case fScs of
-  FuncScope (sc : scs) : _ -> update <$> findScopeIndex name 0 sc scs
+  FuncScope scs : _ -> update <$> findScopeIndex name 0 scs
   _ -> Nothing
   where
     update i v = env & var 0 i name ?~ v
 
-    findScopeIndex :: Ast.Identifier -> Int -> Scope -> [Scope] -> Maybe Int
-    findScopeIndex n i (Scope ns) scs =
-      (i <$ (ns !? n)) <|> (uncons scs >>= uncurry (findScopeIndex n (i + 1)))
+    findScopeIndex n i (Scope ns : scs) = (i <$ (ns !? n)) <|> findScopeIndex n (i + 1) scs
+    findScopeIndex _ _ _ = Nothing
 
 -- TODO : Docs
 data ScopeLocation = Curr | Outer

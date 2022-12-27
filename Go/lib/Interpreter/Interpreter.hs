@@ -190,7 +190,7 @@ interpretExprArrayAccessByIndex :: Ast.Expression -> Ast.Expression -> Result (M
 interpretExprArrayAccessByIndex arr i = do
   arr' <- interpretArrExpr arr
   i' <- interpretIntExpr i
-  maybe (throwError IndexOutOfRange) (return . Just) (arr' !? i')
+  maybe (throwError $ IndexOutOfRange i' (length arr')) (return . Just) (arr' !? i')
 
 -- TODO : Docs
 interpretExprFuncCall :: Ast.Expression -> [Ast.Expression] -> Result (Maybe RuntimeValue)

@@ -60,8 +60,8 @@ type ResultValue = Either Err
 data Err
   = -- | Division by zero error.
     DivisionByZero
-  | -- | Index out of bounds error.
-    IndexOutOfRange
+  | -- | Index out of bounds error, contains info about index and array length.
+    IndexOutOfRange Int Int
   | -- | No return error.
     NoReturn
   | -- | Null dereference error (happens when trying to call the `nil` as a regular function).
@@ -73,7 +73,7 @@ data Err
 
 instance Show Err where
   show DivisionByZero = "panic: runtime error: integer divide by zero"
-  show IndexOutOfRange = "panic: runtime error: index out of range"
+  show (IndexOutOfRange i len) = "panic: runtime error: index out of range [" ++ show i ++ "] with length " ++ show len
   show NoReturn = "panic: runtime error: no return"
   show Npe = "panic: runtime error: nil pointer dereference"
   show (Panic msg) = "panic: " ++ unpack msg
