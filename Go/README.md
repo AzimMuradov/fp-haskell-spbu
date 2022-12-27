@@ -11,21 +11,21 @@ This is a homework for functional programming course.
 
 Project parts:
 
-|     To do      |            In progress            |     Done     |
-| :------------: | :-------------------------------: | :----------: |
-| pretty printer | grammar definition in Pest syntax |     CLI      |
-|                |            interpreter            |    lexer     |
-|                |               docs                |     AST      |
-|                |                                   |    parser    |
-|                |                                   |   analyzer   |
-|                |                                   | analyzed AST |
+|     To do      | In progress |     Done     |
+| :------------: | :---------: | :----------: |
+| pretty printer | interpreter |     CLI      |
+|   unit tests   |    docs     |     AST      |
+|                |             |    lexer     |
+|                |             |    parser    |
+|                |             | analyzed AST |
+|                |             |   analyzer   |
 
 
 #### Done:
 
 - `int`, `bool`, `string` support
 - `void` support
-- function literals
+- function literals (anonymous functions)
 - operators (arithmetic, logic, comparison)
 - `if`, `else`
 - recursion, mutual recursion
