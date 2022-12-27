@@ -253,21 +253,21 @@ data Else = NoElse | Else Block | Elif IfElse
 -- > for i := 0; i < n; i++ { println(i); }
 data SimpleStmt
   = -- | Assignment statement (e.g., @x = 17@, @a[3] = \"42\"@).
-    StmtAssignment UpdatableElement Expression
+    StmtAssignment Lvalue Expression
   | -- | Increment or decrement statement (e.g., @x++@, @a[3]++@, @x--@, @a[3]--@).
-    StmtIncDec UpdatableElement IncDec
+    StmtIncDec Lvalue IncDec
   | -- | Short var declaration statement (e.g., @x := 3@, @y := true@).
     StmtShortVarDecl Identifier Expression
   | -- | Expression statement.
     StmtExpression Expression
   deriving (Show)
 
--- | Any element that can be updated.
-data UpdatableElement
-  = -- | Any variable can be updated (e.g., @x = 3@, @x++@).
-    UpdVar Identifier
-  | -- | Any array element can be updated (e.g., @a[5][7] = 3@, @a[0]++@).
-    UpdArrEl Identifier [Expression]
+-- | Lvalue, i.e. an expression that can be placed on the left-hand side of the assignment, increment, or decrement statements.
+data Lvalue
+  = -- | Any variable can be lvalue (e.g., @x = 3@, @x++@).
+    LvalVar Identifier
+  | -- | Any array element can be lvalue (e.g., @a[5][7] = 3@, @a[0]++@).
+    LvalArrEl Identifier [Expression]
   deriving (Show)
 
 -- | Increment or decrement.

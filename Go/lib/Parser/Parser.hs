@@ -211,11 +211,11 @@ simpleStmtP = choice' [stmtAssignmentP, stmtIncDecP, stmtShortVarDeclP, stmtExpr
 
 -- | Assignment statement parser.
 stmtAssignmentP :: Parser Ast.SimpleStmt
-stmtAssignmentP = Ast.StmtAssignment <$> updElP <* symbol "=" <*> expressionP
+stmtAssignmentP = Ast.StmtAssignment <$> lvalueP <* symbol "=" <*> expressionP
 
 -- | Increment or decrement statement parser.
 stmtIncDecP :: Parser Ast.SimpleStmt
-stmtIncDecP = Ast.StmtIncDec <$> updElP <*> choice' [Ast.Inc <$ symbol "++", Ast.Dec <$ symbol "--"]
+stmtIncDecP = Ast.StmtIncDec <$> lvalueP <*> choice' [Ast.Inc <$ symbol "++", Ast.Dec <$ symbol "--"]
 
 -- | Short var declaration statement parser.
 stmtShortVarDeclP :: Parser Ast.SimpleStmt
@@ -225,12 +225,12 @@ stmtShortVarDeclP = Ast.StmtShortVarDecl <$> identifierP <* symbol ":=" <*> expr
 stmtExpressionP :: Parser Ast.SimpleStmt
 stmtExpressionP = Ast.StmtExpression <$> expressionP
 
--- | Updatable element parser.
-updElP :: Parser Ast.UpdatableElement
-updElP =
+-- | Lvalue parser.
+lvalueP :: Parser Ast.Lvalue
+lvalueP =
   choice'
-    [ Ast.UpdArrEl <$> identifierP <*> some (brackets expressionP),
-      Ast.UpdVar <$> identifierP
+    [ Ast.LvalArrEl <$> identifierP <*> some (brackets expressionP),
+      Ast.LvalVar <$> identifierP
     ]
 
 ---------------------------------------------------------Values---------------------------------------------------------

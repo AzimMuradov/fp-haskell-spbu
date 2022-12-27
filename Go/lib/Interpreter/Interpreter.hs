@@ -113,16 +113,16 @@ interpretStmtBlock = interpretBlock emptyScope pushBlockScope popBlockScope
 -- TODO : Docs
 interpretStmtSimple :: Ast.SimpleStmt -> Result StmtResult
 interpretStmtSimple simpleStmt = case simpleStmt of
-  Ast.StmtAssignment updEl expr -> do
+  Ast.StmtAssignment lval expr -> do
     e <- interpretExpr' expr
-    (n, _, f) <- getUpdElF updEl
+    (n, _, f) <- getLvalueUpdater lval
     updateVar n (f e)
     return Unit
-  Ast.StmtIncDec updEl incDec -> do
+  Ast.StmtIncDec lval incDec -> do
     let upd = case incDec of
           Ast.Inc -> (+ 1)
           Ast.Dec -> \x -> x - 1
-    (n, v, f) <- getUpdElF updEl
+    (n, v, f) <- getLvalueUpdater lval
     v' <- castToInt v
     updateVar n (f (ValInt (upd v')))
     return Unit
@@ -130,11 +130,11 @@ interpretStmtSimple simpleStmt = case simpleStmt of
   Ast.StmtExpression expr -> interpretExpr expr $> Unit
 
 -- TODO : Docs
-getUpdElF :: Ast.UpdatableElement -> Result (Ast.Identifier, RuntimeValue, RuntimeValue -> RuntimeValue)
-getUpdElF = getUpdElF'
+getLvalueUpdater :: Ast.Lvalue -> Result (Ast.Identifier, RuntimeValue, RuntimeValue -> RuntimeValue)
+getLvalueUpdater = getLvalueUpdater'
   where
-    getUpdElF' (Ast.UpdVar name) = (name,,id) <$> getVarValue name
-    getUpdElF' (Ast.UpdArrEl _ _) = undefined -- TODO
+    getLvalueUpdater' (Ast.LvalVar name) = (name,,id) <$> getVarValue name
+    getLvalueUpdater' (Ast.LvalArrEl _ _) = undefined -- TODO
 
 ------------------------------------------------------Expressions-------------------------------------------------------
 

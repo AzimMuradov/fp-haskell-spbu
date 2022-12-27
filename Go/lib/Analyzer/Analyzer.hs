@@ -176,15 +176,15 @@ analyzeBlock' = analyzeBlock (emptyScope OrdinaryScope)
 -- TODO : Docs
 analyzeSimpleStmt :: Ast.SimpleStmt -> Result AAst.SimpleStmt
 analyzeSimpleStmt simpleStmt = case simpleStmt of
-  Ast.StmtAssignment updEl expr -> do
-    (updElT, updEl') <- analyzeUpdEl updEl
+  Ast.StmtAssignment lval expr -> do
+    (lvalT, lval') <- analyzeLvalue lval
     (t, expr') <- analyzeExpr' expr
-    checkEq updElT t
-    return $ AAst.StmtAssignment updEl' expr'
-  Ast.StmtIncDec updEl incDec -> do
-    (updElT, updEl') <- analyzeUpdEl updEl
-    checkEq updElT AType.TInt
-    return $ AAst.StmtIncDec updEl' incDec
+    checkEq lvalT t
+    return $ AAst.StmtAssignment lval' expr'
+  Ast.StmtIncDec lval incDec -> do
+    (lvalT, lval') <- analyzeLvalue lval
+    checkEq lvalT AType.TInt
+    return $ AAst.StmtIncDec lval' incDec
   Ast.StmtShortVarDecl name expr -> do
     (t, expr') <- analyzeExpr' expr
     addOrUpdateVar name t
@@ -192,19 +192,19 @@ analyzeSimpleStmt simpleStmt = case simpleStmt of
   Ast.StmtExpression expr -> AAst.StmtExpression . snd <$> analyzeExpr expr
 
 -- TODO : Docs
-analyzeUpdEl :: Ast.UpdatableElement -> Result (AType.Type, AAst.UpdatableElement)
-analyzeUpdEl updEl = case updEl of
-  Ast.UpdVar name -> (,AAst.UpdVar name) <$> getVarType name
-  Ast.UpdArrEl name indexExprs -> do
+analyzeLvalue :: Ast.Lvalue -> Result (AType.Type, AAst.Lvalue)
+analyzeLvalue lval = case lval of
+  Ast.LvalVar name -> (,AAst.LvalVar name) <$> getVarType name
+  Ast.LvalArrEl name indexExprs -> do
     varT <- getVarType name
-    indexExprs' <- mapM (analyzeExpr' >=> \(t, expr) -> checkEq AType.TInt t $> expr) indexExprs
+    indexExprs' <- mapM analyzeIntExpr indexExprs
     let calculatedType =
           let getArrayElementType t dimCnt = case t of
                 AType.TArray t' _ | dimCnt > 0 -> getArrayElementType t' (dimCnt - 1)
                 _ | dimCnt == 0 -> Just t
                 _ -> Nothing
            in getArrayElementType varT (length indexExprs)
-    maybe (throwError MismatchedTypes) (return . (,AAst.UpdArrEl name indexExprs')) calculatedType
+    maybe (throwError MismatchedTypes) (return . (,AAst.LvalArrEl name indexExprs')) calculatedType
 
 ------------------------------------------------------Expressions-------------------------------------------------------
 
@@ -304,18 +304,18 @@ analyzeExprFuncCall func args = do
   (funcT, func') <- analyzeExpr' func
   case funcT of
     (AType.TFunction (AType.FunctionType paramsTs retT)) -> do
-      args' <- mapM analyzeExpr args
-      args'' <- mapM (\(eT, (aT, expr)) -> checkEq (Just eT) aT $> expr) (paramsTs `zip` args')
-      return (retT, AAst.ExprFuncCall func' args'')
+      (argsTs, args') <- mapAndUnzipM analyzeExpr' args
+      mapM_ (uncurry checkEq) (paramsTs `zip` argsTs)
+      return (retT, AAst.ExprFuncCall func' args')
     _ -> throwError MismatchedTypes
 
 -- TODO : Docs
 analyzeExprArrayAccessByIndex :: Ast.Expression -> Ast.Expression -> Result (Maybe AType.Type, AAst.Expression)
 analyzeExprArrayAccessByIndex arr index = do
   (aT, a) <- analyzeExpr' arr
-  (iT, i) <- analyzeExpr' index
-  case (aT, iT) of
-    (AType.TArray elT _, AType.TInt) -> return (Just elT, AAst.ExprArrayAccessByIndex a i)
+  i <- analyzeIntExpr index
+  case aT of
+    AType.TArray elT _ -> return (Just elT, AAst.ExprArrayAccessByIndex a i)
     _ -> throwError MismatchedTypes
 
 -- TODO : Docs
@@ -379,6 +379,10 @@ analyzeFunctionType (Ast.FunctionType paramsTs retT) =
 -- TODO : Docs
 analyzeExpr' :: Ast.Expression -> Result (AType.Type, AAst.Expression)
 analyzeExpr' = analyzeExpr >=> unwrapExprRes
+
+-- TODO : Docs
+analyzeIntExpr :: Ast.Expression -> Result AAst.Expression
+analyzeIntExpr = analyzeExpr' >=> (\(t, expr) -> checkEq AType.TInt t $> expr)
 
 -- TODO : Docs
 stdLibFuncExpr :: AAst.Identifier -> AAst.Expression

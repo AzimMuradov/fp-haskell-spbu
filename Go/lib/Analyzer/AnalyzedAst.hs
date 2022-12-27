@@ -78,15 +78,15 @@ data Else = NoElse | Else Block | Elif IfElse
   deriving (Show)
 
 data SimpleStmt
-  = StmtAssignment UpdatableElement Expression
-  | StmtIncDec UpdatableElement IncDec
+  = StmtAssignment Lvalue Expression
+  | StmtIncDec Lvalue IncDec
   | StmtShortVarDecl Identifier Expression
   | StmtExpression Expression
   deriving (Show)
 
-data UpdatableElement
-  = UpdVar Identifier
-  | UpdArrEl Identifier [Expression]
+data Lvalue
+  = LvalVar Identifier
+  | LvalArrEl Identifier [Expression]
   deriving (Show)
 
 ---------------------------------------------------------Values---------------------------------------------------------
