@@ -10,6 +10,7 @@ import Control.Monad.Except (ExceptT)
 import Control.Monad.State (State)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Text (unpack)
 
 -- Program checker result
 
@@ -74,7 +75,16 @@ data Err
     DivisionByZero
   | -- | @break@ or @continue@ statement used outside of @ForScope@.
     BreakOrContinueOutsideOfForScope
-  deriving (Show, Eq)
+  deriving (Eq)
+
+instance Show Err where
+  show NoMain = "panic: analyzer error: no main"
+  show (IdentifierNotFound name) = "panic: analyzer error: identifier " ++ unpack name ++ " not found"
+  show (IdentifierRedeclaration name) = "panic: analyzer error: identifier " ++ unpack name ++ " redeclared"
+  show MismatchedTypes = "panic: analyzer error: mismatched types"
+  show NotInIntBounds = "panic: analyzer error: not in int bounds"
+  show DivisionByZero = "panic: analyzer error: integer divide by zero"
+  show BreakOrContinueOutsideOfForScope = "panic: analyzer error: break or continue is not in a loop"
 
 -- ** Optics
 
