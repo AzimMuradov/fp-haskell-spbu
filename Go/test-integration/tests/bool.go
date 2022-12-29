@@ -8,4 +8,14 @@ func main() {
   println(a && b); // should print "false"
   println(a == b); // should print "false"
   println(a != b); // should print "true"
+
+  // Lazy `||` and `&&`
+
+  println(true || getBool()); // should print "true"
+  println(false && getBool()); // should print "true"
+}
+
+func getBool() bool {
+  println("get bool");
+  return true;
 }

@@ -170,10 +170,16 @@ interpretExprUnaryOp unOp expr =
 
 -- TODO : Docs
 interpretExprBinaryOp :: Ast.BinaryOp -> Ast.Expression -> Ast.Expression -> Result (Maybe RuntimeValue)
-interpretExprBinaryOp Ast.OrOp lhs rhs =
-  Just . ValBool <$> ((||) <$> interpretBoolExpr lhs <*> interpretBoolExpr rhs)
+interpretExprBinaryOp Ast.OrOp lhs rhs = do
+  lhs' <- interpretBoolExpr lhs
+  if lhs'
+    then return $ Just $ ValBool True
+    else Just . ValBool <$> interpretBoolExpr rhs
 interpretExprBinaryOp Ast.AndOp lhs rhs = do
-  Just . ValBool <$> ((&&) <$> interpretBoolExpr lhs <*> interpretBoolExpr rhs)
+  lhs' <- interpretBoolExpr lhs
+  if not lhs'
+    then return $ Just $ ValBool False
+    else Just . ValBool <$> interpretBoolExpr rhs
 interpretExprBinaryOp binOp lhs rhs = do
   lhsVal <- interpretExpr' lhs
   rhsVal <- interpretExpr' rhs
