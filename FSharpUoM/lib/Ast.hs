@@ -7,35 +7,19 @@ import Data.Text (Text)
 newtype Program = Program [Statement]
   deriving (Show)
 
-data Type
-  = TBool
-  | TInt
-  -- | TFloat
-  -- | TDecimal
-  -- | Measure
-  | TFun
+-- Statements
+
+data Statement
+  = SExpr Expr
+  | SVarDecl VarDecl --                 ( let x = 5                             )
+  | SFunDecl FunDecl --    ( let f x y = x + y                     )
+  | SRecFunDecl RecFunDecl {- ( let rec fib n =                       )
+                                                (   match n with                        )
+                                                (   | 0 | 1 -> n                        )
+                                                (   | n -> fib (n-1) + fib (n-2)        )
+                                              -}
+  | SBlock [Statement] --                       ( block which contain list of statement )
   deriving (Show)
-
-data Value
-  = VBool Bool
-  | VInt Integer
-  -- | VFloat Float
-  -- | VDecimal Double
---  | VFun 
-  deriving (Show)
-
-{--
-
-
-  newtype Measure = Measure Expr
-  | VMeasure Measure
-  | TMeasure
-
---}
-
--- Identifier
-
-newtype Identifier = Identifier Text deriving (Show)
 
 -- Expression
 
@@ -53,27 +37,35 @@ data Expr
 -- [<Measure>] type unit-name [ = measure ]
 -- [<Measure>] type cm
 -- [<Measure>] type ml = cm^3
---
 
--- Statements
+-- Declarations
 
 data VarDecl = VarDecl (Identifier, Maybe Type) Expr deriving (Show)
-
 data FunDecl = FunDecl Identifier [(Identifier, Maybe Type)] [Statement] deriving (Show)
 data RecFunDecl = RecFunDecl Identifier [(Identifier, Maybe Type)] [Statement] deriving (Show)
-
 data MeasureDecl = MeasureDecl Identifier (Maybe Expr)
 
-data Statement
-  = SExpr Expr
-  | SVarDecl VarDecl --                 ( let x = 5                             )
-  | SFunDecl FunDecl --    ( let f x y = x + y                     )
-  | SRecFunDecl RecFunDecl {- ( let rec fib n =                       )
-                                                (   match n with                        )
-                                                (   | 0 | 1 -> n                        )
-                                                (   | n -> fib (n-1) + fib (n-2)        )
-                                              -}
-  | SBlock [Statement] --                       ( block which contain list of statement )
+-- Measure
+
+-- Types
+
+data Type
+  = TBool
+  | TInt
+  -- | TFloat
+  -- | TDecimal
+  -- | Measure
+  | TFun
+  deriving (Show)
+
+-- Values
+
+data Value
+  = VBool Bool
+  | VInt Integer
+  -- | VFloat Float
+  -- | VDecimal Double
+--  | VFun 
   deriving (Show)
 
 -- Operators
@@ -112,3 +104,7 @@ data ComparisonOp
   | MtOp Expr Expr --            (  >  )
   | MeOp Expr Expr --            (  >= )
   deriving (Show)
+
+-- Identifier
+
+newtype Identifier = Identifier Text deriving (Show)

@@ -18,20 +18,21 @@ import Control.Applicative (empty)
 
 type Parser = Parsec Void Text
 
+-- Comments
 lineComment :: Parser ()
 lineComment = L.skipLineComment "//"
 
--- (L.skipBlockComment "(*" "*)")
+blockComment :: Parser ()
+blockComment = L.skipBlockComment "(*" "*)"
 
+-- SpaceConsumers
 scn :: Parser ()
 scn = L.space space1 lineComment empty
-
--- sc :: Parser ()
--- sc = L.space (void $ some (char ' ' <|> char '\t')) (L.skipLineComment "//") (L.skipBlockComment "(*" "*)")
 
 sc :: Parser ()
 sc = L.space (void $ some (char ' ' <|> char '\t')) lineComment empty
 
+-- TextParsingHelpers
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
