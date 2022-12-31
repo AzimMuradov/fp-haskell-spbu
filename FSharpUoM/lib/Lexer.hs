@@ -9,22 +9,28 @@ import Data.Text (Text, pack, singleton)
 
 import Numeric (readDec)
 
-import Text.Megaparsec (MonadParsec (..), Parsec, anySingle, choice, many, some, oneOf, optional, sepBy1, (<|>))
+import Text.Megaparsec (MonadParsec (..), Parsec, anySingle, choice, many, some, noneOf, oneOf, optional, sepBy1, (<|>))
 import Text.Megaparsec.Char (binDigitChar, char, char', digitChar, hexDigitChar, letterChar, newline, octDigitChar, space1)
 
 import qualified Text.Megaparsec.Char.Lexer as L
 import Control.Monad (void)
+import Control.Applicative (empty)
 
 type Parser = Parsec Void Text
 
 lineComment :: Parser ()
 lineComment = L.skipLineComment "//"
 
+-- (L.skipBlockComment "(*" "*)")
+
 scn :: Parser ()
-scn = L.space space1 (L.skipLineComment "//") (L.skipBlockComment "(*" "*)")
+scn = L.space space1 lineComment empty
+
+-- sc :: Parser ()
+-- sc = L.space (void $ some (char ' ' <|> char '\t')) (L.skipLineComment "//") (L.skipBlockComment "(*" "*)")
 
 sc :: Parser ()
-sc = L.space (void $ some (char ' ' <|> char '\t')) (L.skipLineComment "//") (L.skipBlockComment "(*" "*)")
+sc = L.space (void $ some (char ' ' <|> char '\t')) lineComment empty
 
 
 lexeme :: Parser a -> Parser a

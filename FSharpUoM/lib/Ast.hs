@@ -4,35 +4,28 @@ module Ast where
 
 import Data.Text (Text)
 
-newtype Program = Program [TopLevelDecl]
-  deriving (Show)
-
-data TopLevelDecl = TopLevelVarDecl VarDecl
-  | TopLevelFunDecl FunDecl
-  | TopLevelRecFunDecl RecFunDecl
+newtype Program = Program [Statement]
   deriving (Show)
 
 data Type
   = TBool
   | TInt
+  -- | TFloat
+  -- | TDecimal
+  -- | Measure
   | TFun
   deriving (Show)
 
 data Value
   = VBool Bool
   | VInt Integer
+  -- | VFloat Float
+  -- | VDecimal Double
 --  | VFun 
   deriving (Show)
 
 {--
 
-  | TString
-  | TTuple
-  | TArray
-
-  | VString String
-  | VTuple Type Type
-  | VArray Expr
 
   newtype Measure = Measure Expr
   | VMeasure Measure
@@ -51,10 +44,10 @@ data Expr
   | EIdentifier Identifier--                   ( "x", "5"                             )
   | EValue Value --                             ( 5                                    )
   | EOperations Operations --                   ( +, -                                 )
-  | EFun [(Identifier, Maybe Type)] Statement --              ( fun x y -> x + y                     )
-  | EApplication Identifier [Expr] --           ( f x y                                )
+  | EFun [(Identifier, Maybe Type)] [Statement] --              ( fun x y -> x + y                     )
+  | EApplication Expr [Expr] --           ( f x y                                )
   | EIf Expr Statement Statement --             ( if cond then expr' else expr''       )
-  | ELetIn Identifier Expr Statement --          ( f x y = let p = x + y in p           )
+  | ELetIn Identifier Expr [Expr] --          ( f x y = let p = x + y in p           )
   deriving (Show)
 
 -- [<Measure>] type unit-name [ = measure ]
@@ -62,17 +55,14 @@ data Expr
 -- [<Measure>] type ml = cm^3
 --
 
--- | EMatchWith Expr Expr Statement {-           ( match x with                         )
---                                               (   | pattern'  -> expr'               )
---                                               (   | pattern'' | pattern''' -> expr'' )
---                                   -}
-
 -- Statements
 
 data VarDecl = VarDecl (Identifier, Maybe Type) Expr deriving (Show)
 
-data FunDecl = FunDecl Identifier [(Identifier, Maybe Type)] Expr deriving (Show)
-data RecFunDecl = RecFunDecl Identifier [(Identifier, Maybe Type)] Expr deriving (Show)
+data FunDecl = FunDecl Identifier [(Identifier, Maybe Type)] [Statement] deriving (Show)
+data RecFunDecl = RecFunDecl Identifier [(Identifier, Maybe Type)] [Statement] deriving (Show)
+
+data MeasureDecl = MeasureDecl Identifier (Maybe Expr)
 
 data Statement
   = SExpr Expr
@@ -91,7 +81,6 @@ data Statement
 data Operations
   = BooleanOp BooleanOp
   | UnaryOp UnaryOp --                ( not )
-  | BitwiseOp BitwiseOp
   | ArithmeticOp ArithmeticOp
   | ComparisonOp ComparisonOp
   deriving (Show)
@@ -104,14 +93,6 @@ data UnaryOp
 data BooleanOp
   = AndOp Expr Expr --           (  && )
   | OrOp Expr Expr --            (  || )
-  deriving (Show)
-
-data BitwiseOp
-  = BitOrOp Expr Expr --         ( ||| )
-  | BitXorOp Expr Expr --        ( ^^^ )
-  | BitAndOp Expr Expr --        ( &&& )
-  | BitShiftLeftOp Expr Expr --  ( <<< )
-  | BitShiftRightOp Expr Expr -- ( >>> )
   deriving (Show)
 
 data ArithmeticOp
