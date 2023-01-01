@@ -4,32 +4,25 @@
 module Parser where
 
 import Ast
-import Control.Applicative (empty)
-import Control.Monad (void)
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
-import Data.Text (Text, concat, pack)
-import Data.Void (Void)
-import Lexer (choice', kIn, keywordP, lexeme, parens, mlparens, sc, scn, symbol)
-import Numeric (readDec)
-import Text.Megaparsec (MonadParsec (..), Parsec, choice, eitherP, many, noneOf, oneOf, optional, parseMaybe, sepBy, sepBy1, some, (<|>))
-import Text.Megaparsec.Char (alphaNumChar, char, digitChar, letterChar, newline, space1, string)
+import Data.Maybe (fromMaybe)
+import Data.Text (Text, pack)
+import Lexer
+import Text.Megaparsec (MonadParsec (..), choice, many, optional, parseMaybe, sepBy1, some, (<|>))
+import Text.Megaparsec.Char (char, digitChar, letterChar)
 import qualified Text.Megaparsec.Char.Lexer as L
 
--- import Data.Scientific (toRealFloat)
+-- * MainSection
 
-type Parser = Parsec Void Text
-
--- <------------>
--- | MainSection|
--- <------------>
-
--- Parser entry point
+-- | Parser entry point
 parse :: Text -> Maybe Program
-parse = parseMaybe $ scn *> programP <* eof
+parse = parseMaybe $ sc *> programP <* eof
 
+-- | Main Parser
 programP :: Parser Program
-programP = Program <$> many (L.nonIndented scn statementP <* scn)
+programP = Program <$> many statementP
 
+-- | Global Statements Parser
 statementP :: Parser Statement
 statementP =
   choice'
@@ -40,70 +33,29 @@ statementP =
       SFunDecl <$> funP
     ]
 
--- <------------>
--- | MainSection|
--- <------------>
+-- ** DeclarationSection
 
--- <------------------->
--- | DeclarationSection| -- TODO ошибка если сначала VarDecl, а после LetIn
--- <------------------->
 varP :: Parser VarDecl
-varP = VarDecl <$ symbol "let" <*> typedIdentifierP <* symbol "=" <*> exprP <* try (notFollowedBy kIn)
+varP = VarDecl <$ kLet <*> typedIdentifierP <* eq <*> exprP <* try (notFollowedBy kIn)
 
 funP :: Parser FunDecl
-funP =
-  choice'
-    [ FunDecl <$ symbol "let" <*> identifierP <*> some typedIdentifierP <* symbol "=" <*> ((: []) <$> (SExpr <$> exprP)),
-      let headerP = (,) <$ symbol "let" <*> identifierP <*> some typedIdentifierP <* symbol "="
-       in blockSomeP headerP statementP (\((a, b), c) -> FunDecl a b c)
-    ]
+funP = FunDecl <$ kLet <*> identifierP <*> some typedIdentifierP <* eq <*> blockP
 
 recFunP :: Parser RecFunDecl
-recFunP =
-  choice'
-    [ RecFunDecl <$ symbol "let" <* symbol "rec" <*> identifierP <*> some typedIdentifierP <* symbol "=" <*> ((: []) <$> (SExpr <$> exprP)),
-      let headerP = (,) <$ symbol "let" <* symbol "rec" <*> identifierP <*> some typedIdentifierP <* symbol "="
-       in blockSomeP headerP statementP (\((a, b), c) -> RecFunDecl a b c)
-    ]
+recFunP = RecFunDecl <$ kLet <* kRec <*> identifierP <*> some typedIdentifierP <* eq <*> blockP
 
 measureP :: Parser MeasureDecl
-measureP = MeasureDecl <$ (symbol "[<Measure>]" <* scn <* symbol "type") <*> (TMeasure <$> mExprP) <*> (optional . try) (symbol "=" *> mExprP)
+measureP = MeasureDecl <$ kMeasure <* kType <*> identifierP <*> (optional . try) (eq *> mExprP)
 
--- <------------------->
--- | DeclarationSection|
--- <------------------->
+-- * ExpressionSection
 
--- <------------------->
--- | IndentationSection|
--- <------------------->
-blockSomeP :: Parser a -> Parser b -> ((a, [b]) -> c) -> Parser c
-blockSomeP headerP itemP mk = L.indentBlock scn p
-  where
-    p = do
-      header <- headerP
-      return (L.IndentSome Nothing (return . mk . (header,)) itemP)
+-- BlockExprParser
 
-blockManyP :: Parser a -> Parser b -> ((a, [b]) -> c) -> Parser c
-blockManyP headerP itemP mk = L.indentBlock scn p
-  where
-    p = do
-      header <- headerP
-      return (L.IndentMany Nothing (return . mk . (header,)) itemP)
-
-ifElseBlockSomeP :: Parser b -> Parser [b]
-ifElseBlockSomeP itemP = L.indentBlock scn p
-  where
-    p = return (L.IndentSome Nothing return itemP)
-
--- <------------------->
--- | IndentationSection|
--- <------------------->
-
--- <------------------>
--- | ExpressionSection|
--- <------------------>
+blockP :: Parser [Statement]
+blockP = choice' [(: []) <$> (SExpr <$> exprP), block (sepBy1 statementP semicolon)]
 
 -- MainExprParser
+
 exprP :: Parser Expr
 exprP = makeExprParser exprTerm opsTable
 
@@ -111,42 +63,11 @@ exprTerm :: Parser Expr
 exprTerm =
   choice'
     [ parens exprP,
-      ENull <$ symbol "null",
-      letInP,
+      ELetIn <$ kLet <*> identifierP <* eq <*> exprP <* kIn <*> blockP,
       EValue <$> valueP,
-      lambdaP,
-      ifElseP,
-      -- EApplication <$> identifierP <*> some exprP,
+      EIf <$ kIf <*> exprP <* kThen <*> blockP <* kElse <*> blockP,
       EIdentifier <$> identifierP
     ]
-
--- SingleExprParsers
-
-lambdaP :: Parser Expr
-lambdaP =
-  let headerP = symbol "fun" *> many typedIdentifierP <* symbol "->"
-   in choice'
-        [ EFun <$> headerP <*> ((: []) <$> (SExpr <$> exprP)),
-          blockSomeP headerP statementP (uncurry EFun)
-        ]
-
-letInP :: Parser Expr
-letInP =
-  choice'
-    [ ELetIn <$ symbol "let" <*> identifierP <* symbol "=" <*> exprP <* symbol "in" <*> ((: []) <$> exprP),
-      let headerP = (,) <$ symbol "let" <*> identifierP <* symbol "=" <*> exprP <* symbol "in"
-       in blockSomeP headerP exprP (\((a, b), c) -> ELetIn a b c)
-    ]
-
-ifElseP :: Parser Expr
-ifElseP =
-  let headerP = symbol "if" *> exprP <* symbol "then"
-   in choice'
-        [ EIf <$> headerP <*> ((: []) <$> (SExpr <$> exprP)) <* symbol "else" <*> ((: []) <$> (SExpr <$> exprP)),
-          EIf <$> headerP <*> ((: []) <$> (SExpr <$> exprP)) <* symbol "else" <*> ifElseBlockSomeP statementP,
-          EIf <$> headerP <*> ifElseBlockSomeP statementP <* symbol "else" <*> ((: []) <$> (SExpr <$> exprP)),
-          EIf <$> headerP <*> ifElseBlockSomeP statementP <* symbol "else" <*> ifElseBlockSomeP statementP
-        ]
 
 -- OperationsExprTable
 
@@ -189,42 +110,35 @@ prefix name fun = Prefix $ EOperations . UnaryOp . fun <$ symbol name
 applicationOp :: Operator Parser Expr
 applicationOp = InfixL $ return $ \a b -> EApplication a [b]
 
-
 -- MeasureExprParser
 
-mExprP :: Parser Expr
+mExprP :: Parser MeasureTypeExpr
 mExprP = makeExprParser mExprTerm mOpsTable
 
-mOpsTable :: [[Operator Parser Expr]]
+mExprTerm :: Parser MeasureTypeExpr
+mExprTerm = choice' [parens mExprP, MIdentifier <$> identifierP]
+
+mOpsTable :: [[Operator Parser MeasureTypeExpr]]
 mOpsTable =
-  [
-    [arithmeticOp "^" ExpMeasureOp],
-    [arithmeticOp "" MulOp, arithmeticOp "*" MulOp, arithmeticOp "/" DivOp]
-    ]
+  [ [measureTypeExpOp],
+    [measureTypeOp "*" MTypesMul, measureTypeOp "/" MTypesDiv, measureTypeOp "" MTypesMul]
+  ]
 
-mExprTerm :: Parser Expr
-mExprTerm =
-  choice'
-    [ parens mExprP,
-      EValue <$> valueP, -- TODO запретить возможность объявлять все кроме int без UoM
-      EIdentifier <$> identifierP
-    ]
-  
--- <------------------>
--- | ExpressionSection|
--- <------------------>
+measureTypeExpOp :: Operator Parser MeasureTypeExpr
+measureTypeExpOp = Postfix $ flip MTypesExp <$ symbol "^" <*> signedIntP
 
--- <-------------------->
--- | OtherParsersSection|
--- <-------------------->
+measureTypeOp :: Text -> (MeasureTypeExpr -> MeasureTypeExpr -> MeasureTypeExpr) -> Operator Parser MeasureTypeExpr
+measureTypeOp name fun = InfixL $ fun <$ symbol name
 
--- IdentifiersParsers
+-- * OtherParsersSection
+
+-- IdentifierParsers
 
 identifierP :: Parser Identifier
 identifierP =
   lexeme $
     Identifier
-      <$> ( notFollowedBy keywordP *> do
+      <$> ( notFollowedBy reservedP *> do
               first <- letterP
               other <- many $ letterP <|> digitChar
               return $ pack $ first : other
@@ -235,13 +149,13 @@ identifierP =
 typedIdentifierP :: Parser (Identifier, Maybe Type)
 typedIdentifierP = do
   choice'
-    [ parens ((,) <$> identifierP <*> (optional . try) (symbol ":" *> typeP)),
+    [ parens ((,) <$> identifierP <*> (optional . try) (colon *> typeP)),
       (,) <$> identifierP <*> pure Nothing
     ]
 
 -- MeasureTypeParser
 
-helpMeasureP :: Parser (Maybe Expr)
+helpMeasureP :: Parser (Maybe MeasureTypeExpr)
 helpMeasureP = (optional . try) (mlparens mExprP)
 
 -- TypeParser
@@ -250,11 +164,20 @@ typeP :: Parser Type
 typeP =
   choice'
     [ parens typeP,
-      TBool <$ symbol "bool",
-      TInt <$ symbol "int" <*> helpMeasureP,
-      TDouble <$ (symbol "float" <|> symbol "double") <*> helpMeasureP,
-      TFun <$ sepBy1 typeP (symbol "->")
+      tBoolP <* notFollowedBy arrow,
+      tIntP <* notFollowedBy arrow,
+      tDoubleP <* notFollowedBy arrow,
+      TFun <$> sepBy1 (tBoolP <|> tIntP <|> tDoubleP <|> typeP) arrow
     ]
+
+tBoolP :: Parser Type
+tBoolP = TBool <$ wBool
+
+tIntP :: Parser Type
+tIntP = TInt <$ wInt <*> helpMeasureP
+
+tDoubleP :: Parser Type
+tDoubleP = TDouble <$ wDouble <*> helpMeasureP
 
 -- ValueParsers
 
@@ -263,29 +186,21 @@ valueP =
   choice'
     [ VDouble <$> signedDoubleP <*> helpMeasureP,
       VInt <$> signedIntP <*> helpMeasureP,
-      VBool <$> boolLitP -- add fun mb
+      VBool <$> boolLitP,
+      VFun <$ kFun <*> many typedIdentifierP <* arrow <*> blockP
     ]
 
-boolLitP :: Parser Bool
-boolLitP = True <$ symbol "true" <|> False <$ symbol "false"
-
-decimalIntP :: Parser Integer
-decimalIntP = lexeme L.decimal
+signedDoubleP :: Parser Double
+signedDoubleP = lexeme $ do
+  sign <- optional (choice' [1 <$ char '+', -1 <$ char '-'])
+  num <- L.float
+  return $ fromMaybe 1 sign * num
 
 signedIntP :: Parser Integer
-signedIntP = L.signed sc decimalIntP
+signedIntP = lexeme $ do
+  sign <- optional (choice' [1 <$ char '+', -1 <$ char '-'])
+  num <- L.decimal
+  return $ fromMaybe 1 sign * num
 
-doubleP :: Parser Double
-doubleP = lexeme L.float
-
-signedDoubleP :: Parser Double
-signedDoubleP = L.signed sc doubleP
-
--- IntegerReader
-
-readInteger :: ReadS Integer -> String -> Integer
-readInteger reader s = fst $ head $ reader s
-
--- <-------------------->
--- | OtherParsersSection|
--- <-------------------->
+boolLitP :: Parser Bool
+boolLitP = True <$ wTrue <|> False <$ wFalse

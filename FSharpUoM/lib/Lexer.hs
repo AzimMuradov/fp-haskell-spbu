@@ -2,19 +2,12 @@
 
 module Lexer where
 
-import Control.Applicative.Combinators (between, sepEndBy)
-
+import Control.Applicative.Combinators (between)
+import Data.Text (Text)
 import Data.Void (Void)
-import Data.Text (Text, pack, singleton)
-
-import Numeric (readDec)
-
-import Text.Megaparsec (MonadParsec (..), Parsec, anySingle, choice, many, some, noneOf, oneOf, optional, sepBy1, (<|>))
-import Text.Megaparsec.Char (binDigitChar, char, char', digitChar, hexDigitChar, letterChar, newline, octDigitChar, space1)
-
+import Text.Megaparsec (MonadParsec (..), Parsec, choice)
+import Text.Megaparsec.Char (space1)
 import qualified Text.Megaparsec.Char.Lexer as L
-import Control.Monad (void)
-import Control.Applicative (empty)
 
 type Parser = Parsec Void Text
 
@@ -25,14 +18,11 @@ lineComment = L.skipLineComment "//"
 blockComment :: Parser ()
 blockComment = L.skipBlockComment "(*" "*)"
 
--- SpaceConsumers
-scn :: Parser ()
-scn = L.space space1 lineComment blockComment
-
+-- Space Consumers
 sc :: Parser ()
-sc = L.space (void $ some (char ' ' <|> char '\t')) lineComment blockComment
+sc = L.space space1 lineComment blockComment
 
--- TextParsingHelpers
+-- Text Parsing Helpers
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
@@ -40,7 +30,8 @@ lexeme = L.lexeme sc
 symbol :: Text -> Parser Text
 symbol = L.symbol sc
 
--- SmartChoice
+-- Smart Choice
+
 choice' :: (Foldable f, MonadParsec e s m, Functor f) => f (m a) -> m a
 choice' x = choice $ try <$> x
 
@@ -55,17 +46,51 @@ mlparens = between (symbol "<") (symbol ">")
 brackets :: Parser a -> Parser a
 brackets = between (symbol "[") (symbol "]")
 
+block :: Parser a -> Parser a
+block = between kBegin kEnd
+
+colon :: Parser Text
+colon = symbol ":"
+
 semicolon :: Parser Text
 semicolon = symbol ";"
+
+arrow :: Parser Text
+arrow = symbol "->"
 
 comma :: Parser Text
 comma = symbol ","
 
--- Keywords
+eq :: Parser Text
+eq = symbol "="
 
--- KeywordParser
-keywordP :: Parser Text
-keywordP = choice [kIf, kThen, kElse, kLet, kRec, kIn, kMeasure, kType]
+-- Reserved Parser
+reservedP :: Parser Text
+reservedP = choice [wTrue, wFalse, wBool, wInt, wDouble, kIf, kThen, kElse, kLet, kRec, kIn, kFun, kMeasure, kType, kBegin, kEnd]
+
+-- Reserved Words
+
+-- True Parser
+wTrue :: Parser Text
+wTrue = symbol "true"
+
+-- False Parser
+wFalse :: Parser Text
+wFalse = symbol "false"
+
+-- Bool Parser
+wBool :: Parser Text
+wBool = symbol "bool"
+
+-- Int Parser
+wInt :: Parser Text
+wInt= symbol "int"
+
+-- Double Parser
+wDouble :: Parser Text
+wDouble = symbol "double"
+
+-- Keyword Parsers
 
 -- ifParser
 kIf :: Parser Text
@@ -91,6 +116,10 @@ kRec = symbol "rec"
 kIn :: Parser Text
 kIn = symbol "in"
 
+-- inParser
+kFun :: Parser Text
+kFun = symbol "fun"
+
 -- MeasureParser
 kMeasure :: Parser Text
 kMeasure = symbol "[<Measure>]"
@@ -98,3 +127,11 @@ kMeasure = symbol "[<Measure>]"
 -- TypeParser
 kType :: Parser Text
 kType = symbol "type"
+
+-- BeginParser
+kBegin :: Parser Text
+kBegin = symbol "begin"
+
+-- EndParser
+kEnd :: Parser Text
+kEnd = symbol "end"
