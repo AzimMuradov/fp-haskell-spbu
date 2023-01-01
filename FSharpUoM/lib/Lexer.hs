@@ -27,10 +27,10 @@ blockComment = L.skipBlockComment "(*" "*)"
 
 -- SpaceConsumers
 scn :: Parser ()
-scn = L.space space1 lineComment empty
+scn = L.space space1 lineComment blockComment
 
 sc :: Parser ()
-sc = L.space (void $ some (char ' ' <|> char '\t')) lineComment empty
+sc = L.space (void $ some (char ' ' <|> char '\t')) lineComment blockComment
 
 -- TextParsingHelpers
 
@@ -40,10 +40,17 @@ lexeme = L.lexeme sc
 symbol :: Text -> Parser Text
 symbol = L.symbol sc
 
+-- SmartChoice
+choice' :: (Foldable f, MonadParsec e s m, Functor f) => f (m a) -> m a
+choice' x = choice $ try <$> x
+
 -- Symbols
 
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
+
+mlparens :: Parser a -> Parser a
+mlparens = between (symbol "<") (symbol ">")
 
 brackets :: Parser a -> Parser a
 brackets = between (symbol "[") (symbol "]")
@@ -53,3 +60,41 @@ semicolon = symbol ";"
 
 comma :: Parser Text
 comma = symbol ","
+
+-- Keywords
+
+-- KeywordParser
+keywordP :: Parser Text
+keywordP = choice [kIf, kThen, kElse, kLet, kRec, kIn, kMeasure, kType]
+
+-- ifParser
+kIf :: Parser Text
+kIf = symbol "if"
+
+-- thenParser
+kThen :: Parser Text
+kThen = symbol "then"
+
+-- elseParser
+kElse :: Parser Text
+kElse = symbol "else"
+
+-- letParser
+kLet :: Parser Text
+kLet = symbol "let"
+
+-- recParser
+kRec :: Parser Text
+kRec = symbol "rec"
+
+-- inParser
+kIn :: Parser Text
+kIn = symbol "in"
+
+-- MeasureParser
+kMeasure :: Parser Text
+kMeasure = symbol "[<Measure>]"
+
+-- TypeParser
+kType :: Parser Text
+kType = symbol "type"

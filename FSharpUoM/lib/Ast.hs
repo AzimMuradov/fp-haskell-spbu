@@ -11,6 +11,7 @@ newtype Program = Program [Statement]
 
 data Statement
   = SExpr Expr
+  | SMeasureDecl MeasureDecl
   | SVarDecl VarDecl --                 ( let x = 5                             )
   | SFunDecl FunDecl --    ( let f x y = x + y                     )
   | SRecFunDecl RecFunDecl {- ( let rec fib n =                       )
@@ -30,7 +31,7 @@ data Expr
   | EOperations Operations --                   ( +, -                                 )
   | EFun [(Identifier, Maybe Type)] [Statement] --              ( fun x y -> x + y                     )
   | EApplication Expr [Expr] --           ( f x y                                )
-  | EIf Expr Statement Statement --             ( if cond then expr' else expr''       )
+  | EIf Expr [Statement] [Statement] --             ( if cond then expr' else expr''       )
   | ELetIn Identifier Expr [Expr] --          ( f x y = let p = x + y in p           )
   deriving (Show)
 
@@ -43,7 +44,7 @@ data Expr
 data VarDecl = VarDecl (Identifier, Maybe Type) Expr deriving (Show)
 data FunDecl = FunDecl Identifier [(Identifier, Maybe Type)] [Statement] deriving (Show)
 data RecFunDecl = RecFunDecl Identifier [(Identifier, Maybe Type)] [Statement] deriving (Show)
-data MeasureDecl = MeasureDecl Identifier (Maybe Expr)
+data MeasureDecl = MeasureDecl Type (Maybe Expr) deriving (Show)
 
 -- Measure
 
@@ -51,10 +52,9 @@ data MeasureDecl = MeasureDecl Identifier (Maybe Expr)
 
 data Type
   = TBool
-  | TInt
-  -- | TFloat
-  -- | TDecimal
-  -- | Measure
+  | TInt (Maybe Expr)
+  | TDouble (Maybe Expr)
+  | TMeasure Expr
   | TFun
   deriving (Show)
 
@@ -62,9 +62,9 @@ data Type
 
 data Value
   = VBool Bool
-  | VInt Integer
-  -- | VFloat Float
-  -- | VDecimal Double
+  | VInt Integer (Maybe Expr)
+  | VDouble Double (Maybe Expr)
+  -- | VMeasure Type Value
 --  | VFun 
   deriving (Show)
 
@@ -90,10 +90,11 @@ data BooleanOp
 data ArithmeticOp
   = PlusOp Expr Expr --          (  +  )
   | MinusOp Expr Expr --         (  -  )
-  | MulOp Expr Expr --          (  *  )
+  | MulOp Expr Expr --           (  *  )
   | DivOp Expr Expr --           (  /  )
   | ModOp Expr Expr --           (  %  )
   | ExpOp Expr Expr --           (  ** )
+  | ExpMeasureOp Expr Expr --    (  ^  )
   deriving (Show)
 
 data ComparisonOp
