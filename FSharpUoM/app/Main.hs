@@ -1,57 +1,65 @@
 module Main where
 
-import Data.Char (toUpper)
-
-import Data.Maybe (fromJust)
-import Data.Text (pack)
-
-import System.Environment (getArgs)
+import qualified Ast
+import Data.Text (Text, dropWhileEnd, isSuffixOf, pack, splitOn, strip, unlines, unpack)
+import Data.Void (Void)
+import Options.Applicative
 import Parser (parse)
+import System.IO (hFlush, stdout)
+import Prelude hiding (concat, unlines)
 
--- main :: IO () 
--- main = do
---   args <- getArgs
---   let f = case args of
---         ["-p"] -> parseAndShow 
---         ["--parse"] -> parseAndShow
---         ["-h"] -> const helpMsg
---         ["--help"] -> const helpMsg
---         _ -> const "Wrong usage, to call help use `--help` or `-h`.\n"
---    in putStrLn $ f . filter (/= '\n')
-  
+-- * Main
+
 main :: IO ()
-main = do
-  args <- getArgs
-  case args of
-    [] -> putStrLn "Provide file name!"
-    [filename, opt] -> do
-      prog <- readFile filename
-      let f = case opt of 
-            "-p" -> parseAndShow prog
-            "--parse" -> parseAndShow prog
-            "-h" -> helpMsg
-            "--help" -> helpMsg
-            _ -> "Wrong usage, to call help use `--help` or `-h`.\n"
-        in putStrLn f
-    _ -> putStrLn "Provide one file name!"
+main = runApp =<< execParser opts
+  where
+    opts =
+      info
+        (appP <**> helper)
+        ( fullDesc
+            <> header "F Sharp with Units Of Measure"
+            <> progDesc "This program can interpret f# code"
+        )
 
-parseAndShow :: String -> String
-parseAndShow fileText = show (parse $ pack fileText) ++ "\n"
+-- Command line options
 
-helpMsg :: String -- putStrLn $ show (parse (pack "let f x y = x + y"))
-helpMsg =
-  unlines
-    [ "                                                                                ",
-      "--------------------------Mini Go Parser & Interpreter--------------------------",
-      "- Run:                                                                         -",
-      "-   `minigo [arg]`                                                             -",
-      "-   `cat file | minigo [arg]`                                                  -",
-      "-                                                                              -",
-      "- Arguments:                                                                   -",
-      "-   --interpret | (-i)        - interpret mini-go file                         -",
-      "-   --check     | (-c)        - check mini-go file                             -",
-      "-   --parse     | (-p)        - parse mini-go file                             -",
-      "-   --debug     | (-d)        - debug program using given mini-go file         -",
-      "-   --help      | (-h)        - print this message                             -",
-      "--------------------------------------------------------------------------------"
-    ]
+newtype App = App {input :: Input}
+  deriving (Show)
+
+data Input
+  = StdInput
+  | FileInput FilePath
+  deriving (Show)
+
+appP :: Parser App
+appP = App <$> inputP
+
+inputP :: Parser Input
+inputP =
+  FileInput
+    <$> strOption
+      ( long "file"
+          <> short 'f'
+          <> metavar "FILENAME"
+          <> help "Read from the file (optional)"
+      )
+    <|> pure StdInput
+
+-- Run app
+
+runApp :: App -> IO ()
+runApp (App i) = runApp' i
+  where
+    runApp' :: Input -> IO ()
+    runApp' (FileInput path) = do
+      text <- readFile path
+      mapM_ putStrLn (show . parse <$> splitOn (pack ";;") (pack text))
+    runApp' StdInput =
+      let repl lines = do
+            putStr "> " >> hFlush stdout
+            line <- getLine
+            let lineText = pack line
+            if pack ";;" `isSuffixOf` strip lineText
+              then print (parse $ unlines $ reverse (dropWhileEnd (== ';') lineText : lines)) >> repl []
+              else repl (lineText : lines)
+       in repl []
