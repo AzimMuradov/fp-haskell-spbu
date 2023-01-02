@@ -93,10 +93,6 @@ opsTable =
 binaryOp :: Text -> Ast.BinaryOp -> Operator Parser Ast.Expression
 binaryOp opSym op = InfixL $ Ast.ExprBinaryOp op <$ symbol opSym
 
--- | Utility function, that takes operator symbol, ignored operator symbols (for parser), binary operator constructor and gives new binary operator in return.
-binaryOp' :: Text -> [Text] -> Ast.BinaryOp -> Operator Parser Ast.Expression
-binaryOp' opSym notOpsSyms op = InfixL $ Ast.ExprBinaryOp op <$ (notFollowedBy (choice' $ symbol <$> notOpsSyms) *> symbol opSym)
-
 -- | Utility function, that takes operator symbol, unary operator constructor and gives new unary operator in return.
 unaryOp :: Text -> Ast.UnaryOp -> Operator Parser Ast.Expression
 unaryOp opSym op = Prefix $ Ast.ExprUnaryOp op <$ symbol opSym

@@ -59,7 +59,7 @@ debug fileText = parseResultMsg fileText ++ "\n" ++ analyzerResultMsg fileText +
 
 -- ** Utils
 
--- *** Parser
+-- *** Interpreter
 
 interpreterResult :: String -> Either String (InterpretationResult.ResultValue (), InterpretationResult.Env)
 interpreterResult fileText = analyzerResultMapper' fileText interpret

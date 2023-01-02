@@ -45,7 +45,7 @@ interpretProgram (Ast.Program _ functions) = do
 -- TODO : Docs
 interpretFunc :: Ast.Function -> [RuntimeValue] -> Result (Maybe RuntimeValue)
 interpretFunc (Ast.Function params body voidMark) args = do
-  res <- interpretBlock (scope $ params `zip` args) pushFuncScope popFuncScope body
+  res <- interpretBlock (Scope $ Map.fromList $ params `zip` args) pushFuncScope popFuncScope body
   case (res, voidMark) of
     (Ret val, _) -> return val
     (Unit, Ast.VoidFunc) -> return Nothing
@@ -135,6 +135,10 @@ getLvalueUpdater = getLvalueUpdater'
   where
     getLvalueUpdater' (Ast.LvalVar name) = (name,,id) <$> getVarValue name
     getLvalueUpdater' (Ast.LvalArrEl _ _) = undefined -- TODO
+
+-- | Statement interpretation result, its either unit (`void`) or some result of the return statement.
+data StmtResult = Unit | Ret (Maybe RuntimeValue)
+  deriving (Show, Eq)
 
 ------------------------------------------------------Expressions-------------------------------------------------------
 

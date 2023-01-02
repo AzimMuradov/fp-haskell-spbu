@@ -11,8 +11,8 @@ func main() {
 
   // Lazy `||` and `&&`
 
-  println(true || getBool()); // should print "true"
-  println(false && getBool()); // should print "true"
+  println(true || getBool());  // should print "true"
+  println(false && getBool()); // should print "false"
 }
 
 func getBool() bool {

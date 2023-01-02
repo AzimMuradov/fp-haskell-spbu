@@ -4,7 +4,6 @@ module Interpreter.RuntimeValue where
 import Analyzer.AnalyzedAst (FunctionValue)
 import qualified Analyzer.AnalyzedAst as Ast
 import Data.Text (Text, unpack)
-import qualified Data.Text as T
 
 -- | Represents runtime value of the calculated expression.
 data RuntimeValue
@@ -22,7 +21,7 @@ data RuntimeValue
 instance Show RuntimeValue where
   show (ValInt int) = show int
   show (ValBool bool) = if bool then "true" else "false"
-  show (ValString string) = take (T.length string) $ tail $ show string
+  show (ValString string) = unpack string
   show (ValArray vs) = "[" ++ unwords (show <$> vs) ++ "]"
   show (ValFunction Ast.Nil) = "nil"
   show (ValFunction (Ast.AnonymousFunction Ast.Function {})) = "function"

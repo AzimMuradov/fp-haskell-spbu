@@ -3,14 +3,14 @@
 -- TODO : Docs
 module Interpreter.InterpretationResult where
 
-import qualified Analyzer.AnalyzedAst as Ast
-import Control.Lens (At (at), ix, makeLenses, makePrisms)
+import Analyzer.AnalyzedAst (Function, Identifier)
+import Control.Lens (At (at), ix, makeLenses)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.State (State)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text, unpack)
-import Interpreter.RuntimeValue
+import Interpreter.RuntimeValue (RuntimeValue)
 
 -- Interpretation result
 
@@ -23,7 +23,7 @@ type Result a = ExceptT Err (State Env) a
 
 -- TODO : Docs
 data Env = Env
-  { _funcs :: Map Ast.Identifier Ast.Function,
+  { _funcs :: Map Identifier Function,
     _funcScopes :: [FuncScope],
     _accumulatedOutput :: AccOut
   }
@@ -38,16 +38,15 @@ newtype FuncScope = FuncScope {_scopes :: [Scope]}
   deriving (Show)
 
 -- | Scope contains identifiers mapped to their types.
-newtype Scope = Scope {_vars :: Map Ast.Identifier RuntimeValue}
+newtype Scope = Scope {_vars :: Map Identifier RuntimeValue}
   deriving (Show)
-
--- | Create @Scope@ from its elements.
-scope :: [(Ast.Identifier, RuntimeValue)] -> Scope
-scope elements = Scope (Map.fromList elements)
 
 -- | Create empty @Scope@.
 emptyScope :: Scope
-emptyScope = scope []
+emptyScope = Scope Map.empty
+
+-- | Accumulated out (every element is a text printed to the stdout).
+type AccOut = [Text]
 
 -- ** Result Value
 
@@ -79,21 +78,11 @@ instance Show Err where
   show (Panic msg) = "panic: " ++ unpack msg
   show UnexpectedError = "panic: unexpected error"
 
--- | Accumulated out (every element is a text printed to the stdout).
-type AccOut = [Text]
-
--- | Statement interpretation result, its either unit (`void`) or some result of the return statement.
-data StmtResult = Unit | Ret (Maybe RuntimeValue)
-  deriving (Show, Eq)
-
 -- Optics
 
 makeLenses ''Env
 makeLenses ''FuncScope
 makeLenses ''Scope
 
-makePrisms ''FuncScope
-makePrisms ''Scope
-
-var :: Applicative f => Int -> Int -> Ast.Identifier -> (Maybe RuntimeValue -> f (Maybe RuntimeValue)) -> Env -> f Env
+var :: Applicative f => Int -> Int -> Identifier -> (Maybe RuntimeValue -> f (Maybe RuntimeValue)) -> Env -> f Env
 var i j name = funcScopes . ix i . scopes . ix j . vars . at name
