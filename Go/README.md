@@ -32,6 +32,8 @@ Project parts:
 - function definitions
 - variable declarations
 - variable assignments
+- globals
+- closures (including mutable closures)
 - short variable declarations
 - increment, decrement
 - parser, lexer
@@ -41,4 +43,4 @@ Project parts:
 
 #### Missing:
 
-- interpreter (arrays, loops, globals, closures)
+- interpreter (arrays, loops)

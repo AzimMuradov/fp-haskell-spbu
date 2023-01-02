@@ -38,7 +38,9 @@ analyzeProgram (Ast.Program gVars functions) = do
   checkForUniqueness $ (Ast.funcName <$> functions) ++ (Ast.varName <$> gVars)
   checkForMain functions
   funcs <- analyzeFuncs gVars functions
-  return $ AAst.Program [] funcs
+  gVars' <- mapM analyzeStmtVarDecl gVars
+  modify $ scopes %~ (: []) . head
+  return $ AAst.Program gVars' funcs
   where
     checkForUniqueness :: [Text] -> Result ()
     checkForUniqueness ns = maybe (return ()) (throwError . IdentifierRedeclaration) (findDuplicate ns)
@@ -58,11 +60,12 @@ analyzeFuncs varDeclarations functionDefinitions = initializeEnv >> mapM checkFu
     checkFunc' (Ast.FunctionDef name func) = AAst.FunctionDef name <$> (snd <$> analyzeFunc func)
 
     initializeEnv = do
+      modify $ scopes %~ (scope OrdinaryScope [] :)
       mapM_ analyzeStmtVarDecl varDeclarations
-      funcs <- mapM convertToPair functionDefinitions
-      modify $ scopes %~ (scope OrdinaryScope funcs :)
+      fs <- mapM convertFuncDef functionDefinitions
+      modify $ scopes %~ (scope OrdinaryScope fs :)
 
-    convertToPair (Ast.FunctionDef name (Ast.Function (Ast.FunctionSignature params ret) _)) = do
+    convertFuncDef (Ast.FunctionDef name (Ast.Function (Ast.FunctionSignature params ret) _)) = do
       params' <- mapM analyzeType (snd <$> params)
       ret' <- mapM analyzeType ret
       return (name, AType.TFunction $ AType.FunctionType params' ret')

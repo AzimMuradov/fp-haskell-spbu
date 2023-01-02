@@ -8,8 +8,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text, append, pack)
 import qualified Data.Text as T
-import Interpreter.InterpretationResult (Err (Panic, UnexpectedError), ResultValue)
-import Interpreter.RuntimeValue (RuntimeValue (..))
+import Interpreter.InterpretationResult (Err (Panic, UnexpectedError), ResultValue, RuntimeValue' (..))
 
 ---------------------------------------------------------StdLib---------------------------------------------------------
 
@@ -22,10 +21,10 @@ data StdLibFunction = StdLibFunction
   }
 
 -- | Convenient type alias for stdlib function implementation.
-type StdLibFuncImpl = [RuntimeValue] -> StdLibFuncResult
+type StdLibFuncImpl = [RuntimeValue'] -> StdLibFuncResult
 
 -- | Convenient type alias for stdlib function result.
-type StdLibFuncResult = ResultValue (Maybe RuntimeValue, Text)
+type StdLibFuncResult = ResultValue (Maybe RuntimeValue', Text)
 
 -- | All available stdlib functions.
 stdLibFunctions :: [StdLibFunction]
@@ -48,11 +47,11 @@ lenFunction = StdLibFunction {name = "len", impl = lenImpl}
 -- | @len@ implementation.
 lenImpl :: StdLibFuncImpl
 lenImpl args = case args of
-  [ValString x] -> ok $ T.length x
-  [ValArray xs] -> ok $ length xs
+  [ValString' x] -> ok $ T.length x
+  [ValArray' xs] -> ok $ length xs
   _ -> Left UnexpectedError
   where
-    ok int = Right (Just $ ValInt int, "")
+    ok int = Right (Just $ ValInt' int, "")
 
 -- ** @print@
 
@@ -83,5 +82,5 @@ panicFunction = StdLibFunction {name = "panic", impl = panicImpl}
 -- | @panic@ implementation.
 panicImpl :: StdLibFuncImpl
 panicImpl args = case args of
-  [ValString msg] -> Left $ Panic msg
+  [ValString' msg] -> Left $ Panic msg
   _ -> Left UnexpectedError

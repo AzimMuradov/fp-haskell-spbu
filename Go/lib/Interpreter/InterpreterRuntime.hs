@@ -11,20 +11,20 @@ import Control.Monad ((>=>))
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State (get, modify)
 import Data.Map ((!?))
+import qualified Data.Map.Strict as Map
 import Data.STRef (STRef, newSTRef, readSTRef, writeSTRef)
 import Interpreter.InterpretationResult
-import Interpreter.RuntimeValue
 
 -- ** Get a variable value
 
 -- TODO : Docs
-getVarValue :: Ast.Identifier -> Result s RuntimeValue
+getVarValue :: Ast.Identifier -> Result s (RuntimeValue s)
 getVarValue name = getVar name >>= lift2 . readSTRef
 
 -- ** Add a new variable
 
 -- TODO : Docs
-addNewVar :: Ast.Identifier -> RuntimeValue -> Result s ()
+addNewVar :: Ast.Identifier -> RuntimeValue s -> Result s ()
 addNewVar name value = do
   ref <- lift2 $ newSTRef value
   modify $ var 0 0 name ?~ ref
@@ -32,7 +32,7 @@ addNewVar name value = do
 -- ** Add or update a variable
 
 -- TODO : Docs
-addOrUpdateVar :: Ast.Identifier -> RuntimeValue -> Result s ()
+addOrUpdateVar :: Ast.Identifier -> RuntimeValue s -> Result s ()
 addOrUpdateVar name value =
   searchVar name >>= \case
     Just (_, Curr) -> updateVar name value
@@ -41,7 +41,7 @@ addOrUpdateVar name value =
 -- ** Update a variable
 
 -- TODO : Docs
-updateVar :: Ast.Identifier -> RuntimeValue -> Result s ()
+updateVar :: Ast.Identifier -> RuntimeValue s -> Result s ()
 updateVar name value = do
   ref <- getVar name
   lift2 (writeSTRef ref value)
@@ -49,14 +49,14 @@ updateVar name value = do
 -- ** Search for a variable
 
 -- TODO : Docs
-getVar :: Ast.Identifier -> Result s (STRef s RuntimeValue)
+getVar :: Ast.Identifier -> Result s (STRef s (RuntimeValue s))
 getVar name = fst <$> (searchVar name >>= unwrapJust)
 
 -- TODO : Docs
-searchVar :: Ast.Identifier -> Result s (Maybe (STRef s RuntimeValue, ScopeLocation))
+searchVar :: Ast.Identifier -> Result s (Maybe (STRef s (RuntimeValue s), ScopeLocation))
 searchVar name = do
   Env fs fScs _ <- get
-  fsSc <- lift2 $ Scope <$> mapM (readSTRef >=> newSTRef . ValFunction . Ast.AnonymousFunction) fs
+  fsSc <- lift2 $ Scope <$> mapM ((\(f, fSc) -> (,fSc) <$> readSTRef f) >=> \(f, fSc) -> newSTRef $ ValFunction (Ast.AnonymousFunction f) fSc) fs
   return $ case fScs of
     FuncScope scs : _ -> searchVar' name Curr (scs ++ [fsSc])
     _ -> searchVar' name Outer [fsSc]
@@ -66,6 +66,15 @@ searchVar name = do
 
 -- TODO : Docs
 data ScopeLocation = Curr | Outer
+
+-- TODO : Docs
+
+flattenFuncScope :: FuncScope s -> Scope s
+flattenFuncScope (FuncScope scs) = flattenFuncScope' scs
+  where
+    flattenFuncScope' (Scope ns : Scope ns' : scs') = flattenFuncScope' (Scope (Map.union ns ns') : scs')
+    flattenFuncScope' [sc] = sc
+    flattenFuncScope' [] = emptyScope
 
 -- ** Scopes manipulation
 

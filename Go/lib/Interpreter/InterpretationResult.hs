@@ -3,7 +3,7 @@
 -- TODO : Docs
 module Interpreter.InterpretationResult where
 
-import Analyzer.AnalyzedAst (Function, Identifier)
+import Analyzer.AnalyzedAst (Function (Function, StdLibFunction), FunctionValue (AnonymousFunction, Nil), Identifier)
 import Control.Lens (At (at), LensLike', ix, makeLenses)
 import Control.Monad.Except (ExceptT)
 import Control.Monad.ST (ST)
@@ -12,9 +12,29 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.STRef (STRef)
 import Data.Text (Text, unpack)
-import Interpreter.RuntimeValue (RuntimeValue)
 
 -- Interpretation result
+
+-- | Represents runtime value of the calculated expression.
+data RuntimeValue s
+  = -- | Int value.
+    ValInt Int
+  | -- | Boolean value.
+    ValBool Bool
+  | -- | String value.
+    ValString Text
+  | -- | Array value.
+    ValArray [RuntimeValue s]
+  | -- | Function value.
+    ValFunction FunctionValue (FuncScope s)
+
+instance Eq (RuntimeValue s) where
+  ValInt lhs == ValInt rhs = lhs == rhs
+  ValBool lhs == ValBool rhs = lhs == rhs
+  ValString lhs == ValString rhs = lhs == rhs
+  ValArray lhs == ValArray rhs = lhs == rhs
+  ValFunction _ _ == ValFunction _ _ = False
+  _ == _ = False
 
 -- * Result
 
@@ -59,7 +79,7 @@ instance Show Err where
 
 -- TODO : Docs
 data Env s = Env
-  { _funcs :: Map Identifier (STRef s Function),
+  { _funcs :: Map Identifier (STRef s Function, FuncScope s),
     _funcScopes :: [FuncScope s],
     _accumulatedOutput :: AccOut
   }
@@ -72,7 +92,7 @@ emptyEnv = Env Map.empty [] []
 newtype FuncScope s = FuncScope {_scopes :: [Scope s]}
 
 -- | Scope contains identifiers mapped to their types.
-newtype Scope s = Scope {_vars :: Map Identifier (STRef s RuntimeValue)}
+newtype Scope s = Scope {_vars :: Map Identifier (STRef s (RuntimeValue s))}
 
 -- | Create empty @Scope@.
 emptyScope :: Scope s
@@ -88,10 +108,32 @@ makeLenses ''FuncScope
 makeLenses ''Scope
 
 -- TODO : Docs
-var :: Applicative f => Int -> Int -> Text -> LensLike' f (Env s) (Maybe (STRef s RuntimeValue))
+var :: Applicative f => Int -> Int -> Text -> LensLike' f (Env s) (Maybe (STRef s (RuntimeValue s)))
 var i j name = funcScopes . ix i . scopes . ix j . vars . at name
 
 -- ** Pure state
+
+-- | Represents runtime value of the calculated expression.
+data RuntimeValue'
+  = -- | Int value.
+    ValInt' Int
+  | -- | Boolean value.
+    ValBool' Bool
+  | -- | String value.
+    ValString' Text
+  | -- | Array value.
+    ValArray' [RuntimeValue']
+  | -- | Function value.
+    ValFunction' FunctionValue
+
+instance Show RuntimeValue' where
+  show (ValInt' int) = show int
+  show (ValBool' bool) = if bool then "true" else "false"
+  show (ValString' string) = unpack string
+  show (ValArray' vs) = "[" ++ unwords (show <$> vs) ++ "]"
+  show (ValFunction' Nil) = "nil"
+  show (ValFunction' (AnonymousFunction Function {})) = "function"
+  show (ValFunction' (AnonymousFunction (StdLibFunction name))) = unpack name
 
 -- TODO : Docs
 data Env' = Env'
@@ -106,7 +148,7 @@ newtype FuncScope' = FuncScope' {_scopes' :: [Scope']}
   deriving (Show)
 
 -- TODO : Docs
-newtype Scope' = Scope' {_vars' :: Map Identifier RuntimeValue}
+newtype Scope' = Scope' {_vars' :: Map Identifier RuntimeValue'}
   deriving (Show)
 
 -- *** Optics
