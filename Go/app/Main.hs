@@ -61,10 +61,10 @@ debug fileText = parseResultMsg fileText ++ "\n" ++ analyzerResultMsg fileText +
 
 -- *** Interpreter
 
-interpreterResult :: String -> Either String (InterpretationResult.ResultValue (), InterpretationResult.Env)
+interpreterResult :: String -> Either String (InterpretationResult.ResultValue (), InterpretationResult.Env')
 interpreterResult fileText = analyzerResultMapper' fileText interpret
 
-interpreterResultMapper :: String -> ((InterpretationResult.ResultValue (), InterpretationResult.Env) -> a) -> Either String a
+interpreterResultMapper :: String -> ((InterpretationResult.ResultValue (), InterpretationResult.Env') -> a) -> Either String a
 interpreterResultMapper fileText f = f <$> interpreterResult fileText
 
 interpreterResultMapper' :: String -> ((Text, Maybe Text) -> a) -> Either String a

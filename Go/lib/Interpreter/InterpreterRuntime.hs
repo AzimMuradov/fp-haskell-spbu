@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 
 -- TODO : Docs
@@ -6,64 +7,62 @@ module Interpreter.InterpreterRuntime where
 import qualified Analyzer.AnalyzedAst as Ast
 import Control.Applicative ((<|>))
 import Control.Lens
+import Control.Monad ((>=>))
 import Control.Monad.Except (MonadError (throwError))
-import Control.Monad.State (get, modify, put)
+import Control.Monad.State (get, modify)
 import Data.Map ((!?))
-import qualified Data.Map as Map
+import Data.STRef (STRef, newSTRef, readSTRef, writeSTRef)
 import Interpreter.InterpretationResult
 import Interpreter.RuntimeValue
 
 -- ** Get a variable value
 
 -- TODO : Docs
-getVarValue :: Ast.Identifier -> Result RuntimeValue
-getVarValue name = fst <$> (get >>= unwrapJust . searchVar name)
+getVarValue :: Ast.Identifier -> Result s RuntimeValue
+getVarValue name = getVar name >>= lift2 . readSTRef
 
 -- ** Add a new variable
 
 -- TODO : Docs
-addNewVar :: Ast.Identifier -> RuntimeValue -> Result ()
-addNewVar name value = modify $ var 0 0 name ?~ value
+addNewVar :: Ast.Identifier -> RuntimeValue -> Result s ()
+addNewVar name value = do
+  ref <- lift2 $ newSTRef value
+  modify $ var 0 0 name ?~ ref
 
 -- ** Add or update a variable
 
 -- TODO : Docs
-addOrUpdateVar :: Ast.Identifier -> RuntimeValue -> Result ()
-addOrUpdateVar name value = do
-  env <- get
-  case searchVar name env of
+addOrUpdateVar :: Ast.Identifier -> RuntimeValue -> Result s ()
+addOrUpdateVar name value =
+  searchVar name >>= \case
     Just (_, Curr) -> updateVar name value
     _ -> addNewVar name value
 
 -- ** Update a variable
 
 -- TODO : Docs
-updateVar :: Ast.Identifier -> RuntimeValue -> Result ()
-updateVar name value = get >>= (unwrapJust . varUpdater name) >>= (\updater -> put $ updater value)
+updateVar :: Ast.Identifier -> RuntimeValue -> Result s ()
+updateVar name value = do
+  ref <- getVar name
+  lift2 (writeSTRef ref value)
 
 -- ** Search for a variable
 
 -- TODO : Docs
-searchVar :: Ast.Identifier -> Env -> Maybe (RuntimeValue, ScopeLocation)
-searchVar name (Env fs fScs _) = case fScs of
-  FuncScope scs : _ -> searchVar' name Curr (scs ++ [fsScope])
-  _ -> searchVar' name Outer [fsScope]
+getVar :: Ast.Identifier -> Result s (STRef s RuntimeValue)
+getVar name = fst <$> (searchVar name >>= unwrapJust)
+
+-- TODO : Docs
+searchVar :: Ast.Identifier -> Result s (Maybe (STRef s RuntimeValue, ScopeLocation))
+searchVar name = do
+  Env fs fScs _ <- get
+  fsSc <- lift2 $ Scope <$> mapM (readSTRef >=> newSTRef . ValFunction . Ast.AnonymousFunction) fs
+  return $ case fScs of
+    FuncScope scs : _ -> searchVar' name Curr (scs ++ [fsSc])
+    _ -> searchVar' name Outer [fsSc]
   where
     searchVar' n loc (Scope ns : scs) = ((,loc) <$> (ns !? n)) <|> searchVar' n Outer scs
     searchVar' _ _ _ = Nothing
-
-    fsScope = Scope $ Map.map (ValFunction . Ast.AnonymousFunction) fs
-
--- TODO : Docs
-varUpdater :: Ast.Identifier -> Env -> Maybe (RuntimeValue -> Env)
-varUpdater name env@(Env _ fScs _) = case fScs of
-  FuncScope scs : _ -> update <$> findScopeIndex name 0 scs
-  _ -> Nothing
-  where
-    update i v = env & var 0 i name ?~ v
-
-    findScopeIndex n i (Scope ns : scs) = (i <$ (ns !? n)) <|> findScopeIndex n (i + 1) scs
-    findScopeIndex _ _ _ = Nothing
 
 -- TODO : Docs
 data ScopeLocation = Curr | Outer
@@ -71,23 +70,23 @@ data ScopeLocation = Curr | Outer
 -- ** Scopes manipulation
 
 -- TODO : Docs
-pushFuncScope :: Scope -> Env -> Env
+pushFuncScope :: Scope s -> Env s -> Env s
 pushFuncScope initScope = funcScopes %~ (FuncScope [initScope] :)
 
 -- TODO : Docs
-popFuncScope :: Env -> Env
+popFuncScope :: Env s -> Env s
 popFuncScope = funcScopes %~ tail
 
 -- TODO : Docs
-pushBlockScope :: Scope -> Env -> Env
+pushBlockScope :: Scope s -> Env s -> Env s
 pushBlockScope initScope = (funcScopes . ix 0 . scopes) %~ (initScope :)
 
 -- TODO : Docs
-popBlockScope :: Env -> Env
+popBlockScope :: Env s -> Env s
 popBlockScope = (funcScopes . ix 0 . scopes) %~ tail
 
 -- * Utils
 
 -- TODO : Docs
-unwrapJust :: Maybe a -> Result a
+unwrapJust :: Maybe a -> Result s a
 unwrapJust = maybe (throwError UnexpectedError) return
