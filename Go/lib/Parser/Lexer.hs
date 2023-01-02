@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-missing-signatures #-}
 
 -- | Provides lexer parts for the [Parser]("Parser.Parser") module.
 module Parser.Lexer where
@@ -145,95 +146,134 @@ escapedChar =
 
 -- | Custom identifier parser.
 identifierP :: Parser Ast.Identifier
-identifierP =
-  lexeme $
-    notFollowedBy (predeclaredIdentifierP <|> keywordP) *> do
+identifierP = do
+  n <- lexeme $
+    do
       first <- letterP
       other <- many $ letterP <|> digitChar
       return $ pack $ first : other
+  if n `elem` (keywords ++ predeclaredIdentifiers)
+    then fail "wrong identifier"
+    else return n
   where
     letterP = letterChar <|> char '_'
 
 -- ** Keywords
 
--- | Keyword parser.
-keywordP :: Parser Text
-keywordP = choice [kwVar, kwFunc, kwReturn, kwIf, kwElse, kwFor, kwBreak, kwContinue]
+-- | Keywords.
+keywords :: [Text]
+keywords = [kwVar', kwFunc', kwReturn', kwIf', kwElse', kwFor', kwBreak', kwContinue']
 
 -- | @var@ keyword parser.
 kwVar :: Parser Text
-kwVar = symbol "var"
+kwVar = symbol kwVar'
+
+kwVar' = "var"
 
 -- | @func@ keyword parser.
 kwFunc :: Parser Text
-kwFunc = symbol "func"
+kwFunc = symbol kwFunc'
+
+kwFunc' = "func"
 
 -- | @return@ keyword parser.
 kwReturn :: Parser Text
-kwReturn = symbol "return"
+kwReturn = symbol kwReturn'
+
+kwReturn' = "return"
 
 -- | @if@ keyword parser.
 kwIf :: Parser Text
-kwIf = symbol "if"
+kwIf = symbol kwIf'
+
+kwIf' = "if"
 
 -- | @else@ keyword parser.
 kwElse :: Parser Text
-kwElse = symbol "else"
+kwElse = symbol kwElse'
+
+kwElse' = "else"
 
 -- | @for@ keyword parser.
 kwFor :: Parser Text
-kwFor = symbol "for"
+kwFor = symbol kwFor'
+
+kwFor' = "for"
 
 -- | @break@ keyword parser.
 kwBreak :: Parser Text
-kwBreak = symbol "break"
+kwBreak = symbol kwBreak'
+
+kwBreak' = "break"
 
 -- | @continue@ keyword parser.
 kwContinue :: Parser Text
-kwContinue = symbol "continue"
+kwContinue = symbol kwContinue'
+
+kwContinue' = "continue"
 
 -- ** Predeclared identifiers
 
--- | Predeclared identifier parser.
-predeclaredIdentifierP :: Parser Ast.Identifier
-predeclaredIdentifierP = choice $ [idBool, idInt, idString, idTrue, idFalse, idNil] ++ [idLenFunc, idPrintFunc, idPrintlnFunc, idPanicFunc]
+-- | Predeclared identifiers.
+predeclaredIdentifiers :: [Ast.Identifier]
+predeclaredIdentifiers = [idBool', idInt', idString', idTrue', idFalse', idNil'] ++ [idLenFunc', idPrintFunc', idPrintlnFunc', idPanicFunc']
 
 -- | @bool@ identifier parser.
 idBool :: Parser Text
-idBool = symbol "bool"
+idBool = symbol idBool'
+
+idBool' = "bool"
 
 -- | @int@ identifier parser.
 idInt :: Parser Text
-idInt = symbol "int"
+idInt = symbol idInt'
+
+idInt' = "int"
 
 -- | @string@ identifier parser.
 idString :: Parser Text
-idString = symbol "string"
+idString = symbol idString'
+
+idString' = "string"
 
 -- | @true@ identifier parser.
 idTrue :: Parser Text
-idTrue = symbol "true"
+idTrue = symbol idTrue'
+
+idTrue' = "true"
 
 -- | @false@ identifier parser.
 idFalse :: Parser Text
-idFalse = symbol "false"
+idFalse = symbol idFalse'
+
+idFalse' = "false"
 
 -- | @nil@ identifier parser.
 idNil :: Parser Text
-idNil = symbol "nil"
+idNil = symbol idNil'
+
+idNil' = "nil"
 
 -- | @len@ identifier parser.
 idLenFunc :: Parser Text
-idLenFunc = symbol $ name lenFunction
+idLenFunc = symbol idLenFunc'
+
+idLenFunc' = name lenFunction
 
 -- | @print@ identifier parser.
 idPrintFunc :: Parser Text
-idPrintFunc = symbol $ name printFunction
+idPrintFunc = symbol idPrintFunc'
+
+idPrintFunc' = name printFunction
 
 -- | @println@ identifier parser.
 idPrintlnFunc :: Parser Text
-idPrintlnFunc = symbol $ name printlnFunction
+idPrintlnFunc = symbol idPrintlnFunc'
+
+idPrintlnFunc' = name printlnFunction
 
 -- | @panic@ identifier parser.
 idPanicFunc :: Parser Text
-idPanicFunc = symbol $ name panicFunction
+idPanicFunc = symbol idPanicFunc'
+
+idPanicFunc' = name panicFunction

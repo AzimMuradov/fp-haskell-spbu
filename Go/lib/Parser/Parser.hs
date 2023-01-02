@@ -62,9 +62,8 @@ termExpressionP =
 -- | Operators table, contains all operator parsers and their fixity.
 opsTable :: [[Operator Parser Ast.Expression]]
 opsTable =
-  [ [ arrayAccessByIndexOp,
-      funcCallOp
-    ],
+  [ [arrayAccessByIndexOp],
+    [funcCallOp],
     [ unaryOp "+" Ast.UnaryPlusOp,
       unaryOp "-" Ast.UnaryMinusOp,
       unaryOp "!" Ast.NotOp
