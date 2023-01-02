@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
--- TODO : Docs
 module Analyzer.AnalyzerRuntime where
 
 import Analyzer.AnalysisResult
@@ -16,13 +15,11 @@ import Data.Maybe (isJust)
 
 -- ** Get a variable type
 
--- TODO : Docs
 getVarType :: AAst.Identifier -> Result AType.Type
 getVarType name = gets (searchVar name) >>= maybe (throwError $ IdentifierNotFound name) (return . fst)
 
 -- ** Add a new variable
 
--- TODO : Docs
 addNewVar :: AAst.Identifier -> AType.Type -> Result ()
 addNewVar name t = do
   env <- get
@@ -32,7 +29,6 @@ addNewVar name t = do
 
 -- ** Add or update a variable
 
--- TODO : Docs
 addOrUpdateVar :: AAst.Identifier -> AType.Type -> Result ()
 addOrUpdateVar name t = do
   env <- get
@@ -42,7 +38,6 @@ addOrUpdateVar name t = do
 
 -- ** Update a variable
 
--- TODO : Docs
 updateVar :: AAst.Identifier -> AType.Type -> Result ()
 updateVar name t = do
   env <- get
@@ -53,17 +48,14 @@ updateVar name t = do
 
 -- ** Search for a variable
 
--- TODO : Docs
 searchVar :: AAst.Identifier -> Env -> Maybe (AType.Type, ScopeLocation)
 searchVar name (Env scs) = searchVar' name scs Curr
   where
     searchVar' n (Scope _ ns : outerScs) loc = ((,loc) <$> (ns !? n)) <|> searchVar' n outerScs Outer
     searchVar' _ _ _ = Nothing
 
--- TODO : Docs
 data ScopeLocation = Curr | Outer
 
--- TODO : Docs
 getTypeDefault :: AType.Type -> AAst.Expression
 getTypeDefault t = AAst.ExprValue $ case t of
   AType.TInt -> AAst.ValInt 0
@@ -75,14 +67,11 @@ getTypeDefault t = AAst.ExprValue $ case t of
 
 -- ** Scopes manipulation
 
--- TODO : Docs
 pushScope :: Scope -> Env -> Env
 pushScope initScope = scopes %~ (initScope :)
 
--- TODO : Docs
 popScope :: Env -> Env
 popScope = scopes %~ tail
 
--- TODO : Docs
 getCurrScopeType :: Env -> ScopeType
 getCurrScopeType env = env ^?! (scopes . ix 0 . scopeType)

@@ -1,7 +1,6 @@
--- TODO : Docs
 module PrimitiveValue where
 
-import Data.Text (Text, append)
+import Data.Text (Text)
 import qualified Parser.Ast as Ast
 
 -- | Primitive value.
@@ -21,7 +20,6 @@ data Err
   | -- | Division by 0 error.
     DivisionByZero
 
--- TODO : Docs
 primitiveUnOpApplication :: Integral num => Ast.UnaryOp -> PrimitiveValue num -> Either Err (PrimitiveValue num)
 primitiveUnOpApplication unOp constant = case (unOp, constant) of
   (Ast.UnaryPlusOp, PrimNum c) -> return $ PrimNum c
@@ -29,7 +27,6 @@ primitiveUnOpApplication unOp constant = case (unOp, constant) of
   (Ast.NotOp, PrimBool c) -> return $ PrimBool $ not c
   _ -> Left MismatchedTypes
 
--- TODO : Docs
 primitiveBinOpApplication :: Integral num => Ast.BinaryOp -> PrimitiveValue num -> PrimitiveValue num -> Either Err (PrimitiveValue num)
 primitiveBinOpApplication binOp lhs rhs = case (binOp, lhs, rhs) of
   -- Integer
@@ -56,5 +53,5 @@ primitiveBinOpApplication binOp lhs rhs = case (binOp, lhs, rhs) of
   (Ast.LtOp, PrimString lhs', PrimString rhs') -> return $ PrimBool $ lhs' < rhs'
   (Ast.MeOp, PrimString lhs', PrimString rhs') -> return $ PrimBool $ lhs' >= rhs'
   (Ast.MtOp, PrimString lhs', PrimString rhs') -> return $ PrimBool $ lhs' > rhs'
-  (Ast.PlusOp, PrimString lhs', PrimString rhs') -> return $ PrimString $ append lhs' rhs'
+  (Ast.PlusOp, PrimString lhs', PrimString rhs') -> return $ PrimString $ lhs' <> rhs'
   _ -> Left MismatchedTypes

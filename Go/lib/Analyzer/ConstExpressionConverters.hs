@@ -6,7 +6,6 @@ module Analyzer.ConstExpressionConverters where
 import Analyzer.AnalyzedAst (Expression (ExprValue), Value (..))
 import Analyzer.AnalyzedType (Type (..))
 import Data.Either.Extra (mapLeft)
-import Data.Functor ((<&>))
 import qualified Parser.Ast as Ast
 import qualified PrimitiveValue as PV
 
@@ -15,7 +14,9 @@ simplifyConstExpr :: Ast.Expression -> Either Err (Maybe Type, Expression)
 simplifyConstExpr expression = do
   constant <- simplifyConstExpr' expression
   case constant of
-    PV.PrimNum c -> convertIntegerToInt c <&> (\c' -> (Just TInt, ExprValue $ ValInt c'))
+    PV.PrimNum c -> do
+      c' <- convertIntegerToInt c
+      return (Just TInt, ExprValue $ ValInt c')
     PV.PrimBool c -> return (Just TBool, ExprValue $ ValBool c)
     PV.PrimString c -> return (Just TString, ExprValue $ ValString c)
 
@@ -30,8 +31,7 @@ simplifyConstIntExpr expression = do
 -- | Converts integer to int if possible.
 convertIntegerToInt :: Integer -> Either Err Int
 convertIntegerToInt integer =
-  -- Checks for overflow
-  if toInteger (fromIntegral integer :: Int) == integer
+  if toInteger (fromIntegral integer :: Int) == integer -- Checks for overflow
     then return $ fromIntegral integer
     else Left NotInIntBounds
 
@@ -43,7 +43,9 @@ simplifyConstExpr' expression = case expression of
     Ast.ValBool c -> return $ PV.PrimBool c
     Ast.ValString c -> return $ PV.PrimString c
     _ -> Left NotConstExpr
-  Ast.ExprUnaryOp unOp expr -> simplifyConstExpr' expr >>= mapLeft mapErr . PV.primitiveUnOpApplication unOp
+  Ast.ExprUnaryOp unOp expr -> do
+    expr' <- simplifyConstExpr' expr
+    mapLeft mapErr $ PV.primitiveUnOpApplication unOp expr'
   Ast.ExprBinaryOp binOp lhs rhs -> do
     lhs' <- simplifyConstExpr' lhs
     rhs' <- simplifyConstExpr' rhs

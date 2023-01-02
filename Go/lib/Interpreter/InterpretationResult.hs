@@ -1,6 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
 
--- TODO : Docs
 module Interpreter.InterpretationResult where
 
 import Analyzer.AnalyzedAst (Function (Function, StdLibFunction), FunctionValue (AnonymousFunction, Nil), Identifier)
@@ -41,13 +40,11 @@ instance Eq (RuntimeValue s) where
 -- | Represents the result of interpretation.
 type Result s a = ExceptT Err (StateT (Env s) (ST s)) a
 
--- TODO : Docs
 lift2 :: ST s a -> Result s a
 lift2 = lift . lift
 
 -- ** Result value
 
--- TODO : Docs
 type ResultValue = Either Err
 
 -- ** Error
@@ -62,8 +59,7 @@ data Err
     NoReturn
   | -- | Null dereference error (happens when trying to call the `nil` as a regular function).
     Npe
-  | -- TODO : Docs
-    Panic Text
+  | Panic Text
   | -- | Unexpected error, this type of errors must never happen.
     UnexpectedError
 
@@ -77,18 +73,15 @@ instance Show Err where
 
 -- ** State
 
--- TODO : Docs
 data Env s = Env
   { _funcs :: Map Identifier (STRef s Function, FuncScope s),
     _funcScopes :: [FuncScope s],
     _accumulatedOutput :: AccOut
   }
 
--- TODO : Docs
 emptyEnv :: Env s
 emptyEnv = Env Map.empty [] []
 
--- TODO : Docs
 newtype FuncScope s = FuncScope {_scopes :: [Scope s]}
 
 -- | Scope contains identifiers mapped to their types.
@@ -107,7 +100,6 @@ makeLenses ''Env
 makeLenses ''FuncScope
 makeLenses ''Scope
 
--- TODO : Docs
 var :: Applicative f => Int -> Int -> Text -> LensLike' f (Env s) (Maybe (STRef s (RuntimeValue s)))
 var i j name = funcScopes . ix i . scopes . ix j . vars . at name
 
@@ -135,7 +127,6 @@ instance Show RuntimeValue' where
   show (ValFunction' (AnonymousFunction Function {})) = "function"
   show (ValFunction' (AnonymousFunction (StdLibFunction name))) = unpack name
 
--- TODO : Docs
 data Env' = Env'
   { _funcs' :: Map Identifier Function,
     _funcScopes' :: [FuncScope'],
@@ -143,11 +134,9 @@ data Env' = Env'
   }
   deriving (Show)
 
--- TODO : Docs
 newtype FuncScope' = FuncScope' {_scopes' :: [Scope']}
   deriving (Show)
 
--- TODO : Docs
 newtype Scope' = Scope' {_vars' :: Map Identifier RuntimeValue'}
   deriving (Show)
 

@@ -1,8 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# OPTIONS_GHC -Wno-partial-fields #-}
 
--- TODO : Docs
-
 module Analyzer.AnalyzedAst
   ( module Analyzer.AnalyzedAst,
     UnaryOp (..),
