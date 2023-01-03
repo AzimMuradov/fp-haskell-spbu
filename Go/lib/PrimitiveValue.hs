@@ -29,7 +29,7 @@ primitiveUnOpApplication unOp constant = case (unOp, constant) of
 
 primitiveBinOpApplication :: Integral num => Ast.BinaryOp -> PrimitiveValue num -> PrimitiveValue num -> Either Err (PrimitiveValue num)
 primitiveBinOpApplication binOp lhs rhs = case (binOp, lhs, rhs) of
-  -- Integer
+  -- Number
   (Ast.EqOp, PrimNum lhs', PrimNum rhs') -> return $ PrimBool $ lhs' == rhs'
   (Ast.NeOp, PrimNum lhs', PrimNum rhs') -> return $ PrimBool $ lhs' /= rhs'
   (Ast.LeOp, PrimNum lhs', PrimNum rhs') -> return $ PrimBool $ lhs' <= rhs'

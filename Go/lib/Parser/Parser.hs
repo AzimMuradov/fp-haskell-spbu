@@ -6,6 +6,7 @@ module Parser.Parser where
 import Control.Monad (void)
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
 import Data.Either (lefts, rights)
+import Data.Functor (($>))
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import qualified Parser.Ast as Ast
@@ -173,28 +174,24 @@ forKindP =
 
 -- | Var declaration parser.
 varDeclP :: Parser Ast.VarDecl
-varDeclP =
-  Ast.VarDecl
-    <$ kwVar
-    <*> identifierP
-    <*> choice'
-      [ Ast.VarValue <$> optional' typeP <* symbol "=" <*> expressionP,
-        Ast.DefaultedVarValue <$> typeP
-      ]
+varDeclP = kwVar $> Ast.VarDecl <*> identifierP <*> varValueP
+  where
+    varValueP =
+      choice'
+        [ Ast.VarValue <$> optional' typeP <* symbol "=" <*> expressionP,
+          Ast.DefaultedVarValue <$> typeP
+        ]
 
 -- | If-else parser.
 ifElseP :: Parser Ast.IfElse
-ifElseP = do
-  void kwIf
-  condition <- expressionP
-  block <- blockP
-  elseStmt <-
-    choice'
-      [ Ast.Elif <$ kwElse <*> ifElseP,
-        Ast.Else <$ kwElse <*> blockP,
-        return Ast.NoElse
-      ]
-  return $ Ast.IfElse condition block elseStmt
+ifElseP = kwIf $> Ast.IfElse <*> expressionP <*> blockP <*> elseP
+  where
+    elseP =
+      choice'
+        [ Ast.Elif <$ kwElse <*> ifElseP,
+          Ast.Else <$ kwElse <*> blockP,
+          return Ast.NoElse
+        ]
 
 -- | Block parser.
 blockP :: Parser Ast.Block

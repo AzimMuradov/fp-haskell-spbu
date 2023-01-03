@@ -53,12 +53,12 @@ library
         Parser.Parser,
         Analyzer.AnalyzedAst,
         Analyzer.AnalyzedType,
-        Analyzer.AnalysisResult,
+        Analyzer.Result,
         Analyzer.ConstExpressionConverters,
-        Analyzer.AnalyzerRuntime,
+        Analyzer.Runtime,
         Analyzer.Analyzer,
-        Interpreter.InterpretationResult,
-        Interpreter.InterpreterRuntime,
+        Interpreter.Result,
+        Interpreter.Runtime,
         Interpreter.Interpreter,
         StdLib,
         PrimitiveValue
@@ -93,4 +93,3 @@ executable minigo
         optparse-applicative >=0.17.0
 
     hs-source-dirs: app
-    

@@ -11,7 +11,7 @@ data Type
     TString
   | -- | Array type, it contains the length of the array and its elements type.
     TArray Type Int
-  | -- | Function type.
+  | -- | Function type, see 'FunctionType'.
     TFunction FunctionType
   | -- | Null type.
     TNil

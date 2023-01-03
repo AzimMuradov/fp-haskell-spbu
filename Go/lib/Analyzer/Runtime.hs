@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module Analyzer.AnalyzerRuntime where
+module Analyzer.Runtime where
 
-import Analyzer.AnalysisResult
 import qualified Analyzer.AnalyzedAst as AAst
 import qualified Analyzer.AnalyzedType as AType
+import Analyzer.Result
 import Control.Applicative ((<|>))
 import Control.Lens (ix, (%~), (?~), (^?!))
 import Control.Monad.Except (MonadError (throwError))

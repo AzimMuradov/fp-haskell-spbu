@@ -1,18 +1,20 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 
-module Interpreter.InterpreterRuntime where
+module Interpreter.Runtime where
 
 import qualified Analyzer.AnalyzedAst as Ast
 import Control.Applicative ((<|>))
-import Control.Lens
+import Control.Lens (Ixed (ix), (%~), (?~))
 import Control.Monad ((>=>))
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State (get, modify)
 import Data.Map ((!?))
 import qualified Data.Map.Strict as Map
 import Data.STRef (STRef, newSTRef, readSTRef, writeSTRef)
-import Interpreter.InterpretationResult
+import Interpreter.Result
+
+-- * Variables manipulation
 
 -- ** Get a variable value
 
@@ -44,29 +46,22 @@ updateVar name value = do
 -- ** Search for a variable
 
 getVar :: Ast.Identifier -> Result s (STRef s (RuntimeValue s))
-getVar name = fst <$> (searchVar name >>= unwrapJust)
+getVar name = fst <$> (searchVar name >>= maybe (throwError UnexpectedError) return)
 
 searchVar :: Ast.Identifier -> Result s (Maybe (STRef s (RuntimeValue s), ScopeLocation))
 searchVar name = do
   Env fs fScs _ <- get
-  fsSc <- lift2 $ Scope <$> mapM ((\(f, fSc) -> (,fSc) <$> readSTRef f) >=> \(f, fSc) -> newSTRef $ ValFunction (Ast.AnonymousFunction f) fSc) fs
+  sc <- lift2 $ Scope <$> mapM ((\(f, sc) -> (,sc) <$> readSTRef f) >=> \(f, sc) -> newSTRef $ ValFunction (Ast.Function f) sc) fs
   return $ case fScs of
-    FuncScope scs : _ -> searchVar' name Curr (scs ++ [fsSc])
-    _ -> searchVar' name Outer [fsSc]
+    FuncScope scs : _ -> searchVar' name Curr (scs ++ [sc])
+    _ -> searchVar' name Outer [sc]
   where
     searchVar' n loc (Scope ns : scs) = ((,loc) <$> (ns !? n)) <|> searchVar' n Outer scs
     searchVar' _ _ _ = Nothing
 
 data ScopeLocation = Curr | Outer
 
-flattenFuncScope :: FuncScope s -> Scope s
-flattenFuncScope (FuncScope scs) = flattenFuncScope' scs
-  where
-    flattenFuncScope' (Scope ns : Scope ns' : scs') = flattenFuncScope' (Scope (Map.union ns ns') : scs')
-    flattenFuncScope' [sc] = sc
-    flattenFuncScope' [] = emptyScope
-
--- ** Scopes manipulation
+-- * Scopes manipulation
 
 pushFuncScope :: Scope s -> Env s -> Env s
 pushFuncScope initScope = funcScopes %~ (FuncScope [initScope] :)
@@ -80,7 +75,9 @@ pushBlockScope initScope = (funcScopes . ix 0 . scopes) %~ (initScope :)
 popBlockScope :: Env s -> Env s
 popBlockScope = (funcScopes . ix 0 . scopes) %~ tail
 
--- * Utils
-
-unwrapJust :: Maybe a -> Result s a
-unwrapJust = maybe (throwError UnexpectedError) return
+flattenFuncScope :: FuncScope s -> Scope s
+flattenFuncScope (FuncScope scs) = flattenFuncScope' scs
+  where
+    flattenFuncScope' (Scope ns : Scope ns' : scs') = flattenFuncScope' (Scope (Map.union ns ns') : scs')
+    flattenFuncScope' [sc] = sc
+    flattenFuncScope' [] = emptyScope

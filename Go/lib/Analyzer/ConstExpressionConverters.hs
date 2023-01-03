@@ -35,7 +35,7 @@ convertIntegerToInt integer =
     then return $ fromIntegral integer
     else Left NotInIntBounds
 
--- | Simplifies expression to constant value if possible.
+-- | Simplifies expression to primitive value if possible.
 simplifyConstExpr' :: Ast.Expression -> Either Err (PV.PrimitiveValue Integer)
 simplifyConstExpr' expression = case expression of
   Ast.ExprValue val -> case val of

@@ -98,12 +98,12 @@ data Value
   deriving (Show)
 
 data FunctionValue
-  = AnonymousFunction Function
+  = Function Function
   | Nil
   deriving (Show)
 
 data Function
-  = Function {parameters :: [Identifier], body :: Block, voidMark :: VoidMark}
+  = OrdinaryFunction {parameters :: [Identifier], body :: Block, voidMark :: VoidMark}
   | StdLibFunction Identifier
   deriving (Show)
 

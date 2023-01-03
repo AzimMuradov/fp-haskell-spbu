@@ -1,13 +1,13 @@
 module Main where
 
-import qualified Analyzer.AnalysisResult as AnalysisResult
-import qualified Analyzer.AnalyzedAst as AnalyzedAst
+import qualified Analyzer.AnalyzedAst as AAst
 import Analyzer.Analyzer (analyze)
+import qualified Analyzer.Result as AResult
 import Data.Either.Extra (fromEither, mapLeft, maybeToEither)
 import Data.Text (Text, pack, unpack)
 import Data.Void (Void)
-import qualified Interpreter.InterpretationResult as InterpretationResult
 import Interpreter.Interpreter (getInterpretationOut, interpret)
+import qualified Interpreter.Result as IResult
 import Options.Applicative
 import qualified Parser.Ast as Ast
 import Parser.Parser (parse)
@@ -61,10 +61,10 @@ debug fileText = parseResultMsg fileText ++ "\n" ++ analyzerResultMsg fileText +
 
 -- *** Interpreter
 
-interpreterResult :: String -> Either String (InterpretationResult.ResultValue (), InterpretationResult.Env')
+interpreterResult :: String -> Either String (IResult.ResultValue (), IResult.Env')
 interpreterResult fileText = analyzerResultMapper' fileText interpret
 
-interpreterResultMapper :: String -> ((InterpretationResult.ResultValue (), InterpretationResult.Env') -> a) -> Either String a
+interpreterResultMapper :: String -> ((IResult.ResultValue (), IResult.Env') -> a) -> Either String a
 interpreterResultMapper fileText f = f <$> interpreterResult fileText
 
 interpreterResultMapper' :: String -> ((Text, Maybe Text) -> a) -> Either String a
@@ -75,13 +75,13 @@ interpreterResultMsg fileText = fromEither (interpreterResultMapper fileText ((+
 
 -- *** Analyzer
 
-analyzerResult :: String -> Either String (AnalysisResult.ResultValue AnalyzedAst.Program, AnalysisResult.Env)
+analyzerResult :: String -> Either String (AResult.ResultValue AAst.Program, AResult.Env)
 analyzerResult fileText = parseResultMapper fileText analyze
 
-analyzerResultMapper :: String -> ((AnalysisResult.ResultValue AnalyzedAst.Program, AnalysisResult.Env) -> a) -> Either String a
+analyzerResultMapper :: String -> ((AResult.ResultValue AAst.Program, AResult.Env) -> a) -> Either String a
 analyzerResultMapper fileText f = f <$> analyzerResult fileText
 
-analyzerResultMapper' :: String -> (AnalyzedAst.Program -> a) -> Either String a
+analyzerResultMapper' :: String -> (AAst.Program -> a) -> Either String a
 analyzerResultMapper' fileText f = analyzerResultMapper fileText fst >>= (fmap f . mapLeft ((++ "\n") . show))
 
 analyzerResultMsg :: String -> String

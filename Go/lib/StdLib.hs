@@ -8,7 +8,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text, append, pack)
 import qualified Data.Text as T
-import Interpreter.InterpretationResult (Err (Panic, UnexpectedError), ResultValue, RuntimeValue' (..))
+import Interpreter.Result (Err (Panic, UnexpectedError), ResultValue, RuntimeValue' (..))
 
 ---------------------------------------------------------StdLib---------------------------------------------------------
 
@@ -30,7 +30,7 @@ type StdLibFuncResult = ResultValue (Maybe RuntimeValue', Text)
 stdLibFunctions :: [StdLibFunction]
 stdLibFunctions = [lenFunction, printFunction, printlnFunction, panicFunction]
 
--- | @stdLibFunctions@ given in map representation for convenience.
+-- | 'stdLibFunctions' given in map representation for convenience.
 stdLibFunctionsMap :: Map Identifier StdLibFuncImpl
 stdLibFunctionsMap = Map.fromList $ (\f -> (name f, impl f)) <$> stdLibFunctions
 

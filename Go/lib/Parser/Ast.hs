@@ -29,13 +29,13 @@ data FunctionDef = FunctionDef {funcName :: Identifier, func :: Function}
 
 -- | Expression.
 data Expression
-  = -- | Value expression.
+  = -- | Value expression, see 'Value'.
     ExprValue Value
-  | -- | Identifier expression.
+  | -- | Identifier expression, see 'Identifier'.
     ExprIdentifier Identifier
-  | -- | Unary operation expression (e.g., @!x@, @-4@).
+  | -- | Unary operation expression (e.g., @!x@, @-4@), see 'UnaryOp'.
     ExprUnaryOp UnaryOp Expression
-  | -- | Binary operation expression (e.g., @x + 7@).
+  | -- | Binary operation expression (e.g., @x + 7@), see 'BinaryOp'.
     ExprBinaryOp BinaryOp Expression Expression
   | -- | Array access by index expression.
     --
@@ -61,12 +61,16 @@ data Expression
     -- > print("some logs...") // prints "some logs..."
     --
     -- > print(3 + 6)  // prints "9"
+    --
+    -- > print("abc", 2) // prints "abc2"
     ExprPrintFuncCall [Expression]
   | -- | @println@ function call expression.
     --
     -- > println("some logs...") // prints "some logs...\n"
     --
     -- > println(3 + 6)  // prints "9\n"
+    --
+    -- > println("abc", 2) // prints "abc 2\n"
     ExprPrintlnFuncCall [Expression]
   | -- | @panic@ function call expression.
     --
@@ -102,7 +106,7 @@ data BinaryOp
     MultOp
   | -- | Divide operator (@a / b@), works only for @int@.
     DivOp
-  | -- | Module operator (@a % b@), works only for @int@.
+  | -- | Modulus operator (@a % b@), works only for @int@.
     ModOp
   deriving (Show)
 
@@ -128,9 +132,9 @@ data Type
     TBool
   | -- | String type.
     TString
-  | -- | Array type.
+  | -- | Array type, see 'ArrayType'.
     TArray ArrayType
-  | -- | Function type.
+  | -- | Function type, see 'FunctionType'.
     TFunction FunctionType
   deriving (Show)
 
@@ -158,19 +162,19 @@ data FunctionType = FunctionType {parameters :: [Type], result :: Maybe Type}
 data Statement
   = -- | Return statement with optional return value (in the case of 'Nothing' we assume, that it is @void@).
     StmtReturn (Maybe Expression)
-  | -- | For goto statement.
+  | -- | For goto statement, see 'ForGoTo'.
     StmtForGoTo ForGoTo
-  | -- | For statement.
+  | -- | For statement, see 'For'.
     StmtFor For
-  | -- | Var declaration statement.
+  | -- | Var declaration statement, see 'VarDecl'.
     StmtVarDecl VarDecl
-  | -- | If-else statement.
+  | -- | If-else statement, see 'IfElse'.
     StmtIfElse IfElse
-  | -- | Block statement.
+  | -- | Block statement, see 'Block'.
     --
     -- > { 34; foo(34); if true {} else {}; return 17; }
     StmtBlock Block
-  | -- | Simple statement.
+  | -- | Simple statement, see 'SimpleStmt'.
     StmtSimple SimpleStmt
   deriving (Show)
 
@@ -185,7 +189,7 @@ data ForGoTo
     Continue
   deriving (Show)
 
--- | For statement, can represent any of the 3 possible @for@ kinds.
+-- | For statement, can represent any of the 3 possible @for@ kinds, see 'ForKind'.
 data For = For {forKind :: ForKind, block :: Block}
   deriving (Show)
 
@@ -286,9 +290,9 @@ data Value
     ValBool Bool
   | -- | String literal value (e.g., @\"Hello\"@, @\"\"@, @\"Some\\ntext\"@).
     ValString Text
-  | -- | Array value.
+  | -- | Array value, see 'ArrayValue'.
     ValArray ArrayValue
-  | -- | Function value.
+  | -- | Function value, see 'FunctionValue'.
     ValFunction FunctionValue
   deriving (Show)
 
@@ -302,7 +306,7 @@ data ArrayValue = ArrayValue {t :: ArrayType, elements :: [Expression]}
 
 -- | Function value.
 data FunctionValue
-  = -- | Anonymous function.
+  = -- | Anonymous function, see 'Function'.
     --
     -- > func (x int) int { return x * x; }
     --
