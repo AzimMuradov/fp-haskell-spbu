@@ -25,14 +25,16 @@ Project parts:
 
 - `int`, `bool`, `string` support
 - `void` support
+- multidimensional arrays support
 - function literals (anonymous functions)
 - operators (arithmetic, logic, comparison)
 - `if`, `else`
+- `for`
 - recursion, mutual recursion
 - function definitions
 - variable declarations
 - variable assignments
-- globals
+- globals support
 - closures (including mutable closures)
 - short variable declarations
 - increment, decrement
@@ -40,7 +42,3 @@ Project parts:
 - analyzer (check for name collision or missing names, type checker, const expressions converters (w/o `const` keyword))
 - interpreter (everything except mentioned in missing)
 - several stdlib functions (`len`, `print`, `println`, `panic`)
-
-#### Missing:
-
-- interpreter (arrays, loops)

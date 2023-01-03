@@ -6,7 +6,7 @@ module Interpreter.Interpreter where
 
 import qualified Analyzer.AnalyzedAst as Ast
 import Control.Lens (Ixed (ix), (%~), (&), (.~), (^.), (^?!))
-import Control.Monad (void, (>=>))
+import Control.Monad (foldM, void, (>=>))
 import Control.Monad.Except (MonadError (throwError), liftEither, runExceptT)
 import Control.Monad.ST (runST)
 import Control.Monad.State (MonadState (get), StateT (runStateT), modify)
@@ -14,6 +14,7 @@ import Data.Either.Combinators (leftToMaybe, mapBoth)
 import Data.Functor (($>))
 import Data.List.Extra ((!?))
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 import Data.STRef (newSTRef, readSTRef)
 import Data.Text (Text, pack)
 import qualified Data.Text as T
@@ -58,11 +59,12 @@ interpretProgram (Ast.Program tlVarDecls tlFuncDefs) = do
 interpretFunc :: Ast.Function -> Scope s -> [RuntimeValue s] -> Result s (Maybe (RuntimeValue s))
 interpretFunc (Ast.OrdinaryFunction params body voidMark) (Scope ns) args = do
   args' <- lift2 $ mapM newSTRef (Map.fromList $ params `zip` args)
-  res <- interpretBlock (Scope (Map.union ns args')) pushFuncScope popFuncScope body
+  res <- interpretBlock (Scope (Map.union args' ns)) pushFuncScope popFuncScope body
   case (res, voidMark) of
     (Ret val, _) -> return val
     (Unit, Ast.VoidFunc) -> return Nothing
     (Unit, Ast.NonVoidFunc) -> throwError NoReturn
+    _ -> throwError UnexpectedError
 interpretFunc (Ast.StdLibFunction name) _ args = do
   func <- unwrapJust $ stdLibFunctionsMap Map.!? name
   (res, out) <- liftEither $ func $ evalRuntimeValue <$> args
@@ -94,10 +96,35 @@ interpretStmtReturn :: Maybe Ast.Expression -> Result s (StmtResult s)
 interpretStmtReturn = maybe (return $ Ret Nothing) (fmap Ret . interpretExpr)
 
 interpretStmtForGoTo :: Ast.ForGoTo -> Result s (StmtResult s)
-interpretStmtForGoTo = undefined -- TODO
+interpretStmtForGoTo = \case
+  Ast.Break -> return Break
+  Ast.Continue -> return Continue
 
 interpretStmtFor :: Ast.For -> Result s (StmtResult s)
-interpretStmtFor = undefined -- TODO
+interpretStmtFor (Ast.For kind block) = case kind of
+  Ast.ForKindFor pre cond post -> for pre cond post block
+  Ast.ForKindWhile cond -> for Nothing (Just cond) Nothing block
+  Ast.ForKindLoop -> for Nothing Nothing Nothing block
+  where
+    for :: Maybe Ast.SimpleStmt -> Maybe Ast.Expression -> Maybe Ast.SimpleStmt -> Ast.Block -> Result s (StmtResult s)
+    for pre cond post b = do
+      modify $ pushBlockScope emptyScope
+      mapM_ interpretStmtSimple pre
+      res <- for' cond post b
+      modify popBlockScope
+      return res
+    for' :: Maybe Ast.Expression -> Maybe Ast.SimpleStmt -> Ast.Block -> Result s (StmtResult s)
+    for' cond post b = do
+      cond' <- fromMaybe True <$> mapM interpretBoolExpr cond
+      if cond'
+        then do
+          res <- interpretStmtBlock b
+          case res of
+            Unit -> mapM_ interpretStmtSimple post >> for' cond post b
+            Break -> mapM_ interpretStmtSimple post $> Unit
+            Continue -> mapM_ interpretStmtSimple post >> for' cond post b
+            Ret _ -> mapM_ interpretStmtSimple post $> res
+        else return Unit
 
 interpretStmtVarDecl :: Ast.VarDecl -> Result s (StmtResult s)
 interpretStmtVarDecl (Ast.VarDecl name expr) = (interpretExpr' expr >>= addNewVar name) $> Unit
@@ -134,13 +161,32 @@ interpretStmtSimple = \case
   Ast.StmtExpression expr -> interpretExpr expr $> Unit
 
 getLvalueUpdater :: Ast.Lvalue -> Result s (Ast.Identifier, RuntimeValue s, RuntimeValue s -> RuntimeValue s)
-getLvalueUpdater = getLvalueUpdater'
+getLvalueUpdater (Ast.LvalVar name) = (name,,id) <$> getVarValue name
+getLvalueUpdater (Ast.LvalArrEl name indices) = do
+  arr <- getVarValue name
+  indices' <- mapM interpretIntExpr indices
+  (value, accessor) <- foldM helper (arr, \_ v -> v) indices'
+  return (name, value, accessor arr)
   where
-    getLvalueUpdater' (Ast.LvalVar name) = (name,,id) <$> getVarValue name
-    getLvalueUpdater' (Ast.LvalArrEl _ _) = undefined -- TODO
+    helper ::
+      (RuntimeValue s, RuntimeValue s -> RuntimeValue s -> RuntimeValue s) ->
+      Int ->
+      Result s (RuntimeValue s, RuntimeValue s -> RuntimeValue s -> RuntimeValue s)
+    helper (arr, replacer) i = do
+      arr' <- castToArr arr
+      let arrEl = arr' ^?! ix i
+      return (arrEl, \oldArr v -> replacer oldArr (ValArray (arr' & ix i .~ v)))
 
--- | Statement interpretation result, its either unit (@void@) or some result of the return statement.
-data StmtResult s = Unit | Ret (Maybe (RuntimeValue s))
+-- | Statement interpretation result.
+data StmtResult s
+  = -- | Result of ordinary statement.
+    Unit
+  | -- | Result of the @break@ statement.
+    Break
+  | -- | Result of the @continue@ statement.
+    Continue
+  | -- | Result of the @return@ statement.
+    Ret (Maybe (RuntimeValue s))
   deriving (Eq)
 
 ------------------------------------------------------Expressions-------------------------------------------------------

@@ -31,23 +31,23 @@ func main() {
 
   /* for */
 
-  // should panic with "panic: TODO: `for` interpretation"
-  panic("TODO: `for` interpretation");
+  i := 1;
 
-  // i := 1;
+  for i := 0; i < 17; i++ {
+    println(i * i * i);
+  };
 
-  // for i := 0; i < 17; i++ {
-  //   println(i * i * i);
-  // };
+  println(i);
 
-  // println(i);
+  i := 2;
+  for i < 5 {
+    println(i);
+    i++;
+  };
+  println(i);
 
-  // for false {
-  //   println();
-  // };
-
-  // for true {
-  //   println("true");
-  //   break;
-  // };
+  for {
+    println("true");
+    break;
+  };
 }
