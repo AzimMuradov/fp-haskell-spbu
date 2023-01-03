@@ -3,15 +3,16 @@
 -- | Provides parser that produces [AST]("Parser.Ast").
 module Parser.Parser where
 
-import Control.Monad (void)
+import Control.Monad (liftM2, void)
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
 import Data.Either (lefts, rights)
+import Data.Function ((&))
 import Data.Functor (($>))
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import qualified Parser.Ast as Ast
 import Parser.Lexer
-import Text.Megaparsec (MonadParsec (..), choice, eitherP, many, optional, parseMaybe, sepEndBy, some)
+import Text.Megaparsec (MonadParsec (..), choice, eitherP, many, optional, parseMaybe, sepEndBy, some, (<|>))
 
 ---------------------------------------------------------Parser---------------------------------------------------------
 
@@ -45,7 +46,7 @@ functionDefP = Ast.FunctionDef <$ kwFunc <*> identifierP <*> functionP
 
 -- | Expression parser.
 expressionP :: Parser Ast.Expression
-expressionP = makeExprParser termExpressionP opsTable
+expressionP = makeExprParser (liftM2 (foldl (&)) termExpressionP (many (funcCallOp <|> arrayAccessByIndexOp))) opsTable
 
 -- | Terminal expression parser, it's terminal in terms of 'makeExprParser' parser.
 termExpressionP :: Parser Ast.Expression
@@ -63,9 +64,7 @@ termExpressionP =
 -- | Operators table, contains all operator parsers and their fixity.
 opsTable :: [[Operator Parser Ast.Expression]]
 opsTable =
-  [ [arrayAccessByIndexOp],
-    [funcCallOp],
-    [ unaryOp "+" Ast.UnaryPlusOp,
+  [ [ unaryOp "+" Ast.UnaryPlusOp,
       unaryOp "-" Ast.UnaryMinusOp,
       unaryOp "!" Ast.NotOp
     ],
@@ -98,12 +97,12 @@ unaryOp :: Text -> Ast.UnaryOp -> Operator Parser Ast.Expression
 unaryOp opSym op = Prefix $ Ast.ExprUnaryOp op <$ symbol opSym
 
 -- | Function call operator.
-funcCallOp :: Operator Parser Ast.Expression
-funcCallOp = Postfix $ flip Ast.ExprFuncCall <$> listed expressionP comma
+funcCallOp :: Parser (Ast.Expression -> Ast.Expression)
+funcCallOp = flip Ast.ExprFuncCall <$> listed expressionP comma
 
 -- | Array access by index operator.
-arrayAccessByIndexOp :: Operator Parser Ast.Expression
-arrayAccessByIndexOp = Postfix $ flip Ast.ExprArrayAccessByIndex <$> brackets expressionP
+arrayAccessByIndexOp :: Parser (Ast.Expression -> Ast.Expression)
+arrayAccessByIndexOp = flip Ast.ExprArrayAccessByIndex <$> brackets expressionP
 
 ---------------------------------------------------------Types----------------------------------------------------------
 

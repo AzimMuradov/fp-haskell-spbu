@@ -243,7 +243,7 @@ analyzeExprValue = \case
     returnBool v = return' AType.TBool $ AAst.ValBool v
     returnString v = return' AType.TString $ AAst.ValString v
     returnArray elT len elsVs =
-      return' (AType.TArray elT len) $ AAst.ValArray $ replicate (len - length elsVs) (getTypeDefault elT) ++ elsVs
+      return' (AType.TArray elT len) $ AAst.ValArray $ elsVs <> replicate (len - length elsVs) (getTypeDefault elT)
     returnFunction t f = return' (AType.TFunction t) $ AAst.ValFunction (AAst.Function f)
     returnNil = return' AType.TNil $ AAst.ValFunction AAst.Nil
 
