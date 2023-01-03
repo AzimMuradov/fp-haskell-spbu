@@ -63,8 +63,8 @@ data ScopeLocation = Curr | Outer
 
 -- * Scopes manipulation
 
-pushFuncScope :: Scope s -> Env s -> Env s
-pushFuncScope initScope = funcScopes %~ (FuncScope [initScope] :)
+pushFuncScope :: FuncScope s -> Env s -> Env s
+pushFuncScope initScope = funcScopes %~ (initScope :)
 
 popFuncScope :: Env s -> Env s
 popFuncScope = funcScopes %~ tail

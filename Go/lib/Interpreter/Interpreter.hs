@@ -59,7 +59,7 @@ interpretProgram (Ast.Program tlVarDecls tlFuncDefs) = do
 interpretFunc :: Ast.Function -> Scope s -> [RuntimeValue s] -> Result s (Maybe (RuntimeValue s))
 interpretFunc (Ast.OrdinaryFunction params body voidMark) (Scope ns) args = do
   args' <- lift2 $ mapM newSTRef (Map.fromList $ params `zip` args)
-  res <- interpretBlock (Scope (Map.union args' ns)) pushFuncScope popFuncScope body
+  res <- interpretFuncBlock (FuncScope [Scope args', Scope ns]) body
   case (res, voidMark) of
     (Ret val, _) -> return val
     (Unit, Ast.VoidFunc) -> return Nothing
@@ -71,8 +71,14 @@ interpretFunc (Ast.StdLibFunction name) _ args = do
   modify $ accumulatedOutput %~ (out :)
   return $ unevalRuntimeValue <$> res
 
-interpretBlock :: Scope s -> (Scope s -> Env s -> Env s) -> (Env s -> Env s) -> Ast.Block -> Result s (StmtResult s)
-interpretBlock initScope pushScope popScope block = do
+interpretFuncBlock :: FuncScope s -> Ast.Block -> Result s (StmtResult s)
+interpretFuncBlock initScope = interpretBlock' initScope pushFuncScope popFuncScope
+
+interpretBlock :: Scope s -> Ast.Block -> Result s (StmtResult s)
+interpretBlock initScope = interpretBlock' initScope pushBlockScope popBlockScope
+
+interpretBlock' :: scope -> (scope -> Env s -> Env s) -> (Env s -> Env s) -> Ast.Block -> Result s (StmtResult s)
+interpretBlock' initScope pushScope popScope block = do
   modify $ pushScope initScope
   res <- foldl f (return Unit) block
   modify popScope
@@ -89,7 +95,7 @@ interpretStmt = \case
   Ast.StmtFor for -> interpretStmtFor for
   Ast.StmtVarDecl varDecl -> interpretStmtVarDecl varDecl
   Ast.StmtIfElse ifElse -> interpretStmtIfElse ifElse
-  Ast.StmtBlock block -> interpretStmtBlock block
+  Ast.StmtBlock block -> interpretBlock emptyScope block
   Ast.StmtSimple simpleStmt -> interpretStmtSimple simpleStmt
 
 interpretStmtReturn :: Maybe Ast.Expression -> Result s (StmtResult s)
@@ -118,7 +124,7 @@ interpretStmtFor (Ast.For kind block) = case kind of
       cond' <- fromMaybe True <$> mapM interpretBoolExpr cond
       if cond'
         then do
-          res <- interpretStmtBlock b
+          res <- interpretBlock emptyScope b
           case res of
             Unit -> mapM_ interpretStmtSimple post >> for' cond post b
             Break -> mapM_ interpretStmtSimple post $> Unit
@@ -133,14 +139,11 @@ interpretStmtIfElse :: Ast.IfElse -> Result s (StmtResult s)
 interpretStmtIfElse (Ast.IfElse condition block elseStmt) = do
   cond <- interpretBoolExpr condition
   if cond
-    then interpretBlock emptyScope pushBlockScope popBlockScope block
+    then interpretBlock emptyScope block
     else case elseStmt of
       Ast.NoElse -> return Unit
-      Ast.Else block' -> interpretBlock emptyScope pushBlockScope popBlockScope block'
+      Ast.Else block' -> interpretBlock emptyScope block'
       Ast.Elif ifElse -> interpretStmtIfElse ifElse
-
-interpretStmtBlock :: Ast.Block -> Result s (StmtResult s)
-interpretStmtBlock = interpretBlock emptyScope pushBlockScope popBlockScope
 
 interpretStmtSimple :: Ast.SimpleStmt -> Result s (StmtResult s)
 interpretStmtSimple = \case
