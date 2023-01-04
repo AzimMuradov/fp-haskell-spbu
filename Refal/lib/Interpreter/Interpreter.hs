@@ -9,7 +9,9 @@ type Congruity = (Var, Pattern)
 
 type Conformity = [Congruity]
 
-type ARMMonad = ARMMonad
+type ARMMonad = Either ARMError
+
+type ARMError = String
 
 interpret :: Program -> IO ()
 interpret pr =
@@ -225,8 +227,6 @@ rIter (f:fex) pr =
             Right ex -> Right $ ex ++ rit
             Left err -> Left err
     Left err -> Left err
-
-type ARMError = String
 
 
 --main runARM of ARM
