@@ -5,6 +5,7 @@ import           System.Environment (getArgs)
 import           Interpreter        (interpret)
 import           Parser             (progParser)
 import           Prettier           (prettify)
+import           Transformer        (transform)
 
 main :: IO ()
 main = do
@@ -17,7 +18,8 @@ main = do
         Left err -> print err
         Right code ->
           case option of
-            "-i" -> interpret code
+            "-i" -> interpret $ transform code
             "-p" -> prettify filename code
+            "-t" -> print $ transform code
             _    -> putStrLn "Unknown option"
     _ -> putStrLn "Provide one file name!"

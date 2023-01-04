@@ -3,6 +3,7 @@ module Main where
 import           Parser
 
 import           AST
+import           Transformer
 
 import           Test.Tasty
 import           Test.Tasty.HUnit
@@ -12,7 +13,7 @@ main :: IO ()
 main = defaultMain tests
 
 tests :: TestTree
-tests = testGroup "Unit" [unitTests]
+tests = testGroup "Unit" [unitTests, trTest]
 
 unitTests :: TestTree
 unitTests =
@@ -32,6 +33,65 @@ unitTests =
     , fDefTest
     ]
 
+trTest :: TestTree
+trTest =
+  testGroup
+    "transformer"
+    [ testCase "nothing to transform" $
+      transform [Entry "Go" [Stc [Sym $ MDig 0] Nil [Term $ Sym $ MDig 1]]] @?=
+      [Entry "Go" [Stc [Sym $ MDig 0] Nil [Term $ Sym $ MDig 1]]]
+      -- <Sub 5 4>; -> 1;
+    , testCase "easy transform" $
+      transform
+        [ Entry
+            "Go"
+            [ Stc
+                [Sym $ MDig 0]
+                Nil
+                [FAct $ FApp "Sub" [Term $ Sym $ MDig 5, Term $ Sym $ MDig 4]]
+            ]
+        ] @?=
+      [Entry "Go" [Stc [Sym $ MDig 0] Nil [Term $ Sym $ MDig 1]]]
+    -- <Sub  <Fact <Sub 5 4> 4> 4>; -> <Sub  <Fact 1 4> 4>
+    , testCase "deep transform" $
+      transform
+        [ Entry
+            "Go"
+            [ Stc
+                [Sym $ MDig 0]
+                Nil
+                [ FAct $
+                  FApp
+                    "Sub"
+                    [ FAct $
+                      FApp
+                        "Fact"
+                        [ FAct $
+                          FApp "Sub" [Term $ Sym $ MDig 5, Term $ Sym $ MDig 4]
+                        , Term $ Sym $ MDig 4
+                        ]
+                    , Term $ Sym $ MDig 4
+                    ]
+                ]
+            ]
+        ] @?=
+      [ Entry
+          "Go"
+          [ Stc
+              [Sym $ MDig 0]
+              Nil
+              [ FAct $
+                FApp
+                  "Sub"
+                  [ FAct $
+                    FApp "Fact" [Term $ Sym $ MDig 1, Term $ Sym $ MDig 4]
+                  , Term $ Sym $ MDig 4
+                  ]
+              ]
+          ]
+      ]
+    ]
+
 idTest :: TestTree
 idTest = testGroup "Identifier" [usrTest]
 
@@ -43,8 +103,7 @@ usrTest =
       parse (entry identifier') "" " Mul123 " @?= Right "Mul123"
     , testCase "Default sting" $
       parse (entry identifier') "" " as1_ADS- " @?= Right "as1_ADS-"
-    , testCase "Under Sub" $
-      parse (entry identifier') "" " S " @?= Right "S"
+    , testCase "Under Sub" $ parse (entry identifier') "" " S " @?= Right "S"
     ]
 
 cmpTest :: TestTree

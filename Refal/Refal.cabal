@@ -67,7 +67,7 @@ library
         AST
         Prettier
         Stdlib
-
+        Transformer
     -- Modules included in this library but not exported.
     -- other-modules:
 
@@ -86,8 +86,6 @@ library
         lib/Parser
         lib/Interpreter
         lib/PrettyPrinter
-
-
     -- Base language which the package is written in.
     default-language: Haskell2010
 
