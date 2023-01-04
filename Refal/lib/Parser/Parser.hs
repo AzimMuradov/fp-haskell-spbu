@@ -18,14 +18,10 @@ entry p = spaces *> p <* eof
 -- tested
 identifier' :: Parser FName
 identifier' =
-  lexeme $
-  try
-    (Op <$>
-     choice [Add <$ string "Add", Sub <$ string "Sub", Mul <$ string "Mul"] <*
-     space) <|> do
+  lexeme $ do
     c <- letter
     cs <- many (letter <|> digit <|> char '-' <|> char '_')
-    return $ Usr (c : cs)
+    return (c : cs)
 
 char' :: Parser Symbol
 char' =
@@ -60,8 +56,8 @@ term = try (Var <$> var) <|> try (Sym <$> symbol) <|> Par <$> parens expr
 
 
 -- tested
-expr :: Parser Expr
-expr = try (Cons <$> term <*> expr) <|> Empt <$ empty
+expr :: Parser Pattern
+expr = many term
 
 
 ----------------------------------Program------------------------------------
@@ -79,9 +75,9 @@ fApp = angles (FApp <$> identifier' <*> fExpr)
 
 -- tested
 fExpr :: Parser FExpr
-fExpr =
-  try (FTCons <$> term <*> fExpr) <|> try (FACons <$> fApp <*> fExpr) <|>
-  FEmpt <$ empty
+fExpr = many $ try (Term <$> term) <|> (FAct <$> fApp)
+  -- try (FTCons <$> term <*> fExpr) <|> try (FACons <$> fApp <*> fExpr) <|>
+  -- FEmpt <$ empty
 
 
 -- tested
@@ -90,7 +86,7 @@ sentence = do
   left <- expr
   cond <- condition
   _ <- sym "="
-  try (Cond left cond <$> fExpr)
+  try (Stc left cond <$> fExpr)
 
 
 -- tested. TODO not all with ';'

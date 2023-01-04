@@ -3,7 +3,6 @@ module Lexer where
 import           Text.Parsec.Language (emptyDef)
 import qualified Text.Parsec.Token    as Tok
 
-
 lexer :: Tok.TokenParser ()
 lexer = Tok.makeTokenParser style
   where
@@ -19,7 +18,7 @@ lexer = Tok.makeTokenParser style
 
 integer = Tok.natural lexer -- int
 
-parens = Tok.parens lexer -- ( _ )  
+parens = Tok.parens lexer -- ( _ )
 
 angles = Tok.angles lexer -- < _ >    activation (evaluation)
 
