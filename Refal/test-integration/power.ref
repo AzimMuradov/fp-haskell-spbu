@@ -4,5 +4,5 @@ Power {
 }
 
 $ENTRY Go {
-  = <Power 3 4>;
+  = <Power 3 9>;
 }

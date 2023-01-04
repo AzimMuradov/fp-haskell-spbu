@@ -33,30 +33,18 @@ unitTests =
     ]
 
 idTest :: TestTree
-idTest = testGroup "Identifier" [usrTest, opTest]
+idTest = testGroup "Identifier" [usrTest]
 
 usrTest :: TestTree
 usrTest =
   testGroup
-    "Usr identifier"
+    "identifier"
     [ testCase "Over Mul" $
-      parse (entry identifier') "" " Mul123 " @?= Right (Usr "Mul123")
+      parse (entry identifier') "" " Mul123 " @?= Right "Mul123"
     , testCase "Default sting" $
-      parse (entry identifier') "" " as1_ADS- " @?= Right (Usr "as1_ADS-")
+      parse (entry identifier') "" " as1_ADS- " @?= Right "as1_ADS-"
     , testCase "Under Sub" $
-      parse (entry identifier') "" " S " @?= Right (Usr "S")
-    ]
-
-opTest :: TestTree
-opTest =
-  testGroup
-    "Bin Op identifier"
-    [ testCase "Multiplication:" $
-      parse (entry identifier') "" " Mul " @?= Right (Op Mul)
-    , testCase "Addition" $
-      parse (entry identifier') "" " Add " @?= Right (Op Add)
-    , testCase "Subtraction" $
-      parse (entry identifier') "" " Sub " @?= Right (Op Sub)
+      parse (entry identifier') "" " S " @?= Right "S"
     ]
 
 cmpTest :: TestTree
@@ -79,7 +67,7 @@ symTest =
     [ testCase "Macrodigit" $
       parse (entry symbol) "" " 213 " @?= Right (MDig 213)
     , testCase "Identifier" $
-      parse (entry symbol) "" " asd_ASD- " @?= Right (ID $ Usr "asd_ASD-")
+      parse (entry symbol) "" " asd_ASD- " @?= Right (ID "asd_ASD-")
     , testCase "Char" $ parse (entry symbol) "" " 'a' " @?= Right (Ch 'a')
     , testCase "Compound" $
       parse (entry symbol) "" " \"i am symbol \" " @?=
@@ -105,47 +93,39 @@ termTest =
     , testCase "Variable" $
       parse (entry term) "" " s.a12 " @?= Right (Var $ SVar "a12")
     , testCase "Parenthesis" $
-      parse (entry term) "" " (   s.a12  ) " @?=
-      Right (Par $ Cons (Var $ SVar "a12") Empt)
+      parse (entry term) "" " (   s.a12  ) " @?= Right (Par [Var $ SVar "a12"])
     ]
 
 exprTest =
   testGroup
     "Expression"
-    [ testCase "Empty" $ parse (entry expr) "" " " @?= Right Empt
+    [ testCase "Empty" $ parse (entry expr) "" " " @?= Right []
     , testCase "Not empty" $
-      parse (entry expr) "" " s.a12 " @?= Right (Cons (Var $ SVar "a12") Empt)
+      parse (entry expr) "" " s.a12 " @?= Right [Var $ SVar "a12"]
     , testCase "Complicated" $
       parse (entry expr) "" "( s.a12    (\"sad\")   \'a\' )  () " @?=
       Right
-        (Cons
-           (Par $
-            Cons
-              (Var $ SVar "a12")
-              (Cons
-                 (Par $ Cons (Sym $ Comp "sad") Empt)
-                 (Cons (Sym $ Ch 'a') Empt)))
-           (Cons (Par Empt) Empt))
+        [Par [Var $ SVar "a12", Par [Sym $ Comp "sad"], Sym $ Ch 'a'], Par []]
     ]
 
 condTest =
   testGroup
-    "Condition"
+    "Stcition"
     [ testCase "Empty" $ parse (entry condition) "" "   " @?= Right Nil
     , testCase "Simple" $
       parse (entry condition) "" " , \'a\' \'a\': s.c s.c" @?=
       Right
         (WIs
-           (FTCons (Sym $ Ch 'a') (FTCons (Sym $ Ch 'a') FEmpt))
-           (Cons (Var $ SVar "c") (Cons (Var $ SVar "c") Empt))
+           [Term $ Sym $ Ch 'a', Term $ Sym $ Ch 'a']
+           [Var $ SVar "c", Var $ SVar "c"]
            Nil)
     , testCase "Complicated" $
       parse (entry condition) "" " , 'a' 'b' : e.f, 'e': s.c " @?=
       Right
         (WIs
-           (FTCons (Sym $ Ch 'a') (FTCons (Sym $ Ch 'b') FEmpt))
-           (Cons (Var $ EVar "f") Empt)
-           (WIs (FTCons (Sym $ Ch 'e') FEmpt) (Cons (Var $ SVar "c") Empt) Nil))
+           [Term $ Sym $ Ch 'a', Term $ Sym $ Ch 'b']
+           [Var $ EVar "f"]
+           (WIs [Term $ Sym $ Ch 'e'] [Var $ SVar "c"] Nil))
     ]
 
 fAppTest =
@@ -153,43 +133,29 @@ fAppTest =
     "Application"
     [ testCase "User defined" $
       parse (entry fApp) "" " <some s.N 'a'> " @?=
-      Right
-        (FApp
-           (Usr "some")
-           (FTCons (Var $ SVar "N") (FTCons (Sym $ Ch 'a') FEmpt)))
+      Right (FApp "some" [Term $ Var $ SVar "N", Term $ Sym $ Ch 'a'])
     , testCase "Built-in bin ops" $
       parse (entry fApp) "" " <Sub s.N 'a'> " @?=
-      Right
-        (FApp (Op Sub) (FTCons (Var $ SVar "N") (FTCons (Sym $ Ch 'a') FEmpt)))
+      Right (FApp "Sub" [Term $ Var $ SVar "N", Term $ Sym $ Ch 'a'])
     ]
 
 fExprTest =
   testGroup
     "Fun expression"
-    [ testCase "Empty" $ parse (entry fExpr) "" "  " @?= Right FEmpt
+    [ testCase "Empty" $ parse (entry fExpr) "" "  " @?= Right []
     , testCase "Expression w\\o app" $
       parse (entry fExpr) "" "( s.a12    (\"sad\")   \'a\' )  () " @?=
       Right
-        (FTCons
-           (Par $
-            Cons
-              (Var $ SVar "a12")
-              (Cons
-                 (Par $ Cons (Sym $ Comp "sad") Empt)
-                 (Cons (Sym $ Ch 'a') Empt)))
-           (FTCons (Par Empt) FEmpt))
+        [ Term $ Par [Var $ SVar "a12", Par [Sym $ Comp "sad"], Sym $ Ch 'a']
+        , Term $ Par []
+        ]
     , testCase "Fun Expr" $
       parse (entry fExpr) "" " ('a' ) 2 <Go 213 'a'> " @?=
       Right
-        (FTCons
-           (Par $ Cons (Sym $ Ch 'a') Empt)
-           (FTCons
-              (Sym $ MDig 2)
-              (FACons
-                 (FApp
-                    (Usr "Go")
-                    (FTCons (Sym $ MDig 213) (FTCons (Sym $ Ch 'a') FEmpt)))
-                 FEmpt)))
+        [ Term $ Par [Sym $ Ch 'a']
+        , Term $ Sym $ MDig 2
+        , FAct $ FApp "Go" [Term $ Sym $ MDig 213, Term $ Sym $ Ch 'a']
+        ]
     ]
 
 senTest =
@@ -198,35 +164,24 @@ senTest =
     [ testCase "Empty left" $
       parse (entry sentence) "" "   = <Mul 4 5>    " @?=
       Right
-        (Cond
-           Empt
+        (Stc
+           []
            Nil
-           (FACons
-              (FApp
-                 (Op Mul)
-                 (FTCons (Sym $ MDig 4) (FTCons (Sym $ MDig 5) FEmpt)))
-              FEmpt))
+           [FAct $ FApp "Mul" [Term $ Sym $ MDig 4, Term $ Sym $ MDig 5]])
     , testCase "Standard" $
       parse (entry sentence) "" " s.b 'a' = <Mul s.b 5>   " @?=
       Right
-        (Cond
-           (Cons (Var $ SVar "b") (Cons (Sym $ Ch 'a') Empt))
+        (Stc
+           [Var $ SVar "b", Sym $ Ch 'a']
            Nil
-           (FACons
-              (FApp
-                 (Op Mul)
-                 (FTCons (Var $ SVar "b") (FTCons (Sym $ MDig 5) FEmpt)))
-              FEmpt))
+           [FAct $ FApp "Mul" [Term $ Var $ SVar "b", Term $ Sym $ MDig 5]])
     , testCase "W/ condition" $
       parse (entry sentence) "" "s.a s.b, <Al>: s.a s.b = \'T\' " @?=
       Right
-        (Cond
-           (Cons (Var $ SVar "a") (Cons (Var $ SVar "b") Empt))
-           (WIs
-              (FACons (FApp (Usr "Al") FEmpt) FEmpt)
-              (Cons (Var $ SVar "a") (Cons (Var $ SVar "b") Empt))
-              Nil)
-           (FTCons (Sym $ Ch 'T') FEmpt))
+        (Stc
+           [Var $ SVar "a", Var $ SVar "b"]
+           (WIs [FAct $ FApp "Al" []] [Var $ SVar "a", Var $ SVar "b"] Nil)
+           [Term $ Sym $ Ch 'T'])
     ]
 
 blockTest =
@@ -235,8 +190,8 @@ blockTest =
     [ testCase "E" $
       parse (entry block) "" "0 = 1; s.N = \'a\'; " @?=
       Right
-        [ Cond (Cons (Sym $ MDig 0) Empt) Nil (FTCons (Sym $ MDig 1) FEmpt)
-        , Cond (Cons (Var $ SVar "N") Empt) Nil (FTCons (Sym $ Ch 'a') FEmpt)
+        [ Stc [Sym $ MDig 0] Nil [Term $ Sym $ MDig 1]
+        , Stc [Var $ SVar "N"] Nil [Term $ Sym $ Ch 'a']
         ]
     ]
 
@@ -245,22 +200,15 @@ fDefTest =
     "Fun definition"
     [ testCase "Entry fun" $
       parse (entry fDefine) "" "$ENTRY Go {  0 = 1; } " @?=
-      Right
-        (Entry
-           (Usr "Go")
-           [Cond (Cons (Sym $ MDig 0) Empt) Nil (FTCons (Sym $ MDig 1) FEmpt)])
+      Right (Entry "Go" [Stc [Sym $ MDig 0] Nil [Term $ Sym $ MDig 1]])
     , testCase "Not Entry fun" $
       parse (entry fDefine) "" "MyFun {'a' s.n = <Mul 1 s.n>; } " @?=
       Right
         (NEntry
-           (Usr "MyFun")
-           [ Cond
-               (Cons (Sym $ Ch 'a') (Cons (Var $ SVar "n") Empt))
+           "MyFun"
+           [ Stc
+               [Sym $ Ch 'a', Var $ SVar "n"]
                Nil
-               (FACons
-                  (FApp
-                     (Op Mul)
-                     (FTCons (Sym $ MDig 1) (FTCons (Var $ SVar "n") FEmpt)))
-                  FEmpt)
+               [FAct $ FApp "Mul" [Term $ Sym $ MDig 1, Term $ Var $ SVar "n"]]
            ])
     ]
