@@ -14,8 +14,8 @@ prettify filename program = writeFile filename (pProg program)
     pFdef fdef =
       case fdef of
         Entry name snts ->
-          "$ENTRY " ++ show name ++ " {\n" ++ pBlock snts ++ "}\n"
-        NEntry name snts -> show name ++ " {\n" ++ pBlock snts ++ "}\n"
+          "$ENTRY " ++ name ++ " {\n" ++ pBlock snts ++ "}\n"
+        NEntry name snts -> name ++ " {\n" ++ pBlock snts ++ "}\n"
     pBlock :: [Sentence] -> String
     pBlock []     = ""
     pBlock (s:sx) = pSnt s ++ pBlock sx
@@ -34,4 +34,4 @@ prettify filename program = writeFile filename (pProg program)
       | otherwise = show t ++ " " ++ pFexpr fexs
     pFexpr (FAct act:fexs) = pFact act ++ pFexpr fexs
     pFact :: FApp -> String
-    pFact (FApp name fexp) = '<' : show name ++ " " ++ pFexpr fexp ++ ">"
+    pFact (FApp name fexp) = '<' : name ++ " " ++ pFexpr fexp ++ ">"
