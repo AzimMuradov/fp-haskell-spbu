@@ -53,63 +53,56 @@ match ex (Stc pat _ rs:xs) =
   case mOne ex pat [] of
     Nothing  -> match ex xs
     Just con -> replace rs con
-    -- trying to match with 1 expr. Also provides conformity(con)
-    {-
-    [(term,term)]:
-    e.x -> "ASD",
-    t.x -> 3,
-    -}
+    -- matching one sentence with pattern.
   where
     mOne :: Pattern -> Pattern -> Conformity -> Maybe Conformity
     mOne [] [] con = Just con
     mOne [] _ _ = Nothing
     mOne _ [] _ = Nothing
+    -- splitting into 2 branches
     mOne ex pat con =
-      case (a, b) of
+      case (a, b)
+        -- two parts are successfully matched => main part matched
+            of
         (Just con, Just noc) -> Just $ nub $ con ++ noc
+        -- one or more parts fails => match failed
         _                    -> Nothing
       where
-        (a, b) =
+        (a, b)
+          -- if sym in pattern, it should be in expression
+          {-
+          let pattern = 0 s.n 'a'
+            when in matching expression should be 0 and 'a'
+            (never matches expressions without syms 0 and 'a')
+          -}
+         =
           case findSym ([], pat) of
             Just (pat1, tap1, sym) -> split ex (pat1, tap1) sym
-            --
-            Nothing ->
-              case findVar ([], pat) SVar of
-                Just (pat1, tap1, svar) ->
-                  case findV svar con of
-                    Just [Sym s] -> split ex (pat1, tap1) (Sym s)
-                    Nothing ->
-                      case mOne [] pat1 ((svar, [head ex]) : con) of
-                        Just con1 ->
-                          case mOne (tail ex) tap1 con1 of
-                            Nothing ->
-                              ( mOne ex pat ((svar, [head $ tail ex]) : con)
-                              , Just [])
-                            Just con2 -> (Just con1, Just con2)
-                        Nothing ->
-                          ( mOne ex pat ((svar, [head $ tail ex]) : con)
-                          , Just [])
-                Nothing ->
+            -- if there is no syms ('a' or 0 or "asd") in expression
+            Nothing
+              -- next are svars (in pattern)
+             ->
+              case findVar ([], pat) SVar
+                -- if founded one, we should match it with sym in expr (resolve)
+                    of
+                Just splitPat -> resSVar ex splitPat con {-(pat1, tap1, svar)-}
+                -- if exp has no syms and svars, searching for tvars
+                Nothing
+                   -- same as with tvars, but resolve is different.
+                 ->
                   case findVar (pat, []) TVar of
-                    Just (pat1, tap1, tvar) ->
-                      case findV tvar con of
-                        Just [Par p] -> split ex (pat1, tap1) (Par p)
-                        Nothing ->
-                          case findSpecTerm (ex, []) (Var tvar) of
-                            Just (ex1, xe1, par) ->
-                              case mOne ex1 pat1 ((tvar, [par]) : con) of
-                                Nothing -> (Nothing, Nothing)
-                                Just con1 ->
-                                  case mOne ex1 pat1 con1 of
-                                    Just con2 -> (Just con1, Just con2)
-                                    Nothing   -> (Nothing, Nothing)
-                            Nothing -> (Nothing, Nothing)
-                    Nothing ->
+                    Just splitPat -> resTVar ex splitPat con {-(pat1, tap1, tvar)-}
+                    Nothing
+                      -- at last resolve all evars, only they are in expr now
+                     ->
                       case findVar ([], pat) EVar of
-                        Just (pat1, tap1, evar) ->
+                        Just (pat1, tap1, evar)
+                          -- if already in conformity, then split by it
+                         ->
                           case findSpecTerm (ex, []) (Var evar) of
                             Just (ex1, xe1, terms) ->
                               split ex (pat1, tap1) terms
+                            -- if its new evar, then resolve it
                             Nothing ->
                               resEVar
                                 ex
@@ -117,6 +110,62 @@ match ex (Stc pat _ rs:xs) =
                                 evar
                                 (genAll ex (length ex) [])
                         Nothing -> (Just [], Just [])
+        -- tvar is term in (). If tvar exist in pattern, it should be in expr
+        resTVar ::
+             Pattern
+          -> (Pattern, Pattern, Var)
+          -> Conformity
+          -> (Maybe Conformity, Maybe Conformity)
+        resTVar ex (pat1, tap1, tvar) con
+          -- tvar might be already matched, finding in conformity
+         =
+          case findV tvar con
+            -- if founded, just split
+                of
+            Just [Par p] -> split ex (pat1, tap1) (Par p)
+            Nothing
+              {- else finding first () in expr. If found,
+                looking on result of two parts matched with given tvar in con -}
+             ->
+              case findSpecTerm (ex, []) (Var tvar) of
+                Just (ex1, xe1, par)
+                  -- matching first part
+                 ->
+                  case mOne ex1 pat1 ((tvar, [par]) : con) of
+                    Nothing -> (Nothing, Nothing)
+                    Just con1
+                      -- matching second part
+                     ->
+                      case mOne ex1 pat1 con1
+                        -- success
+                            of
+                        Just con2 -> (Just con1, Just con2)
+                        {- if one of parts fails => tvar not matched,
+                          expr doesnt fit -}
+                        Nothing   -> (Nothing, Nothing)
+                Nothing -> (Nothing, Nothing)
+        {- same as resolving tvar, but svar is not bounded, so
+           failing on given sym => taking other and so on. Fails
+           then they are ended -}
+        resSVar ::
+             Pattern
+          -> (Pattern, Pattern, Var)
+          -> Conformity
+          -> (Maybe Conformity, Maybe Conformity)
+        resSVar ex (pat1, tap1, svar) con =
+          case findV svar con of
+            Just [Sym s] -> split ex (pat1, tap1) (Sym s)
+            Nothing ->
+              case mOne [] pat1 ((svar, [head ex]) : con) of
+                Just con1 ->
+                  case mOne (tail ex) tap1 con1 of
+                    Nothing ->
+                      (mOne ex pat ((svar, [head $ tail ex]) : con), Just [])
+                    Just con2 -> (Just con1, Just con2)
+                Nothing ->
+                  (mOne ex pat ((svar, [head $ tail ex]) : con), Just [])
+        {- Also similar. Given generated possible value of evar as last arg,
+           trying match with them in order of rising length -}
         resEVar ::
              Pattern
           -> (Pattern, Pattern, Conformity)
@@ -130,33 +179,48 @@ match ex (Stc pat _ rs:xs) =
               case mOne xe pat1 con1 of
                 Just con2 -> (Just con1, Just con2)
                 Nothing   -> resEVar mainEx (pat1, pat2, con) evar all
+        {- Generates all possible evar values (all lengths) in given expression (with
+          split by it value
+          -}
         genAll ::
              Pattern
           -> Int
           -> [(Pattern, Pattern, [Term])]
           -> [(Pattern, Pattern, [Term])]
-        genAll ex 0 acc   = gen1 [] ex 0 ++ acc
-        genAll ex int acc = genAll ex (int - 1) (gen1 [] ex int ++ acc)
-        gen1 :: Pattern -> Pattern -> Int -> [(Pattern, Pattern, [Term])]
-        gen1 ex [] _ = []
-        gen1 ex xe int =
+        genAll ex 0 acc   = genOne [] ex 0 ++ acc
+        genAll ex int acc = genAll ex (int - 1) (genOne [] ex int ++ acc)
+        {- Generates all subsequences of given length with split -}
+        genOne :: Pattern -> Pattern -> Int -> [(Pattern, Pattern, [Term])]
+        genOne ex [] _ = []
+        genOne ex xe int =
           if length xe < int
             then []
             else (reverse ex, drop int xe, take int xe) :
-                 gen1 (head xe : ex) (tail xe) int
+                 genOne (head xe : ex) (tail xe) int
+        {- splitting function. Takes expression to split with two parts
+          of pattern to match with split and term, that should be in
+          expression. -}
         split ::
              Pattern
           -> (Pattern, Pattern)
           -> Term
           -> (Maybe Conformity, Maybe Conformity)
         split ex (pat1, pat2) t =
-          case findSpecTerm ([], ex) t of
+          case findSpecTerm ([], ex) t
+            -- If there is no sym => no matching
+                of
             Nothing            -> (Nothing, Nothing)
+            -- Found one => matched => split
             Just (ex1, xe1, _) -> (mOne ex1 pat1 con, mOne xe1 pat2 con)
         findSym :: (Pattern, Pattern) -> Maybe (Pattern, Pattern, Term)
         findSym (_, [])          = Nothing
         findSym (pat, Sym p:tap) = Just (reverse pat, tap, Sym p)
         findSym (pat, p:tap)     = findSym (p : pat, tap)
+        {- finding term in expression, and provides split by this term
+          expression
+          if we want to find 0 in expr '1' 0 'a', the result be ('1','a',0)
+          if there is no term => nothing
+          -}
         findSpecTerm ::
              (Pattern, Pattern) -> Term -> Maybe (Pattern, Pattern, Term)
         findSpecTerm (_, []) _ = Nothing
@@ -164,6 +228,10 @@ match ex (Stc pat _ rs:xs) =
           if term == e
             then Just (reverse xe, ex, term)
             else findSpecTerm (e : xe, ex) term
+        {- finding var (s, t or e) in pattern also provide two parts of
+          pattern split by this var. Nothing in case of no 's' var in pattern
+          ( or 't' or 'e', it takes constructor of needed var as scn arg )
+          -}
         findVar ::
              (Pattern, Pattern)
           -> (String -> Var)
@@ -181,6 +249,7 @@ match ex (Stc pat _ rs:xs) =
                 (TVar _, TVar _) -> True
                 (EVar _, EVar _) -> True
                 _                -> False
+    -- if match succeed, substituting rside using conformity
     replace :: RSide -> Conformity -> ARMMonad FExpr
     replace [] con = Right []
     replace (f:fex) con =
@@ -197,6 +266,7 @@ match ex (Stc pat _ rs:xs) =
                 Right appRepl -> Right $ FAct (FApp n appRepl) : repl
                 Left err      -> Left err
         Left err -> Left err
+    -- searching value of var in conformity. Nothing if no such var
     findV :: Var -> Conformity -> Maybe Pattern
     findV g [] = Nothing
     findV v (x:con) =
