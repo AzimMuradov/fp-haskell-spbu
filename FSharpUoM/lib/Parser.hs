@@ -7,9 +7,11 @@ import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 import Lexer
-import Text.Megaparsec (MonadParsec (..), choice, many, optional, parseMaybe, sepBy1, some, (<|>))
+import Text.Megaparsec (MonadParsec (..), many, optional, parseMaybe, sepBy1, some, (<|>))
 import Text.Megaparsec.Char (char, digitChar, letterChar)
 import qualified Text.Megaparsec.Char.Lexer as L
+
+-- TODO : Fix bug with endless type parser
 
 -- * MainSection
 
@@ -35,7 +37,7 @@ statementP =
 -- ** DeclarationSection
 
 varP :: Parser VarDecl
-varP = VarDecl <$ kLet <*> typedIdentifierP <* eq <*> exprP <* try (notFollowedBy kIn)
+varP = VarDecl <$ kLet <*> typedIdentifierP <* eq <*> blockP <* try (notFollowedBy kIn)
 
 funP :: Parser FunDecl
 funP = FunDecl <$ kLet <*> identifierP <*> some typedIdentifierP <* eq <*> blockP
@@ -62,7 +64,7 @@ exprTerm :: Parser Expr
 exprTerm =
   choice'
     [ parens exprP,
-      ELetIn <$ kLet <*> identifierP <* eq <*> exprP <* kIn <*> blockP,
+      ELetIn <$ kLet <*> typedIdentifierP <* eq <*> exprP <* kIn <*> blockP,
       EValue <$> valueP,
       EIf <$ kIf <*> exprP <* kThen <*> blockP <* kElse <*> blockP,
       EIdentifier <$> identifierP
@@ -85,7 +87,7 @@ opsTable =
     ],
     [booleanOp "&&" AndOp],
     [booleanOp "||" OrOp],
-    [prefix "not" NotOp]
+    [notOp]
   ]
 
 binaryL :: Text -> (Expr -> Expr -> Operations) -> Operator Parser Expr
@@ -103,11 +105,11 @@ comparisonOp name fun = binaryL name (\e' e'' -> ComparisonOp $ fun e' e'')
 arithmeticOp :: Text -> (Expr -> Expr -> ArithmeticOp) -> Operator Parser Expr
 arithmeticOp name fun = binaryL name (\e' e'' -> ArithmeticOp $ fun e' e'')
 
-prefix :: Text -> (Expr -> UnaryOp) -> Operator Parser Expr
-prefix name fun = Prefix $ EOperations . UnaryOp . fun <$ symbol name
+notOp :: Operator Parser Expr
+notOp = Prefix $ EOperations . NotOp <$ symbol "not"
 
 applicationOp :: Operator Parser Expr
-applicationOp = InfixL $ return $ \a b -> EApplication a [b]
+applicationOp = InfixL $ return $ \a b -> EApplication a b
 
 -- MeasureExprParser
 
@@ -136,8 +138,8 @@ measureTypeOp name fun = InfixL $ fun <$ symbol name
 identifierP :: Parser Identifier
 identifierP =
   lexeme $
-    Identifier
-      <$> ( notFollowedBy reservedP *> do
+  
+      ( notFollowedBy reservedP *> do
               first <- letterP
               other <- many $ letterP <|> digitChar
               return $ pack $ first : other
@@ -162,21 +164,20 @@ helpMeasureP = (optional . try) (mlparens mExprP)
 typeP :: Parser Type
 typeP =
   choice'
-    [ parens typeP,
-      tBoolP <* notFollowedBy arrow,
-      tIntP <* notFollowedBy arrow,
-      tDoubleP <* notFollowedBy arrow,
-      TFun <$> sepBy1 (tBoolP <|> tIntP <|> tDoubleP <|> typeP) arrow
+    [ TFun <$> typeP' <* arrow <*> typeP,
+      parens typeP,
+      typeP'
     ]
-
-tBoolP :: Parser Type
-tBoolP = TBool <$ wBool
-
-tIntP :: Parser Type
-tIntP = TInt <$ wInt <*> helpMeasureP
-
-tDoubleP :: Parser Type
-tDoubleP = TDouble <$ wDouble <*> helpMeasureP
+  
+typeP' :: Parser Type
+typeP' = 
+  choice'
+    [
+      parens typeP,
+      TBool <$ wBool,
+      TInt <$ wInt <*> helpMeasureP,
+      TDouble <$ wDouble <*> helpMeasureP
+    ]
 
 -- ValueParsers
 

@@ -9,9 +9,12 @@ newtype Program = Program [Statement]
 
 -- Declarations
 
-data VarDecl = VarDecl (Identifier, Maybe Type) Expr deriving (Show)
+data VarDecl = VarDecl (Identifier, Maybe Type) [Statement] deriving (Show)
+
 data FunDecl = FunDecl Identifier [(Identifier, Maybe Type)] [Statement] deriving (Show)
+
 data RecFunDecl = RecFunDecl Identifier [(Identifier, Maybe Type)] [Statement] deriving (Show)
+
 data MeasureDecl = MeasureDecl Identifier (Maybe MeasureTypeExpr) deriving (Show)
 
 -- Statements
@@ -27,12 +30,12 @@ data Statement
 -- Expression
 
 data Expr
-  = EIdentifier Identifier--                       ( "x", "5"                       )
+  = EIdentifier Identifier --                       ( "x", "5"                       )
   | EValue Value --                                ( 5                              )
   | EOperations Operations --                      ( +, -                           )
-  | EApplication Expr [Expr] --                    ( f x y                          )
+  | EApplication Expr Expr --                    ( f x y                          )
   | EIf Expr [Statement] [Statement] --            ( if cond then expr' else expr'' )
-  | ELetIn Identifier Expr [Statement] --          ( f x y = let p = x + y in p     )
+  | ELetIn (Identifier, Maybe Type) Expr [Statement] --          ( f x y = let p = x + y in p     )
   deriving (Show)
 
 -- Types
@@ -43,7 +46,7 @@ data Type
   = TBool
   | TInt (Maybe MeasureTypeExpr)
   | TDouble (Maybe MeasureTypeExpr)
-  | TFun [Type]
+  | TFun Type Type
   deriving (Show)
 
 -- MeasureType
@@ -53,7 +56,7 @@ data MeasureTypeExpr
   | MTypesMul MeasureTypeExpr MeasureTypeExpr
   | MTypesDiv MeasureTypeExpr MeasureTypeExpr
   | MTypesExp MeasureTypeExpr Integer
-  deriving (Show)
+  deriving (Show, Eq)
 
 -- Values
 
@@ -68,39 +71,34 @@ data Value
 
 data Operations
   = BooleanOp BooleanOp
-  | UnaryOp UnaryOp --                ( not )
+  | NotOp Expr --                ( not )
   | ArithmeticOp ArithmeticOp
   | ComparisonOp ComparisonOp
   deriving (Show)
 
-data UnaryOp
-  = NotOp Expr
-  | UnaryMinus Expr
-  deriving (Show)
-
 data BooleanOp
-  = AndOp Expr Expr --           (  && )
-  | OrOp Expr Expr --            (  || )
+  = AndOp {bL :: Expr, bR :: Expr} --           (  && )
+  | OrOp {bL :: Expr, bR :: Expr} --            (  || )
   deriving (Show)
 
 data ArithmeticOp
-  = PlusOp Expr Expr --          (  +  )
-  | MinusOp Expr Expr --         (  -  )
-  | MulOp Expr Expr --           (  *  )
-  | DivOp Expr Expr --           (  /  )
-  | ModOp Expr Expr --           (  %  )
-  | ExpOp Expr Expr --           (  ** )
+  = PlusOp {aL :: Expr, aR :: Expr} --          (  +  )
+  | MinusOp {aL :: Expr, aR :: Expr} --         (  -  )
+  | MulOp {aL :: Expr, aR :: Expr} --           (  *  )
+  | DivOp {aL :: Expr, aR :: Expr} --           (  /  )
+  | ModOp {aL :: Expr, aR :: Expr} --           (  %  )
+  | ExpOp {aL :: Expr, aR :: Expr} --           (  ** )
   deriving (Show)
 
 data ComparisonOp
-  = EqOp Expr Expr --            (  == )
-  | NeOp Expr Expr --            (  <> )
-  | LtOp Expr Expr --            (  <  )
-  | LeOp Expr Expr --            (  <= )
-  | MtOp Expr Expr --            (  >  )
-  | MeOp Expr Expr --            (  >= )
+  = EqOp {cL :: Expr, cR :: Expr} --            (  == )
+  | NeOp {cL :: Expr, cR :: Expr} --            (  <> )
+  | LtOp {cL :: Expr, cR :: Expr} --            (  <  )
+  | LeOp {cL :: Expr, cR :: Expr} --            (  <= )
+  | MtOp {cL :: Expr, cR :: Expr} --            (  >  )
+  | MeOp {cL :: Expr, cR :: Expr} --            (  >= )
   deriving (Show)
 
 -- Identifier
 
-newtype Identifier = Identifier Text deriving (Show)
+type Identifier = Text -- deriving (Show, Eq, Ord)
