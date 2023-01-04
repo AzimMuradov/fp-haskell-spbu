@@ -1,0 +1,4 @@
+1 23 42 [x y z .] nil
+5
+19
+panic: scary error
