@@ -40,10 +40,10 @@ varP :: Parser VarDecl
 varP = VarDecl <$ kLet <*> typedIdentifierP <* eq <*> blockP <* try (notFollowedBy kIn)
 
 funP :: Parser FunDecl
-funP = FunDecl <$ kLet <*> identifierP <*> some typedIdentifierP <* eq <*> blockP
+funP = FunDecl <$ kLet <*> identifierP <*> (VFun <$> some typedIdentifierP <* eq <*> blockP)
 
 recFunP :: Parser RecFunDecl
-recFunP = RecFunDecl <$ kLet <* kRec <*> identifierP <*> some typedIdentifierP <* eq <*> blockP
+recFunP = RecFunDecl <$ kLet <* kRec <*> identifierP <*> (VFun <$> some typedIdentifierP <* eq <*> blockP)
 
 measureP :: Parser MeasureDecl
 measureP = MeasureDecl <$ kMeasure <* kType <*> identifierP <*> (optional . try) (eq *> mExprP)
@@ -52,8 +52,9 @@ measureP = MeasureDecl <$ kMeasure <* kType <*> identifierP <*> (optional . try)
 
 -- BlockExprParser
 
-blockP :: Parser [Statement]
-blockP = choice' [(: []) <$> (SExpr <$> exprP), block (sepBy1 statementP semicolon)]
+blockP :: Parser [Expr]
+blockP = choice' [(:[]) <$> exprP,
+                  block (sepBy1 exprP semicolon)]
 
 -- MainExprParser
 
@@ -64,14 +65,15 @@ exprTerm :: Parser Expr
 exprTerm =
   choice'
     [ parens exprP,
-      ELetIn <$ kLet <*> typedIdentifierP <* eq <*> exprP <* kIn <*> blockP,
+      ELetInV <$ kLet <*> typedIdentifierP <* eq <*> blockP <* kIn <*> blockP,
+      ELetInF <$ kLet <*> identifierP <*> (VFun <$> some typedIdentifierP <* eq <*> blockP) <* kIn <*> blockP,
       EValue <$> valueP,
       EIf <$ kIf <*> exprP <* kThen <*> blockP <* kElse <*> blockP,
       EIdentifier <$> identifierP
     ]
 
 -- OperationsExprTable
-
+-- TODO : Problem with <= and >=
 opsTable :: [[Operator Parser Expr]]
 opsTable =
   [ [applicationOp],
@@ -137,13 +139,12 @@ measureTypeOp name fun = InfixL $ fun <$ symbol name
 
 identifierP :: Parser Identifier
 identifierP =
-  lexeme $
-  
-      ( notFollowedBy reservedP *> do
-              first <- letterP
-              other <- many $ letterP <|> digitChar
-              return $ pack $ first : other
-          )
+  lexeme
+    ( notFollowedBy reservedP *> do
+        first <- letterP
+        other <- many $ letterP <|> digitChar
+        return $ pack $ first : other
+    )
   where
     letterP = letterChar <|> char '_'
 
@@ -168,12 +169,11 @@ typeP =
       parens typeP,
       typeP'
     ]
-  
+
 typeP' :: Parser Type
-typeP' = 
+typeP' =
   choice'
-    [
-      parens typeP,
+    [ parens typeP,
       TBool <$ wBool,
       TInt <$ wInt <*> helpMeasureP,
       TDouble <$ wDouble <*> helpMeasureP

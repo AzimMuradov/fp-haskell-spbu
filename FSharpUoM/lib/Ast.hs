@@ -9,13 +9,13 @@ newtype Program = Program [Statement]
 
 -- Declarations
 
-data VarDecl = VarDecl (Identifier, Maybe Type) [Statement] deriving (Show)
+data VarDecl = VarDecl (Identifier, Maybe Type) [Expr] deriving (Show, Eq)
 
-data FunDecl = FunDecl Identifier [(Identifier, Maybe Type)] [Statement] deriving (Show)
+data FunDecl = FunDecl Identifier Value deriving (Show, Eq)
 
-data RecFunDecl = RecFunDecl Identifier [(Identifier, Maybe Type)] [Statement] deriving (Show)
+data RecFunDecl = RecFunDecl Identifier Value deriving (Show, Eq)
 
-data MeasureDecl = MeasureDecl Identifier (Maybe MeasureTypeExpr) deriving (Show)
+data MeasureDecl = MeasureDecl Identifier (Maybe MeasureTypeExpr) deriving (Show, Eq)
 
 -- Statements
 
@@ -25,7 +25,7 @@ data Statement
   | SVarDecl VarDecl --      ( let x = 5 )
   | SFunDecl FunDecl --      ( let f x y = x + y )
   | SRecFunDecl RecFunDecl
-  deriving (Show)
+  deriving (Show, Eq)
 
 -- Expression
 
@@ -34,9 +34,10 @@ data Expr
   | EValue Value --                                ( 5                              )
   | EOperations Operations --                      ( +, -                           )
   | EApplication Expr Expr --                    ( f x y                          )
-  | EIf Expr [Statement] [Statement] --            ( if cond then expr' else expr'' )
-  | ELetIn (Identifier, Maybe Type) Expr [Statement] --          ( f x y = let p = x + y in p     )
-  deriving (Show)
+  | EIf Expr [Expr] [Expr] --            ( if cond then expr' else expr'' )
+  | ELetInV (Identifier, Maybe Type) [Expr] [Expr]
+  | ELetInF Identifier Value [Expr] --          ( f x y = let p = x + y in p     )
+  deriving (Show, Eq)
 
 -- Types
 
@@ -47,7 +48,7 @@ data Type
   | TInt (Maybe MeasureTypeExpr)
   | TDouble (Maybe MeasureTypeExpr)
   | TFun Type Type
-  deriving (Show)
+  deriving (Show, Eq)
 
 -- MeasureType
 
@@ -64,8 +65,8 @@ data Value
   = VBool Bool
   | VInt Integer (Maybe MeasureTypeExpr)
   | VDouble Double (Maybe MeasureTypeExpr)
-  | VFun [(Identifier, Maybe Type)] [Statement] -- ( fun x y -> x + y )
-  deriving (Show)
+  | VFun [(Identifier, Maybe Type)] [Expr] -- ( fun x y -> x + y )
+  deriving (Show, Eq)
 
 -- Operators
 
@@ -74,12 +75,12 @@ data Operations
   | NotOp Expr --                ( not )
   | ArithmeticOp ArithmeticOp
   | ComparisonOp ComparisonOp
-  deriving (Show)
+  deriving (Show, Eq)
 
 data BooleanOp
   = AndOp {bL :: Expr, bR :: Expr} --           (  && )
   | OrOp {bL :: Expr, bR :: Expr} --            (  || )
-  deriving (Show)
+  deriving (Show, Eq)
 
 data ArithmeticOp
   = PlusOp {aL :: Expr, aR :: Expr} --          (  +  )
@@ -88,7 +89,7 @@ data ArithmeticOp
   | DivOp {aL :: Expr, aR :: Expr} --           (  /  )
   | ModOp {aL :: Expr, aR :: Expr} --           (  %  )
   | ExpOp {aL :: Expr, aR :: Expr} --           (  ** )
-  deriving (Show)
+  deriving (Show, Eq)
 
 data ComparisonOp
   = EqOp {cL :: Expr, cR :: Expr} --            (  == )
@@ -97,7 +98,7 @@ data ComparisonOp
   | LeOp {cL :: Expr, cR :: Expr} --            (  <= )
   | MtOp {cL :: Expr, cR :: Expr} --            (  >  )
   | MeOp {cL :: Expr, cR :: Expr} --            (  >= )
-  deriving (Show)
+  deriving (Show, Eq)
 
 -- Identifier
 
