@@ -50,24 +50,6 @@ inputP =
 
 -- Run app
 
-
--- runApp :: App -> IO ()
--- runApp (App i) = runApp' i
---   where
---     runApp' :: Input -> IO ()
---     runApp' (FileInput path) = do
---       text <- readFile path
---       mapM_ putStrLn (show . parse <$> splitOn (pack ";;") (pack text))
---     runApp' StdInput =
---       let repl lines = do
---             putStr "> " >> hFlush stdout
---             line <- getLine
---             let lineText = pack line
---             if pack ";;" `isSuffixOf` strip lineText
---               then print (parse $ unlines $ reverse (dropWhileEnd (== ';') lineText : lines)) >> repl []
---               else repl (lineText : lines)
---        in repl []
-
 runApp :: App -> IO ()
 runApp (App i) = runApp' i
   where
@@ -86,20 +68,20 @@ runApp (App i) = runApp' i
        in repl []
 
 
--- eval' :: String -> IO ()
--- eval' s = case parse (pack s) of
---   Nothing -> print (pack "err")
---   Just (Ast.Program p) -> case inferPolytype p of
---     Left tyerr -> print $ pretty tyerr
---     Right ty -> putStrLn $ show p ++ " : " ++ show ty
-
-
 eval :: (Maybe Ast.Program) -> String
 eval s = case s of
-  Nothing -> "err"
+  Nothing -> "Please, try again. Can't parse your program."
   Just (Ast.Program p) -> case inferPolytype p of
     Left tyerr -> pretty tyerr
     Right ty -> show p ++ " : " ++ pretty ty
 
--- main :: IO ()
--- main = evalRepl (const (pure "HM> ")) (liftIO . eval') [] Nothing Nothing (Word (const (return []))) (return ()) (return Exit)
+-- eval :: (Maybe Ast.Program) -> String
+-- eval s = case s of
+--   Nothing -> "err"
+--   Just (Ast.Program p) -> unpack $ unlines (pack . h p <$> (inferPolytype p))
+
+-- h p x = case x of
+--   Left tyerr -> pretty tyerr
+--   Right ty -> show p ++ " : " ++ pretty ty
+-- -- main :: IO ()
+-- -- main = evalRepl (const (pure "HM> ")) (liftIO . eval') [] Nothing Nothing (Word (const (return []))) (return ()) (return Exit)

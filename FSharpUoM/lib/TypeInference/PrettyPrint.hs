@@ -1,25 +1,20 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module TypeInference.PrettyPrint where
 
-import           Data.Maybe
-import           Prelude                    hiding (lookup)
-import           Text.Printf
-
-import Data.Text ( unpack ) 
-
-import           Control.Unification        hiding ((=:=), applyBindings)
-import           Control.Unification.IntVar
-import           Data.Functor.Fixedpoint
-
+import Control.Unification hiding (applyBindings, (=:=))
+import Control.Unification.IntVar
+import Data.Functor.Fixedpoint
+import Data.Text (unpack)
+import Text.Printf
 import TypeInference.HindleyMilner
-
+import Prelude hiding (lookup)
 
 type Prec = Int
 
@@ -34,23 +29,34 @@ instance Pretty (t (Fix t)) => Pretty (Fix t) where
   prettyPrec p = prettyPrec p . unFix
 
 instance Pretty t => Pretty (HType t) where
+  prettyPrec _ MPureF = "non measure type" -- "[<Measure>]\ntype "
+  prettyPrec _ (TyMeasureF x) = unpack x
+  prettyPrec _ (TyMulMeasureExprF m1 m2) = prettyPrec 0 m1 <> " " <> prettyPrec 1 m2
+  prettyPrec _ (TyDivMeasureExprF m1 m2) = prettyPrec 0 m1 <> " / " <> prettyPrec 1 m2
+  prettyPrec _ (TyExpMeasureExprF m1 m2) = prettyPrec 0 m1 <> " ^ " <> prettyPrec 1 m2
   prettyPrec _ (TyVarF x) = unpack x
   prettyPrec _ TyBoolF = "bool"
-  prettyPrec _ (TyIntF m)= "int" ++ maybe "" show m
-  prettyPrec _ (TyDoubleF m) = "double" ++ show m
+  prettyPrec _ (TyIntF m) =
+    let measure = prettyPrec 0 m
+     in if measure /= "non measure type" then "int<" <> measure <> ">" else "int"
+  prettyPrec _ (TyDoubleF m) =
+    let measure = prettyPrec 0 m
+     in if measure /= "non measure type" then "double<" <> measure <> ">" else "double"
   prettyPrec p (TyFunF ty1 ty2) =
     mparens (p > 0) $ prettyPrec 1 ty1 ++ " -> " ++ prettyPrec 0 ty2
+  prettyPrec _ (TyVarDeclF x t) = "val " ++ unpack x ++ ": " ++ prettyPrec 0 t
+  prettyPrec _ (TyFunDeclF x t) = "val " ++ unpack x ++ ": " ++ prettyPrec 0 t
 
 instance (Pretty (t (UTerm t v)), Pretty v) => Pretty (UTerm t v) where
   pretty (UTerm t) = pretty t
-  pretty (UVar v)  = pretty v
+  pretty (UVar v) = pretty v
 
 instance Pretty Polytype where
   pretty (Forall [] t) = pretty t
   pretty (Forall xs t) = unwords ("forall" : (unpack <$> xs)) ++ ". " ++ pretty t
 
 mparens :: Bool -> String -> String
-mparens True  = ("("++) . (++")")
+mparens True = ("(" ++) . (++ ")")
 mparens False = id
 
 -- instance Pretty Expr where
@@ -75,11 +81,14 @@ mparens False = id
 instance Pretty IntVar where
   pretty = unpack . mkVarName "u"
 
-
 instance Pretty TypeError where
-  pretty EmptyList = printf ""
-  pretty (UnboundVar x)     = printf "Unbound variable %s" (unpack x)
-  pretty (Infinite x ty)    = printf "Infinite type %s = %s" (pretty x) (pretty ty)
+  pretty EmptyList = printf "List of statemnet is empty"
+  pretty Unreachable = printf "Unreachable state"
+  pretty (DuplicateDifinition x) = printf "Duplicate definition of value '%s'" (unpack x)
+  pretty (DuplicateMeasureDifinition x) = printf "Duplicate definition of measure type '%s'" (unpack x)
+  pretty (UnboundVar x) = printf "Unbound variable '%s'" (unpack x)
+  pretty (UnboundMeasure x) = printf "Measure '%s' do not define" (unpack x)
+  pretty (Infinite x ty) = printf "Infinite type %s = %s" (pretty x) (pretty ty)
   pretty (Mismatch ty1 ty2) = printf "Can't unify %s and %s" (pretty ty1) (pretty ty2)
 
 -- instance Pretty Value where
