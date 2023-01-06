@@ -1,7 +1,7 @@
 test-integration/translate.ref
 ['h','o','r','s','e']
 test-integration/equal.ref
-['a',9,'a']
+['T','r','u','e']
 test-integration/chpm.ref
 ['-','s','-','=','-',2,'s','a','-','-']
 test-integration/factorial-loop.ref
