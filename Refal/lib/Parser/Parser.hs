@@ -1,11 +1,11 @@
 module Parser where
 
+import           AST
+import           Data.List
 import           Data.Maybe         ()
+import           Lexer
 import           Text.Parsec
 import           Text.Parsec.String (Parser)
-
-import           AST
-import           Lexer
 
 -------------------------------Expressions------------------------------------
 empty :: Parser String
@@ -27,6 +27,11 @@ char' :: Parser Symbol
 char' =
   lexeme $
   Ch <$> between (char '\'') (char '\'') (notFollowedBy (char '\\') *> anyChar)
+
+chars :: Parser [Symbol]
+chars = do
+  cs <- lexeme $ between (char '\'') (char '\'') (many $ noneOf "\'")
+  return (map Ch cs)
 
 
 -- tested
@@ -57,7 +62,7 @@ term = try (Var <$> var) <|> try (Sym <$> symbol) <|> Par <$> parens expr
 
 -- tested
 expr :: Parser Pattern
-expr = many term
+expr = concat <$> many (try $ singleton <$> term <|> try (fmap (map Sym) chars))
 
 
 ----------------------------------Program------------------------------------
@@ -75,10 +80,12 @@ fApp = angles (FApp <$> identifier' <*> fExpr)
 
 -- tested
 fExpr :: Parser FExpr
-fExpr = many $ try (Term <$> term) <|> (FAct <$> fApp)
-  -- try (FTCons <$> term <*> fExpr) <|> try (FACons <$> fApp <*> fExpr) <|>
-  -- FEmpt <$ empty
-
+fExpr =
+  concat <$>
+  many
+    (try $
+     singleton . Term <$> term <|> try (fmap (map $ Term . Sym) chars) <|>
+     singleton . FAct <$> fApp)
 
 -- tested
 sentence :: Parser Sentence

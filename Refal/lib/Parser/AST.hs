@@ -20,13 +20,19 @@ data Term
   = Sym Symbol
   | Var Var
   | Par Pattern
-  deriving (Eq)
+
+instance Eq Term
+ where
+  Sym a == Sym b = a == b
+  Var a == Var b = a == b
+  Par _ == Par _ = True
+  _ == _         = False
 
 instance Show Term where
   show :: Term -> String
   show (Sym a) = show a
   show (Var a) = show a
-  show (Par a) = "(" ++ show a ++ ")"
+  show (Par a) = "(-" ++ show a ++ "-)"
 
 
 -- S var is equal to a single symbol, T is anything in parens, E is many or 0
@@ -66,12 +72,6 @@ instance Show Symbol
 --Program on refal 5 is list of function defined
 type Program = [FDefinition]
 
-
--- Bin operators for math
-data BinOp
-  = Add
-  | Sub
-  | Mul
 
 
 -- Function can be an Entry point of program, or not
