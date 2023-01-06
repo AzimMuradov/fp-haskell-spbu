@@ -11,9 +11,9 @@ newtype Program = Program [Statement]
 
 data VarDecl = VarDecl (Identifier, Maybe Type) [Expr] deriving (Show, Eq)
 
-data FunDecl = FunDecl Identifier Value deriving (Show, Eq)
+data FunDecl = FunDecl Identifier Fun deriving (Show, Eq)
 
-data RecFunDecl = RecFunDecl Identifier Value deriving (Show, Eq)
+data RecFunDecl = RecFunDecl Identifier Fun deriving (Show, Eq)
 
 data MeasureDecl = MeasureDecl Identifier (Maybe MeasureTypeExpr) deriving (Show, Eq)
 
@@ -36,7 +36,7 @@ data Expr
   | EApplication Expr Expr --                    ( f x y                          )
   | EIf Expr [Expr] [Expr] --            ( if cond then expr' else expr'' )
   | ELetInV (Identifier, Maybe Type) [Expr] [Expr]
-  | ELetInF Identifier Value [Expr] --          ( f x y = let p = x + y in p     )
+  | ELetInF Identifier Fun [Expr] --          ( f x y = let p = x + y in p     )
   deriving (Show, Eq)
 
 -- Types
@@ -65,8 +65,10 @@ data Value
   = VBool Bool
   | VInt Integer (Maybe MeasureTypeExpr)
   | VDouble Double (Maybe MeasureTypeExpr)
-  | VFun [(Identifier, Maybe Type)] [Expr] -- ( fun x y -> x + y )
+  | VFun Fun
   deriving (Show, Eq)
+
+data Fun = Fun [(Identifier, Maybe Type)] [Expr] deriving (Show, Eq)-- ( fun x y -> x + y )
 
 -- Operators
 

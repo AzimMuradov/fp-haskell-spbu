@@ -219,7 +219,7 @@ instance FreeVars UType where
     return $ fuvs `S.union` ftvs
 
 instance FreeVars UPolytype where
-  freeVars (Forall xs ut) = (\\ (S.fromList (map Left xs))) <$> freeVars ut
+  freeVars (Forall xs ut) = (\\ S.fromList (map Left xs)) <$> freeVars ut
 
 instance FreeVars Ctx where
   freeVars = fmap S.unions . mapM freeVars . M.elems
@@ -245,9 +245,6 @@ fresh :: Infer UType
 fresh = UVar <$> lift (lift freeVar)
 
 (=:=) :: UType -> UType -> Infer UType
-(UTyVarDecl _ t) =:= (UTyVarDecl _ t') = t =:= t'
-(UTyVarDecl _ t) =:= t' = lift $ t U.=:= t'
-t' =:= (UTyVarDecl _ t) = lift $ t U.=:= t'
 (UTyFunDecl _ t) =:= (UTyFunDecl _ t') = t =:= t'
 (UTyFunDecl _ t) =:= t' = lift $ t U.=:= t'
 t' =:= (UTyFunDecl _ t) = lift $ t U.=:= t'

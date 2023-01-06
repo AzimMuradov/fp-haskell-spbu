@@ -89,7 +89,7 @@ instance Pretty TypeError where
   pretty (UnboundVar x) = printf "Unbound variable '%s'" (unpack x)
   pretty (UnboundMeasure x) = printf "Measure '%s' do not define" (unpack x)
   pretty (Infinite x ty) = printf "Infinite type %s = %s" (pretty x) (pretty ty)
-  pretty (Mismatch ty1 ty2) = printf "Can't unify %s and %s" (pretty ty1) (pretty ty2)
+  pretty (Mismatch ty1 ty2) = printf "The type '%s' does not match the type '%s'" (pretty ty1) (pretty ty2)
 
 -- instance Pretty Value where
 --   pretty (VInt n) = show n

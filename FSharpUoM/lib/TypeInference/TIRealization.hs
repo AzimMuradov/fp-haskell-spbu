@@ -10,10 +10,10 @@ module TypeInference.TIRealization where
 
 import Ast
 import Control.Monad.Except
-import Control.Unification (UTerm (UTerm))
 import Data.Maybe
 import TypeInference.HindleyMilner
 import Prelude hiding (lookup)
+import Control.Monad.Reader (ask)
 
 check :: Expr -> UType -> Infer UType
 check e ty = do
@@ -64,7 +64,7 @@ helpInferStatements ((SVarDecl (VarDecl (ident, t) st)) : xs) _ = do
     Nothing -> withBinding ident (Forall [] res) (helpInferStatements xs $ return res)
 helpInferStatements ((SFunDecl (FunDecl ident val)) : xs) _ = do
   -- TODO : mb chanhe smt
-  res <- inferSingle (EValue val)
+  res <- inferSingle (EValue (VFun val))
   tp' <- do
     _ <- checkForDuplicate (Var ident)
     return $ UTyFunDecl ident res
@@ -73,7 +73,7 @@ helpInferStatements ((SRecFunDecl (RecFunDecl ident val)) : xs) _ = do
   preT <- fresh
   next <- do
     _ <- checkForDuplicate (Var ident)
-    withBinding ident (Forall [] preT) $ inferSingle (EValue val)
+    withBinding ident (Forall [] preT) $ inferSingle (EValue (VFun val))
   withBinding ident (Forall [] next) (helpInferStatements xs $ return next)
 -- return $ UTyFunDecl ident next
 -- tp' <- tp
@@ -128,7 +128,7 @@ inferMeasure (MTypesDiv m1 m2) = do
   return $ UTyMulMeasureExpr m1' m2'
 inferMeasure (MTypesExp m1 _) = do
   m1' <- inferMeasure m1
-  return $ UTyMulMeasureExpr m1' (UTerm $ TyIntF UMPure)
+  return $ UTyMulMeasureExpr m1' (UTyInt UMPure)
 
 inferBlock :: [Expr] -> Infer UType -- TODO : mb wrong
 inferBlock [] = throwError EmptyList
@@ -144,7 +144,7 @@ inferSingle (EValue (VInt _ m)) = do
 inferSingle (EValue (VDouble _ m)) = do
   res <- inferMeasure' m
   return $ UTyDouble res
-inferSingle (EValue (VFun xs body)) = infer' xs body
+inferSingle (EValue (VFun (Fun xs body))) = infer' xs body
   where
     infer' args st = case args of
       [] -> inferBlock body
@@ -193,8 +193,8 @@ inferSingle (EApplication e1 e2) = do
   funTy <- inferSingle e1
   argTy <- inferSingle e2
   resTy <- fresh
-  _ <- funTy =:= UTyFun argTy resTy
-  -- ctx <- ask
+  kek <- funTy =:= UTyFun argTy resTy
+  ctx <- ask
   -- error $ show ctx <> show funTy <> " --- "  <> show argTy <> " --- "  <> show resTy <> " --- "  <> show kek
   return resTy
 inferSingle _ = undefined

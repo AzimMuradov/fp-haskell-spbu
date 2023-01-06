@@ -7,7 +7,7 @@ import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 import Lexer
-import Text.Megaparsec (MonadParsec (..), many, optional, parseMaybe, sepBy1, some, (<|>))
+import Text.Megaparsec (MonadParsec (..), many, optional, parseMaybe, sepBy1, some, (<|>), sepEndBy1)
 import Text.Megaparsec.Char (char, digitChar, letterChar)
 import qualified Text.Megaparsec.Char.Lexer as L
 
@@ -21,10 +21,10 @@ parse p = parseMaybe $ sc *> p <* eof
 
 -- | Main Parser
 fileP :: Parser [Program]
-fileP = sepBy1 programP (semicolon >> semicolon)
+fileP = sepEndBy1 programP (symbol ";;")
 
 programP :: Parser Program
-programP = Program <$> sepBy1 statementP semicolon
+programP = Program <$> sepBy1 statementP (notFollowedBy (symbol ";;") >> semicolon)
 
 -- | Global Statements Parser
 statementP :: Parser Statement
@@ -43,10 +43,10 @@ varP :: Parser VarDecl
 varP = VarDecl <$ kLet <*> typedIdentifierP <* eq <*> blockP <* try (notFollowedBy kIn)
 
 funP :: Parser FunDecl
-funP = FunDecl <$ kLet <*> identifierP <*> (VFun <$> some typedIdentifierP <* eq <*> blockP)
+funP = FunDecl <$ kLet <*> identifierP <*> (Fun <$> some typedIdentifierP <* eq <*> blockP)
 
 recFunP :: Parser RecFunDecl
-recFunP = RecFunDecl <$ kLet <* kRec <*> identifierP <*> (VFun <$> some typedIdentifierP <* eq <*> blockP)
+recFunP = RecFunDecl <$ kLet <* kRec <*> identifierP <*> (Fun <$> some typedIdentifierP <* eq <*> blockP)
 
 measureP :: Parser MeasureDecl
 measureP = MeasureDecl <$ kMeasure <* kType <*> identifierP <*> (optional . try) (eq *> mExprP)
@@ -69,7 +69,7 @@ exprTerm =
   choice'
     [ parens exprP,
       ELetInV <$ kLet <*> typedIdentifierP <* eq <*> blockP <* kIn <*> blockP,
-      ELetInF <$ kLet <*> identifierP <*> (VFun <$> some typedIdentifierP <* eq <*> blockP) <* kIn <*> blockP,
+      ELetInF <$ kLet <*> identifierP <*> (Fun <$> some typedIdentifierP <* eq <*> blockP) <* kIn <*> blockP,
       EValue <$> valueP,
       EIf <$ kIf <*> exprP <* kThen <*> blockP <* kElse <*> blockP,
       EIdentifier <$> identifierP
@@ -189,7 +189,7 @@ valueP =
     [ VDouble <$> signedDoubleP <*> helpMeasureP,
       VInt <$> signedIntP <*> helpMeasureP,
       VBool <$> boolLitP,
-      VFun <$ kFun <*> many typedIdentifierP <* arrow <*> blockP
+      VFun <$> (Fun <$ kFun <*> many typedIdentifierP <* arrow <*> blockP)
     ]
 
 signedDoubleP :: Parser Double
