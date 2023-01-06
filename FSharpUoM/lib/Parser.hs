@@ -16,12 +16,15 @@ import qualified Text.Megaparsec.Char.Lexer as L
 -- * MainSection
 
 -- | Parser entry point
-parse :: Text -> Maybe Program
-parse = parseMaybe $ sc *> programP <* eof
+parse :: Parser a -> Text -> Maybe a
+parse p = parseMaybe $ sc *> p <* eof
 
 -- | Main Parser
+fileP :: Parser [Program]
+fileP = sepBy1 programP (semicolon >> semicolon)
+
 programP :: Parser Program
-programP = Program <$> many statementP
+programP = Program <$> sepBy1 statementP semicolon
 
 -- | Global Statements Parser
 statementP :: Parser Statement
@@ -73,7 +76,6 @@ exprTerm =
     ]
 
 -- OperationsExprTable
--- TODO : Problem with <= and >=
 opsTable :: [[Operator Parser Expr]]
 opsTable =
   [ [applicationOp],
@@ -82,10 +84,10 @@ opsTable =
     [arithmeticOp "+" PlusOp, arithmeticOp "-" MinusOp],
     [ comparisonOp "==" EqOp,
       comparisonOp "<>" NeOp,
-      comparisonOp "<" LtOp,
       comparisonOp "<=" LeOp,
-      comparisonOp ">" MtOp,
-      comparisonOp ">=" MeOp
+      comparisonOp "<" LtOp,
+      comparisonOp ">=" MeOp,
+      comparisonOp ">" MtOp
     ],
     [booleanOp "&&" AndOp],
     [booleanOp "||" OrOp],
