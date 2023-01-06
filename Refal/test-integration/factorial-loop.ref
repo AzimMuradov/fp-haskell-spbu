@@ -1,0 +1,12 @@
+$ENTRY Go {
+     = <Fact 6>; 
+}
+
+Fact {
+     s.n = <Loop s.n 1>; 
+}
+
+Loop {
+   0 s.f = s.f;
+   s.n s.f = <Loop <Sub s.n 1> <Mul s.n s.f>>; 
+}

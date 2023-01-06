@@ -1,0 +1,9 @@
+$ENTRY Go { 
+    = <Chpm '+s+=+' 2 'sa-+'>;
+}
+
+Chpm {
+   '+' e.a = '-' <Chpm e.a>;
+   s.b e.a = s.b <Chpm e.a>;
+    =  ; 
+}

@@ -1,0 +1,14 @@
+Fib {
+  0 = 0;
+  1 = 1;
+  s.N = <Helper s.N 0 1>;
+}
+
+Helper {
+    0 s.A s.B = s.A;
+    s.N s.A s.B = <Helper <Sub s.N 1> s.B <Add s.A s.B>>;
+}
+
+$ENTRY Go {
+  = <Fib 100>;
+}

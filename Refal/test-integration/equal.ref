@@ -1,0 +1,9 @@
+Equal {
+    (s.a e.b) (s.a e.c) = <Equal (e.b) (e.c)>;
+    ()        () = 'True';
+    (e.b)     (e.c) = 'False';
+   }
+
+$ENTRY Go {
+    = <Equal ('ab') ('ab')>;
+}

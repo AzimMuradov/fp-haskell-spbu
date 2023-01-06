@@ -1,0 +1,8 @@
+Power {
+  s.N 0 = 1;
+  s.N s.D = <Mul s.N <Power s.N <Sub s.D 1>>>;
+}
+
+$ENTRY Go {
+  = <Power 3 9>;
+}
