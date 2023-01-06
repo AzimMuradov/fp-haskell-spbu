@@ -1,10 +1,10 @@
 IsPalindrome {
-	s.OneSymbol = 'T';
-	 = 'T';
+	s.OneSymbol = 'True';
+	 = 'True';
 	s.Equal e.Middle s.Equal = <IsPalindrome e.Middle>;
-	e.Other = 'F';
+	e.Other = 'False';
 }
 
 $ENTRY Go {
-	 = <IsPalindrome 'a' '3' 'c' '3' 'a'>;
+	 = <IsPalindrome  'abcba'>;
 }

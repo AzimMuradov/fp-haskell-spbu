@@ -1,8 +1,8 @@
 Fact {
-  0 = 1;
-  s.N = <Mul <Fact <Sub s.N 1>> s.N>;
+	0 = 1;
+	s.N = <Mul <Fact <Sub s.N 1>>s.N>;
 }
 
 $ENTRY Go {
-  = <Fact 6>;
+	 = <Fact 6>;
 }

@@ -222,12 +222,20 @@ match ex (Stc pat _ rs:xs) =
               case findV t con of
                 Nothing   -> Left "No replacement found"
                 Just term -> Right $ map Term term ++ repl
+            (Term (Par p)) -> Right $ Term (Par $ replPar p con) : repl
             (Term s) -> Right $ Term s : repl
             (FAct (FApp n ex)) ->
               case replace ex con of
                 Right appRepl -> Right $ FAct (FApp n appRepl) : repl
                 Left err      -> Left err
         Left err -> Left err
+    replPar :: Pattern -> Conformity -> Pattern
+    replPar [] _ = []
+    replPar (Var v:pat) con =
+      case findV v con of
+        Just term -> term ++ replPar pat con
+    replPar (Par p:pat) con = Par (replPar p con) : replPar pat con
+    replPar (other:pat) con = other : replPar pat con
     findV :: Var -> Conformity -> Maybe Pattern
     findV g [] = Nothing
     findV v (x:con) =

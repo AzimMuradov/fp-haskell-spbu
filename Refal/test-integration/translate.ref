@@ -1,0 +1,15 @@
+$ENTRY Go {
+    = <Trans ('cavallo') <Table>>; 
+}
+
+Table { 
+    =     (('cavallo') 'horse')
+          (('rana') 'frog')
+          (('porco') 'pig') ;
+}
+
+
+Trans { 
+    (e.Word) e.a ((e.Word) e.Trans) e.b = e.Trans;
+    (e.Word) e.a  =  "***";  
+}

@@ -1,0 +1,13 @@
+$ENTRY Go {
+    = <Correct 'c##Crocodile'>;
+}
+
+Correct {
+   e.a = <Cor e.a>; 
+}
+ 
+Cor {
+   e.a s.X '#' e.b = <Cor e.a e.b>;
+   e.a e.b s.X '#' e.c = <Cor e.a e.b e.c>;
+   e.a e.b = e.a e.b; 
+}

@@ -131,6 +131,8 @@ symTest =
     , testCase "Compound" $
       parse (entry symbol) "" " \"i am symbol \" " @?=
       Right (Comp "i am symbol ")
+    , testCase "Many chars" $
+      parse (entry chars) "" " 'aad' " @?= Right [Ch 'a', Ch 'a', Ch 'd']
     ]
 
 varTest :: TestTree
