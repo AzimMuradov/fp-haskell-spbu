@@ -7,9 +7,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 
-type Env = [Frame]
-
-type Frame = [Scope]
+type Env = [Scope]
 
 type Scope = Map Identifier IValue
 
@@ -17,7 +15,7 @@ data IValue
   = IVBool Bool
   | IVInt Integer
   | IVDouble Double
-  | IVFun [Identifier] [Expr] -- ( fun x y -> x + y )
+  | IVFun [Identifier] [Expr]
   deriving (Show, Eq)
 
 instance Ord IValue where
@@ -51,28 +49,15 @@ instance Num IValue where
   negate _ = undefined
 
 getVar :: Identifier -> Env -> IValue
-getVar var (scopes : _) = getVar' var scopes
-  where
-    getVar' x (sc : scs) = fromMaybe (getVar' x scs) (sc M.!? var)
-    getVar' _ [] = undefined
+getVar var (sc : scs) = fromMaybe (getVar var scs) (sc M.!? var)
 getVar _ [] = undefined
 
 addVar :: Identifier -> IValue -> Env -> Env
-addVar x val ((sc : scs) : fs) = (M.insert x val sc : scs) : fs
-addVar x val ([] : fs) = [M.singleton x val] : fs
-addVar x val [] = [[M.singleton x val]]
+addVar x val (sc : scs) = M.insert x val sc : scs
+addVar x val [] = [M.singleton x val]
 
 pushScope :: Env -> Env
-pushScope (scs : fs) = (M.empty : scs) : fs
-pushScope [] = [[M.empty]]
+pushScope = (M.empty :)
 
 popScope :: Env -> Env
-popScope ((_ : scs) : fs) = scs : fs
-popScope ([] : fs) = fs
-popScope [] = []
-
-pushFrame :: Env -> Env
-pushFrame = ([] :)
-
-popFrame :: Env -> Env
-popFrame = tail
+popScope = tail

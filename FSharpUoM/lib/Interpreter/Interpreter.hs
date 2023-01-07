@@ -4,17 +4,11 @@ module Interpreter.Interpreter where
 
 import Ast
 import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT)
-import Control.Monad.State (MonadState (get, put), State, gets, modify, runState, void)
-import Data.List.Extra (unsnoc)
-import qualified Data.Map as M
+import Control.Monad.State (MonadState (get), State, evalState, gets, modify, runState, void)
+import Data.List.Extra (uncons, unsnoc)
 import Data.Maybe (fromJust)
 import Interpreter.Runtime
 import Numeric.IEEE (nan)
-
--- data Value where
---   VInt :: Integer -> Value
---   VDouble :: Double -> Value
---   VClo :: Identifier -> Expr -> Env -> Value
 
 type Interp a = ExceptT InterpError (State Env) a
 
@@ -22,7 +16,6 @@ data InterpError = DivisionByZero | Unreachable deriving (Show)
 
 interp :: Program -> String
 interp (Program stmts) = show $ flip runState [] $ runExceptT $ do
-  put [[]]
   modify pushScope
   let (xs, x) = fromJust $ unsnoc stmts
   mapM_ statementI xs
@@ -134,22 +127,17 @@ compExprI l r op = do
 applicationI :: Expr -> Expr -> Interp IValue
 applicationI func arg = do
   (params, body) <- funcI func
+  let (p, ps) = fromJust $ uncons params
   arg' <- exprI arg
-  case params of
-    [p] -> do
-      modify $ addVar p arg' . pushScope . pushFrame
-      res <- blockI body
-      modify popFrame
-      return res
-    _ -> do
-      -- let val = case arg' of
-      --       IVBool v -> VBool v
-      --       IVInt v -> VInt v Nothing
-      --       IVDouble v -> VDouble v Nothing
-      --       IVFun args block -> VFun ((,Nothing) <$> args) block
-      -- let expr = EValue val
-      -- replace arg in func' with expr
-      undefined
+  let val = EValue $ case arg' of
+        IVBool v -> VBool v
+        IVInt v -> VInt v Nothing
+        IVDouble v -> VDouble v Nothing
+        IVFun args block -> VFun $ Fun ((,Nothing) <$> args) block
+  let body' = evalState (replaceBody p val body) [False]
+  if null ps
+    then blockI body'
+    else return $ IVFun ps body'
   where
     funcI expr = do
       v <- exprI expr
@@ -157,16 +145,56 @@ applicationI func arg = do
         IVFun a b -> return (a, b)
         _ -> throwError Unreachable
 
---   replace ident argExpr stmt = stmt' -- VarDecl (identifier) (replace _ _ <$> stmts)
---   replace ident argExpr exp = case exp of
---     (EIdentifier _) -> argExpr -- EIdenttifier ---> argExpr
---     (EValue x) -> EValue x
---     (EOperations (BooleanOp x)) -> EOperations $ BooleanOp (replace ident argExpr $ bL x) (replace ident argExpr <$> bR x)
+    replaceBody :: Identifier -> Expr -> [Expr] -> State [Bool] [Expr]
+    replaceBody p val exprs = do
+      modify (False :)
+      res <- mapM (replaceExpr p val) exprs
+      modify tail
+      return res
 
--- (EValue (VFun xs st)) -> VFun (xs) (replace ident argExpr <$> st)
-
--- snachala sdelat bez etogo, potom s etim
--- redecl identifier
+    replaceExpr :: Identifier -> Expr -> Expr -> State [Bool] Expr
+    replaceExpr p val expr = do
+      ctx <- get
+      if all not ctx
+        then case expr of
+          (EIdentifier x) | x == p -> return val
+          (EIdentifier _) -> return expr
+          (EValue (VFun (Fun args fbody))) -> do
+            body <- replaceBody p val fbody
+            return $ EValue (VFun (Fun args body))
+          (EValue _) -> return expr
+          (EOperations (BooleanOp op)) -> do
+            bL' <- replaceExpr p val (bL op)
+            bR' <- replaceExpr p val (bR op)
+            return $ EOperations $ BooleanOp $ op {bL = bL', bR = bR'}
+          (EOperations (NotOp e)) -> do
+            e' <- replaceExpr p val e
+            return $ EOperations $ NotOp e'
+          (EOperations (ArithmeticOp op)) -> do
+            aL' <- replaceExpr p val (aL op)
+            aR' <- replaceExpr p val (aR op)
+            return $ EOperations $ ArithmeticOp $ op {aL = aL', aR = aR'}
+          (EOperations (ComparisonOp op)) -> do
+            cL' <- replaceExpr p val (cL op)
+            cR' <- replaceExpr p val (cR op)
+            return $ EOperations $ ComparisonOp $ op {cL = cL', cR = cR'}
+          (EApplication func arg) -> EApplication <$> replaceExpr p val func <*> replaceExpr p val arg
+          (EIf cond thenB elseB) -> EIf <$> replaceExpr p val cond <*> replaceBody p val thenB <*> replaceBody p val elseB
+          (ELetInV (var, t) xdef body) -> do
+            if var == p then modify (True :) else modify (False :)
+            xdef' <- replaceBody p val xdef
+            body' <- replaceBody p val body
+            modify tail
+            return $ ELetInV (var, t) xdef' body'
+          (ELetInF func (Fun params fbody) body) -> do
+            if func == p then modify (True :) else modify (False :)
+            if p `elem` (fst <$> params) then modify (True :) else modify (False :)
+            fbody' <- replaceBody p val fbody
+            modify tail
+            body' <- replaceBody p val body
+            modify tail
+            return $ ELetInF func (Fun params fbody') body'
+        else return expr
 
 ifI :: Expr -> [Expr] -> [Expr] -> Interp IValue
 ifI cond thenB elseB = do
@@ -190,7 +218,6 @@ letInFI func xdef body = do
   modify popScope
   return res
 
--- TODO : Add scopes
 blockI :: [Expr] -> Interp IValue
 blockI exprs = do
   modify pushScope
@@ -206,5 +233,3 @@ boolExprI expr = do
   case v of
     IVBool b -> return b
     _ -> throwError Unreachable
-
--- let x = 3 in x; x
