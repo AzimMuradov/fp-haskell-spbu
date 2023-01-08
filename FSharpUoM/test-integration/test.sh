@@ -26,7 +26,7 @@ tests=`ls *.fs | sed 's/\.fs$//'`
 cd ../..
 
 for test in $tests; do
-    cat test-integration/tests/${test}.fs | cabal run --verbose=0 > test-integration/tests/${test}.res
+    cabal run FSharpUoMExec --verbose=0 -- -f test-integration/tests/${test}.fs > test-integration/tests/${test}.res
     
     diff test-integration/tests/${test}.res test-integration/tests/${test}.out &>/dev/null
     
