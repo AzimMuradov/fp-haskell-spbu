@@ -11,13 +11,14 @@ module TypeInference.PrettyPrint where
 import Control.Unification hiding (applyBindings, (=:=))
 import Control.Unification.IntVar
 import Data.Functor.Fixedpoint
-import Data.List (partition, sortBy)
+import Data.List (partition)
 import qualified Data.Map as M
-import Data.Ord (comparing)
+import Data.Ord (Down (Down))
 import Data.Text (unpack)
 import Text.Printf
 import TypeInference.HindleyMilner
 import Prelude hiding (lookup)
+import Data.List.Extra (sortOn)
 
 type Prec = Int
 
@@ -34,15 +35,15 @@ instance Pretty (t (Fix t)) => Pretty (Fix t) where
 instance Pretty t => Pretty (HType t) where
   prettyPrec _ (TyMeasureF x) = pp pos <> (if not (null neg) then "/(" <> pp neg <> ")" else "")
     where
-      (pos, neg) = partition (\e -> snd e >= 0) ((sortBy $ flip $ comparing snd) (M.toList x))
+      (pos, neg) = partition (\e -> snd e >= 0) (sortOn (Down . snd) (M.toList x))
       pp lst = unwords ((\s -> unpack (fst s) <> if abs (snd s) > 1 then "^" <> show (snd s) else "") <$> lst)
   prettyPrec _ (TyVarF x) = unpack x
   prettyPrec _ TyBoolF = "bool"
   prettyPrec _ (TyIntF m) =
-    let measure = prettyPrec 0 m
+    let measure = pretty m
      in if measure /= "" then "int<" <> measure <> ">" else "int"
   prettyPrec _ (TyDoubleF m) =
-    let measure = prettyPrec 0 m
+    let measure = pretty m
      in if measure /= "" then "double<" <> measure <> ">" else "double"
   prettyPrec p (TyFunF ty1 ty2) =
     mparens (p > 0) $ prettyPrec 1 ty1 ++ " -> " ++ prettyPrec 0 ty2

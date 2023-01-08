@@ -49,7 +49,8 @@ library
         TypeInference.Runtime,
         TypeInference.TIRealization,
         Interpreter.Interpreter,
-        Interpreter.Runtime
+        Interpreter.Runtime,
+        Interpreter.PrettyPrint
 
     build-depends:
         megaparsec >=9.2.1,
@@ -67,10 +68,6 @@ executable FSharpUoMExec
     import: shared-properties
 
     main-is: Main.hs
-
-    -- other-modules:
-    --     TypeInference.Runtime,
-    --     TypeInference.PrettyPrint
 
     build-depends:
         FSharpUoM,

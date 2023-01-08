@@ -8,21 +8,17 @@
 
 module TypeInference.TIRealization where
 
-import Parser.Ast
 import Control.Monad.Except
+import Control.Unification (UTerm (UVar))
 import qualified Data.Map as M
 import Data.Maybe
+import Parser.Ast
 import TypeInference.HindleyMilner
 import Prelude hiding (lookup)
 
 check :: Expr -> UType -> Infer UType
 check e ty = do
   ty' <- inferSingle e
-  ty =:= ty'
-
-checkStatement :: [Statement] -> UType -> Infer UType
-checkStatement st ty = do
-  ty' <- inferStatement st
   ty =:= ty'
 
 helpInferStatements :: [Statement] -> Infer UType -> Infer UType
@@ -98,7 +94,7 @@ inferSingle (EOperations (NotOp x)) = do
   _ <- check x UTyBool
   return UTyBool
 inferSingle (EOperations (BooleanOp x)) = booleanOpInfer (bL x) (bR x)
-inferSingle (EOperations (ComparisonOp x)) = booleanOpInfer (cL x) (cR x)
+inferSingle (EOperations (ComparisonOp x)) = comparationOpInfer (cL x) (cR x)
 inferSingle (EOperations (ArithmeticOp x)) =
   case x of
     (PlusOp l r) -> simpleArithmeticOpInfer l r
@@ -114,6 +110,7 @@ inferSingle (EOperations (ArithmeticOp x)) =
         (UTyDouble m1, UTyDouble m2) -> do
           t <- mulM m1 m2
           return $ UTyDouble t
+        (UVar _, UVar _) -> t1 =:= t2
         (UTyInt _, _) -> t1 =:= t2
         (_, UTyInt _) -> t1 =:= t2
         (UTyDouble _, _) -> t1 =:= t2
@@ -129,6 +126,7 @@ inferSingle (EOperations (ArithmeticOp x)) =
         (UTyDouble m1, UTyDouble m2) -> do
           t <- divM m1 m2
           return $ UTyDouble t
+        (UVar _, UVar _) -> t1 =:= t2
         (UTyInt _, _) -> t1 =:= t2
         (_, UTyInt _) -> t1 =:= t2
         (UTyDouble _, _) -> t1 =:= t2
@@ -142,6 +140,10 @@ inferSingle (EOperations (ArithmeticOp x)) =
           if null m1 && null m2
             then return $ UTyDouble $ UTyMeasure m1
             else throwError $ ImpossibleOpApplication t1 t2
+        (UTyDouble (UTyMeasure m1), UTyInt (UTyMeasure m2)) ->
+          if null m1 && null m2
+            then return $ UTyDouble $ UTyMeasure m1
+            else throwError $ ImpossibleOpApplication t1 t2
         (UTyDouble (UTyMeasure m1), _) ->
           if null m1
             then t1 =:= t2
@@ -150,6 +152,7 @@ inferSingle (EOperations (ArithmeticOp x)) =
           if null m1
             then t1 =:= t2
             else throwError $ ImpossibleOpApplication t1 t2
+        (UVar _, UVar _) -> t1 =:= t2
         _ -> throwError $ ImpossibleOpApplication t1 t2
 inferSingle (ELetInV (x, Just pty) xdef body) = do
   let upty = toUPolytype (Forall [] $ toTypeF pty)
@@ -188,10 +191,19 @@ booleanOpInfer e1 e2 = do
   t1 <- inferSingle e1
   t2 <- inferSingle e2
   case (t1, t2) of
+    (UTyBool, UTyBool) -> return UTyBool
+    _ -> throwError $ ImpossibleOpApplication t1 t2
+
+comparationOpInfer :: Expr -> Expr -> Infer UType
+comparationOpInfer e1 e2 = do
+  t1 <- inferSingle e1
+  t2 <- inferSingle e2
+  case (t1, t2) of
     (UTyInt _, _) -> booleanOpHelper t1 t2
     (_, UTyInt _) -> booleanOpHelper t1 t2
     (UTyDouble _, _) -> booleanOpHelper t1 t2
     (_, UTyDouble _) -> booleanOpHelper t1 t2
+    (UTyBool, UTyBool) -> return UTyBool
     _ -> throwError $ ImpossibleOpApplication t1 t2
 
 booleanOpHelper :: UType -> UType -> Infer UType

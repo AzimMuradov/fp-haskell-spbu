@@ -14,7 +14,6 @@
 
 module TypeInference.HindleyMilner where
 
-import Parser.Ast
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Unification hiding (applyBindings, (=:=))
@@ -30,6 +29,7 @@ import Data.Set (Set, (\\))
 import qualified Data.Set as S
 import Data.Text (pack)
 import GHC.Generics (Generic1)
+import Parser.Ast
 import Prelude hiding (lookup)
 
 type MeasureV = Map Identifier Integer
@@ -117,9 +117,6 @@ sumMaps a b =
   let partA = M.union a b
       partB = M.intersection b a
    in M.foldlWithKey (\acc k v -> M.insert k (acc M.! k + v) acc) partA partB
-
-opWithMeasure :: UType -> UType
-opWithMeasure = undefined
 
 fromMToUM :: MeasureTypeExpr -> UType
 fromMToUM = UTyMeasure . convertMeasure
@@ -243,6 +240,7 @@ skolemize (Forall xs uty) = do
   return $ substU (M.fromList (zip (map Left xs) (map toSkolem xs'))) uty
   where
     toSkolem (UVar v) = UTyVar (mkVarName "s" v)
+    toSkolem _ = undefined -- We can't reach another situation, because we previously give `fresh` variable
 
 mkVarName :: String -> IntVar -> Identifier
 mkVarName nm (IntVar v) = pack (nm ++ show (v + (maxBound :: Int) + 1))
