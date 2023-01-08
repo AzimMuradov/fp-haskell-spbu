@@ -8,13 +8,13 @@
 
 module TypeInference.Runtime where
 
-import Parser.Ast (Statement)
 import Control.Category ((>>>))
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Unification.IntVar (evalIntBindingT)
 import Data.Functor.Identity (Identity (runIdentity))
 import qualified Data.Map as M
+import Parser.Ast (Statement)
 import TypeInference.HindleyMilner
   ( Infer,
     Polytype,

@@ -12,13 +12,13 @@ import Control.Unification hiding (applyBindings, (=:=))
 import Control.Unification.IntVar
 import Data.Functor.Fixedpoint
 import Data.List (partition)
+import Data.List.Extra (sortOn)
 import qualified Data.Map as M
 import Data.Ord (Down (Down))
 import Data.Text (unpack)
 import Text.Printf
 import TypeInference.HindleyMilner
 import Prelude hiding (lookup)
-import Data.List.Extra (sortOn)
 
 type Prec = Int
 

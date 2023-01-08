@@ -23,10 +23,14 @@ data MeasureDecl = MeasureDecl Identifier (Maybe MeasureTypeExpr) deriving (Show
 
 data Statement
   = SExpr Expr
-  | SMeasureDecl MeasureDecl --                       ( [<Measure>] type m           )
-  | SVarDecl VarDecl --                               ( let x = 5                    )
-  | SFunDecl FunDecl --                               ( let f x y = x + y            )
-  | SRecFunDecl RecFunDecl --                         ( let rec f x y = f x 1 + f 1 y)
+  | SMeasureDecl MeasureDecl 
+-- | ( [<Measure>] type m )
+  | SVarDecl VarDecl 
+-- | ( let x = 5 )
+  | SFunDecl FunDecl 
+-- | ( let f x y = x + y )
+  | SRecFunDecl RecFunDecl 
+-- ( let rec f x y = f x 1 + f 1 y)
   deriving (Show, Eq)
 
 -- * Expressions
@@ -77,7 +81,8 @@ data Value
   | VFun Fun
   deriving (Show, Eq)
 
-data Fun = Fun [(Identifier, Maybe Type)] [Expr] deriving (Show, Eq) -- ( fun x y -> x + y )
+data Fun = Fun [(Identifier, Maybe Type)] [Expr] deriving (Show, Eq) 
+-- | ( fun x y -> x + y )
 
 -- * Operators
 
