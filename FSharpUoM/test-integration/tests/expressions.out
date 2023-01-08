@@ -1,0 +1,4 @@
+val v: int = 7
+val it: int = -150
+val it: double = 20736.0
+The type 'int' does not match the type 'bool'

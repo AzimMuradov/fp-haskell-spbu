@@ -1,0 +1,11 @@
+Duplicate definition of value 'x'
+Duplicate definition of value 'x'
+Duplicate definition of measure type 'm'
+Unbound variable 'y'
+Unbound variable 'f'
+Measure 'm' do not define
+It is not possible to apply this operation between 'int' and 'bool'
+The type 'int' does not match the type 'double'
+The type 'double<m>' does not match the type 'int<m>'
+The type 'm' does not match the type 'cm'
+The type 'cm m' does not match the type 'm'

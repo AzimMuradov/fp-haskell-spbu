@@ -1,0 +1,13 @@
+val it: int = 26
+val it: int = -16
+val it: int = 105
+val it: int = 4
+val it: int = 1
+It is not possible to apply this operation between 'int' and 'int'
+val it: double = 25.0
+val it: bool = False
+val it: bool = True
+val it: bool = True
+val it: bool = True
+val it: bool = False
+val it: bool = True
