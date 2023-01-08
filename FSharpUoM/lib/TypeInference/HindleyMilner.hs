@@ -40,7 +40,6 @@ data HType a
   | TyIntF a
   | TyDoubleF a
   | TyFunF a a
-  | MPureF
   | TyMeasureF MeasureV
   deriving (Show, Eq, Functor, Foldable, Traversable, Generic1, Unifiable)
 
@@ -64,9 +63,6 @@ pattern TyMeasure m = Fix (TyMeasureF m)
 pattern TyInt :: TypeF -> TypeF
 pattern TyInt x = Fix (TyIntF x)
 
-pattern MPure :: TypeF
-pattern MPure = Fix MPureF
-
 pattern TyDouble :: TypeF -> TypeF
 pattern TyDouble x = Fix (TyDoubleF x)
 
@@ -85,9 +81,6 @@ pattern UTyMeasure m = UTerm (TyMeasureF m)
 pattern UTyInt :: UType -> UType
 pattern UTyInt x = UTerm (TyIntF x)
 
-pattern UMPure :: UType
-pattern UMPure = UTerm MPureF
-
 pattern UTyDouble :: UType -> UType
 pattern UTyDouble x = UTerm (TyDoubleF x)
 
@@ -102,10 +95,10 @@ toTypeF x = case x of
   TBool -> Fix TyBoolF
   (TInt measure) -> case measure of
     Just m -> Fix (TyIntF $ fromMToF m)
-    Nothing -> Fix (TyIntF MPure)
+    Nothing -> Fix (TyIntF $ TyMeasure M.empty)
   (TDouble measure) -> case measure of
     Just m -> Fix (TyDoubleF $ fromMToF m)
-    Nothing -> Fix (TyDoubleF MPure)
+    Nothing -> Fix (TyDoubleF $ TyMeasure M.empty)
   (TFun t1 t2) -> Fix $ TyFunF (toTypeF t1) (toTypeF t2)
 
 fromMToF :: MeasureTypeExpr -> TypeF
@@ -213,7 +206,6 @@ data TypeError where
   DuplicateMeasureDifinition :: Identifier -> TypeError
   UnboundVar :: Identifier -> TypeError
   UnboundMeasure :: Identifier -> TypeError
-  MeasureMismatch :: MeasureV -> MeasureV -> TypeError
   Infinite :: IntVar -> UType -> TypeError
   ImpossibleOpApplication :: UType -> UType -> TypeError
   Mismatch :: HType UType -> HType UType -> TypeError
