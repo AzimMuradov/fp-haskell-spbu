@@ -8,7 +8,7 @@
 
 module TypeInference.Runtime where
 
-import Ast (Statement)
+import Parser.Ast (Statement)
 import Control.Category ((>>>))
 import Control.Monad.Except
 import Control.Monad.Reader

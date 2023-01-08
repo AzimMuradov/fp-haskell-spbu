@@ -8,7 +8,7 @@
 
 module TypeInference.TIRealization where
 
-import Ast
+import Parser.Ast
 import Control.Monad.Except
 import qualified Data.Map as M
 import Data.Maybe

@@ -1,15 +1,17 @@
 module Main where
 
-import qualified Ast
+import qualified Parser.Ast as Ast
 import Data.Text (Text, dropWhileEnd, isSuffixOf, pack, splitOn, strip, unlines, unpack)
 import Data.Void (Void)
 import Options.Applicative
-import Parser (parse, fileP, programP)
+import Parser.Parser (parse, fileP, programP)
 import System.IO (hFlush, stdout)
 import Prelude hiding (concat, unlines)
 
 import TypeInference.Runtime
 import TypeInference.PrettyPrint
+
+import Interpreter.Interpreter (interp)
 
 -- * Main
 
@@ -56,22 +58,32 @@ runApp (App i) = runApp' i
     runApp' :: Input -> IO ()
     runApp' (FileInput path) = do
       text <- readFile path
-      mapM_ putStrLn (eval <$> sequence (parse fileP (pack text)))
+      mapM_ putStrLn (eval' <$> sequence (parse fileP (pack text)))
     runApp' StdInput =
       let repl lines = do
             putStr "> " >> hFlush stdout
             line <- getLine
             let lineText = pack line
             if pack ";;" `isSuffixOf` strip lineText
-              then putStrLn (eval . parse programP $ unlines $ reverse (dropWhileEnd (== ';') lineText : lines)) >> repl []
+              then putStrLn (eval' . parse programP $ unlines $ reverse (dropWhileEnd (== ';') lineText : lines)) >> repl []
               else repl (lineText : lines)
        in repl []
 
-
-eval :: Maybe Ast.Program -> String
-eval s = case s of
+eval' :: Maybe Ast.Program -> String
+eval' s = case s of
   Nothing -> "Please, try again. Can't parse your program."
-  Just (Ast.Program p) -> case inferPolytype p of
+  Just st@(Ast.Program p) -> case inferPolytype p of
+    Left tyerr -> pretty tyerr
+    Right ty -> "val it: " <> pretty ty <> " = " <> interp st
+
+
+interpret :: Maybe Ast.Program -> String
+interpret s = case s of
+  Nothing -> "Please, try again. Can't parse your program."
+  Just p -> interp p 
+
+eval :: Ast.Program -> String
+eval (Ast.Program p) = case inferPolytype p of
     Left tyerr -> pretty tyerr
     Right ty -> show p ++ " : " ++ pretty ty
 

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lexer where
+module Parser.Lexer where
 
 import Control.Applicative.Combinators (between)
 import Data.Text (Text)

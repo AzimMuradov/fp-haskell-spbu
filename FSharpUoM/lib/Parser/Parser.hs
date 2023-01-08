@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser where
+module Parser.Parser where
 
-import Ast
+import Parser.Ast
 import Control.Monad.Combinators.Expr (Operator (..), makeExprParser)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
-import Lexer
+import Parser.Lexer
 import Text.Megaparsec (MonadParsec (..), many, optional, parseMaybe, sepBy1, some, (<|>), sepEndBy1)
 import Text.Megaparsec.Char (char, digitChar, letterChar)
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -32,9 +32,9 @@ statementP =
   choice'
     [ SMeasureDecl <$> measureP,
       SExpr <$> exprP,
-      SVarDecl <$> varP,
       SRecFunDecl <$> recFunP,
-      SFunDecl <$> funP
+      SFunDecl <$> funP,
+      SVarDecl <$> varP
     ]
 
 -- ** DeclarationSection

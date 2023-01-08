@@ -1,6 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 
-module Ast where
+module Parser.Ast where
 
 import Data.Text (Text)
 

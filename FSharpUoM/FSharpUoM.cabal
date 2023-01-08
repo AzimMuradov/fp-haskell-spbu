@@ -41,9 +41,9 @@ library
     import: shared-properties
 
     exposed-modules:
-        Ast,
-        Parser,
-        Lexer,
+        Parser.Ast,
+        Parser.Parser,
+        Parser.Lexer,
         TypeInference.HindleyMilner,
         TypeInference.PrettyPrint,
         TypeInference.Runtime,

@@ -2,7 +2,7 @@
 
 module Interpreter.Runtime where
 
-import Ast (Expr, Identifier)
+import Parser.Ast (Expr, Identifier)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)

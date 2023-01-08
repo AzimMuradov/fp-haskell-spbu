@@ -14,7 +14,7 @@
 
 module TypeInference.HindleyMilner where
 
-import Ast
+import Parser.Ast
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Unification hiding (applyBindings, (=:=))

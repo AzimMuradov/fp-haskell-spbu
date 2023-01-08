@@ -40,10 +40,10 @@ instance Pretty t => Pretty (HType t) where
   prettyPrec _ TyBoolF = "bool"
   prettyPrec _ (TyIntF m) =
     let measure = prettyPrec 0 m
-     in if measure /= "non measure type" then "int<" <> measure <> ">" else "int"
+     in if measure /= "" then "int<" <> measure <> ">" else "int"
   prettyPrec _ (TyDoubleF m) =
     let measure = prettyPrec 0 m
-     in if measure /= "non measure type" then "double<" <> measure <> ">" else "double"
+     in if measure /= "" then "double<" <> measure <> ">" else "double"
   prettyPrec p (TyFunF ty1 ty2) =
     mparens (p > 0) $ prettyPrec 1 ty1 ++ " -> " ++ prettyPrec 0 ty2
 
@@ -71,4 +71,6 @@ instance Pretty TypeError where
   pretty (UnboundVar x) = printf "Unbound variable '%s'" (unpack x)
   pretty (UnboundMeasure x) = printf "Measure '%s' do not define" (unpack x)
   pretty (Infinite x ty) = printf "Infinite type %s = %s" (pretty x) (pretty ty)
-  pretty (Mismatch ty1 ty2) = printf "The type '%s' does not match the type '%s'" (pretty ty1) (pretty ty2)
+  pretty (Mismatch ty1 ty2) = printf "The type '%s' does not match the type '%s'" (pphelper $ pretty ty1) (pphelper $ pretty ty2)
+    where
+      pphelper s = if s /= "" then s else "non measure"

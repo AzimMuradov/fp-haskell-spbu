@@ -2,7 +2,7 @@
 
 module Interpreter.Interpreter where
 
-import Ast
+import Parser.Ast
 import Control.Monad.Except (ExceptT, MonadError (throwError), runExceptT)
 import Control.Monad.State (MonadState (get), State, evalState, gets, modify, runState, void)
 import Data.List.Extra (uncons, unsnoc)
