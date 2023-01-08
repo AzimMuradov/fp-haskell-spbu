@@ -11,8 +11,6 @@ import Text.Megaparsec (MonadParsec (..), many, optional, parseMaybe, sepBy1, so
 import Text.Megaparsec.Char (char, digitChar, letterChar)
 import qualified Text.Megaparsec.Char.Lexer as L
 
--- TODO : Fix bug with endless type parser
-
 -- * MainSection
 
 -- | Parser entry point
@@ -82,7 +80,7 @@ opsTable =
     [arithmeticOp "**" ExpOp],
     [arithmeticOp "*" MulOp, arithmeticOp "/" DivOp, arithmeticOp "%" ModOp],
     [arithmeticOp "+" PlusOp, arithmeticOp "-" MinusOp],
-    [ comparisonOp "==" EqOp,
+    [ comparisonOp "=" EqOp,
       comparisonOp "<>" NeOp,
       comparisonOp "<=" LeOp,
       comparisonOp "<" LtOp,
