@@ -9,9 +9,12 @@ import Data.Maybe (fromJust)
 import Interpreter.Runtime
 import Numeric.IEEE (nan)
 import Parser.Ast
+import Prelude hiding (concat, lines, unlines)
 
 -- * Interpretation state
+
 type Interp a = ExceptT InterpError (State Env) a
+
 data InterpError = DivisionByZero | Unreachable deriving (Show)
 
 -- * Entry point to interpretation
@@ -33,6 +36,7 @@ interp (Program stmts) = fst $ flip runState [] $ runExceptT $ do
   return res
 
 -- * Statements interpreter
+
 statementI :: Statement -> Interp ()
 statementI (SExpr expr) = void $ exprI expr
 statementI (SMeasureDecl _) = return ()
@@ -45,6 +49,7 @@ statementI (SRecFunDecl (RecFunDecl ident xdef)) =
   modify $ addVar ident (convertFunToIValue xdef)
 
 -- * Expressions interpreter
+
 exprI :: Expr -> Interp IValue
 exprI expr = case expr of
   EIdentifier ident -> gets $ getVar ident
@@ -56,6 +61,7 @@ exprI expr = case expr of
   ELetInF func xdef body -> letInFI func xdef body
 
 -- * Value converters
+
 convertValueToIValue :: Value -> IValue
 convertValueToIValue val = case val of
   VBool b -> IVBool b
@@ -67,6 +73,7 @@ convertFunToIValue :: Fun -> IValue
 convertFunToIValue (Fun args block) = IVFun (fst <$> args) block
 
 -- * Operations interpreter
+
 opI :: Operations -> Interp IValue
 opI oper = case oper of
   BooleanOp (AndOp left right) -> do
@@ -131,6 +138,7 @@ opI oper = case oper of
   ComparisonOp (MeOp left right) -> compExprI left right (>=)
 
 -- ** comparation helper interpreter
+
 compExprI :: Expr -> Expr -> (IValue -> IValue -> Bool) -> Interp IValue
 compExprI l r op = do
   l' <- exprI l
@@ -138,11 +146,13 @@ compExprI l r op = do
   return $ IVBool $ op l' r'
 
 -- * Application interpreter
+
 applicationI :: Expr -> Expr -> Interp IValue
 applicationI func arg = do
   (params, body) <- funcI func
   let (p, ps) = fromJust $ uncons params
   arg' <- exprI arg
+
   let val = EValue $ case arg' of
         IVBool v -> VBool v
         IVInt v -> VInt v Nothing
@@ -154,14 +164,15 @@ applicationI func arg = do
     then blockI body'
     else return $ IVFun ps body'
   where
-    -- | Function interpreter
+    -- \| Function interpreter
     funcI expr = do
       v <- exprI expr
       case v of
-        IVFun a b -> return (a, b)
+        IVFun a b -> do
+          return (a, b)
         _ -> throwError Unreachable
 
-    -- | Function body's replacement during application
+    -- \| Function body's replacement during application
     replaceBody :: Identifier -> Expr -> [Expr] -> State [Bool] [Expr]
     replaceBody p val exprs = do
       modify (False :)
@@ -169,7 +180,7 @@ applicationI func arg = do
       modify tail
       return res
 
-    -- | Function body's single expression replacement during application
+    -- \| Function body's single expression replacement during application
     replaceExpr :: Identifier -> Expr -> Expr -> State [Bool] Expr
     replaceExpr p val expr = do
       ctx <- get
@@ -178,6 +189,7 @@ applicationI func arg = do
           (EIdentifier x) | x == p -> return val
           (EIdentifier _) -> return expr
           (EValue (VFun (Fun args fbody))) -> do
+            if p `elem` (fst <$> args) then modify (True :) else modify (False :)
             body <- replaceBody p val fbody
             return $ EValue (VFun (Fun args body))
           (EValue _) -> return expr
@@ -215,12 +227,14 @@ applicationI func arg = do
         else return expr
 
 -- * If expression interpreter
+
 ifI :: Expr -> [Expr] -> [Expr] -> Interp IValue
 ifI cond thenB elseB = do
   c <- boolExprI cond
   blockI $ if c then thenB else elseB
 
 -- * Let expression with variable declaration interpreter
+
 letInVI :: Identifier -> [Expr] -> [Expr] -> Interp IValue
 letInVI var xdef body = do
   modify pushScope
@@ -231,6 +245,7 @@ letInVI var xdef body = do
   return res
 
 -- * Let expression with function declaration interpreter
+
 letInFI :: Identifier -> Fun -> [Expr] -> Interp IValue
 letInFI func xdef body = do
   modify pushScope
@@ -240,6 +255,7 @@ letInFI func xdef body = do
   return res
 
 -- * Full block interpreter
+
 blockI :: [Expr] -> Interp IValue
 blockI exprs = do
   modify pushScope
@@ -250,6 +266,7 @@ blockI exprs = do
   return res
 
 -- * Bool expression helper interpreter
+
 boolExprI :: Expr -> Interp Bool
 boolExprI expr = do
   v <- exprI expr
