@@ -37,7 +37,8 @@ helpInferStatements ((SRecFunDecl (RecFunDecl ident (Fun args body))) : xs) _ = 
   _ <- checkForDuplicate (Var ident)
   preT <- fresh
   next <- withBinding ident (Forall [] preT) $ inferFun args body
-  withBinding ident (Forall [] next) (helpInferStatements xs $ return next)
+  after <- withBinding ident (Forall [] next) $ inferFun args body
+  withBinding ident (Forall [] after) (helpInferStatements xs $ return next)
 helpInferStatements ((SMeasureDecl (MeasureDecl ident mexpr)) : xs) _ = do
   _ <- checkForDuplicate (Measure ident)
   t <- case mexpr of
