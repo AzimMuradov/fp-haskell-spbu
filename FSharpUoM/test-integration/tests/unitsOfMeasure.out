@@ -1,0 +1,6 @@
+[<Measure>]
+type m = m
+val it: int</(sec^-3)> = 116
+val f: int<kg> -> int<kg>
+val Npower: int<joule/(sec)> = 2
+val smt: double<H m> = 2.5598733589551717e8

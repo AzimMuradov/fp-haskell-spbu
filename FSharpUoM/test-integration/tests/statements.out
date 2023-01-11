@@ -1,0 +1,7 @@
+val it: int = 12
+val f: int -> int
+val it: int = 100
+val it: int -> int
+[<Measure>]
+type m = m
+val it: int<m/(sec)> = 3

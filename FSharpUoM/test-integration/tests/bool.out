@@ -1,0 +1,6 @@
+val it: bool = True
+val it: bool = False
+val it: bool = False
+val it: bool = True
+val it: bool = False
+val it: bool = True

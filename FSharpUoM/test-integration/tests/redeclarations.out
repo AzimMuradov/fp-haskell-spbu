@@ -1,0 +1,5 @@
+val it: int = 6
+val it: int = 100
+val it: int = 5
+Duplicate definition of value 'x'
+Duplicate definition of value 'x'
