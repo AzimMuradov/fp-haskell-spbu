@@ -3,8 +3,10 @@ name: build
 on:
   pull_request:
     branches: ["master"]
+    paths-ignore: ["README.md"]
   push:
     branches: ["master", "mini-go"]
+    paths-ignore: ["README.md"]
   workflow_dispatch:
 
 jobs:
